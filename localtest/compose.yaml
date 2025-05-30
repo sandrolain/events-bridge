@@ -1,0 +1,20 @@
+version: "3.8"
+services:
+  nats:
+    image: nats:latest
+    ports:
+      - "4222:4222" # Client connections
+      - "8222:8222" # HTTP monitoring
+    restart: unless-stopped
+    volumes:
+      - ./nats/nats-server.conf:/nats-server.conf
+    command: ["-c", "/nats-server.conf"]
+
+  emqx:
+    image: emqx/emqx:latest
+    ports:
+      - "1883:1883" # MQTT
+      - "8083:8083" # MQTT over WebSocket
+      - "8084:8084" # MQTT over SSL
+      - "18083:18083" # Dashboard
+    restart: unless-stopped

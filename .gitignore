@@ -23,3 +23,13 @@ go.work.sum
 
 # env file
 .env
+
+# temporary files
+tmp/
+
+# OS generated files
+.DS_Store
+
+# IDE specific files
+.idea/
+.vscode/
