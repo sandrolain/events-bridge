@@ -8,7 +8,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan message.Message, err error) {
+func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan message.Message, closeFn func(), err error) {
 	cfg := []*proto.Config{}
 	for k, v := range config {
 		cfg = append(cfg, &proto.Config{
@@ -26,19 +26,42 @@ func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan messag
 	}
 
 	resChan := make(chan message.Message, buffer)
+	stopChan := make(chan struct{})
 
 	go func() {
-		for !p.stopped {
-			streamRes, e := stream.Recv()
-			if e != nil {
-				p.slog.Error("failed to receive input", "error", e)
-				continue
-			}
-			resChan <- &PluginMessage{
-				res: streamRes,
+		for {
+			select {
+			case <-stopChan:
+				close(resChan)
+				return
+			default:
+				if p.stopped {
+					close(resChan)
+					return
+				}
+				streamRes, e := stream.Recv()
+				if e != nil {
+					p.slog.Error("failed to receive input", "error", e)
+					continue
+				}
+				resChan <- &PluginMessage{
+					res: streamRes,
+				}
 			}
 		}
 	}()
 
-	return resChan, nil
+	res = resChan
+	closeFn = func() {
+		// chiude stopChan solo se non è già chiuso
+		select {
+		case <-stopChan:
+			// già chiuso
+		default:
+			// chiusura corretta senza argomenti
+			close(stopChan)
+		}
+	}
+
+	return
 }

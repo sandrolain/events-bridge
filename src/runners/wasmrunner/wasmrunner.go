@@ -32,6 +32,7 @@ type WasmRunner struct {
 	mu        sync.Mutex
 	wasmBytes []byte
 	module    wazero.CompiledModule // opzionale, se vuoi tenere il modulo compilato
+	stopCh    chan struct{}         // canale di stop
 }
 
 // New crea una nuova istanza di WasmRunner
@@ -74,6 +75,7 @@ func New(cfg *RunnerWASMConfig) (runner.Runner, error) {
 		rt:        rt,
 		wasmBytes: wasmBytes,
 		module:    cmod,
+		stopCh:    make(chan struct{}),
 	}, nil
 }
 
@@ -84,9 +86,18 @@ func (w *WasmRunner) Ingest(in <-chan message.Message) (<-chan message.Message, 
 	out := make(chan message.Message)
 	go func() {
 		defer close(out)
-		for msg := range in {
-			if err := w.processMessage(msg, out); err != nil {
-				w.slog.Error("wasm ingest error", "error", err)
+		for {
+			select {
+			case msg, ok := <-in:
+				if !ok {
+					return
+				}
+				if err := w.processMessage(msg, out); err != nil {
+					w.slog.Error("wasm ingest error", "error", err)
+				}
+			case <-w.stopCh:
+				w.slog.Info("wasm runner stopped via stopCh")
+				return
 			}
 		}
 	}()
@@ -132,28 +143,11 @@ func (w *WasmRunner) Close() error {
 	w.slog.Info("closing wasm runner")
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	select {
+	case <-w.stopCh:
+		// già chiuso
+	default:
+		close(w.stopCh)
+	}
 	return w.rt.Close(w.ctx)
-}
-
-// WasmMessage implementa message.Message per i dati processati
-
-type WasmMessage struct {
-	original message.Message
-	data     []byte
-}
-
-func (m *WasmMessage) GetMetadata() (map[string][]string, error) {
-	return m.original.GetMetadata()
-}
-
-func (m *WasmMessage) GetData() ([]byte, error) {
-	return m.data, nil
-}
-
-func (m *WasmMessage) Ack() error {
-	return m.original.Ack()
-}
-
-func (m *WasmMessage) Nak() error {
-	return m.original.Nak()
 }

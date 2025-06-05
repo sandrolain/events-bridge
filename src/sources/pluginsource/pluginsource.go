@@ -19,7 +19,8 @@ type PluginSource struct {
 	slog    *slog.Logger
 	mgr     *plugin.PluginManager
 	plg     *plugin.Plugin
-	c       chan message.Message
+	c       <-chan message.Message
+	close   func()
 	started bool
 }
 
@@ -47,21 +48,19 @@ func (s *PluginSource) Produce(buffer int) (<-chan message.Message, error) {
 		return nil, fmt.Errorf("cannot start plugin %s: %w", s.config.ID, err)
 	}
 	s.slog.Info("starting plugin source", "id", s.config.ID)
-	c, err := s.plg.Source(buffer, s.config.Config)
+	c, closeFn, err := s.plg.Source(buffer, s.config.Config)
 	if err != nil {
 		return nil, err
 	}
-	s.c = nil // non serve assegnare c, è già il canale restituito dal plugin
+	s.c = c
+	s.close = closeFn
 	s.started = true
 	return c, nil
 }
 
 func (s *PluginSource) Close() error {
-	if s.c != nil {
-		close(s.c)
-	}
-	if s.plg != nil {
-		s.plg.Stop()
+	if s.close != nil {
+		s.close()
 	}
 	return nil
 }

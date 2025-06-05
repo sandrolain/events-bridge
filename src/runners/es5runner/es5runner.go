@@ -30,6 +30,7 @@ type ES5Runner struct {
 	program *goja.Program
 	mu      sync.Mutex
 	timeout time.Duration
+	stopCh  chan struct{} // canale di stop
 }
 
 // New crea una nuova istanza di ES5Runner
@@ -63,6 +64,7 @@ func New(cfg *RunnerES5Config) (runner.Runner, error) {
 		slog:    log,
 		program: prog,
 		timeout: timeout,
+		stopCh:  make(chan struct{}),
 	}, nil
 }
 
@@ -72,9 +74,18 @@ func (e *ES5Runner) Ingest(in <-chan message.Message) (<-chan message.Message, e
 	out := make(chan message.Message)
 	go func() {
 		defer close(out)
-		for msg := range in {
-			if err := e.processMessage(msg, out); err != nil {
-				e.slog.Error("es5 ingest error", "error", err)
+		for {
+			select {
+			case msg, ok := <-in:
+				if !ok {
+					return
+				}
+				if err := e.processMessage(msg, out); err != nil {
+					e.slog.Error("es5 ingest error", "error", err)
+				}
+			case <-e.stopCh:
+				e.slog.Info("es5 runner stopped via stopCh")
+				return
 			}
 		}
 	}()
@@ -183,66 +194,13 @@ func (e *ES5Runner) processMessage(msg message.Message, out chan<- message.Messa
 
 func (e *ES5Runner) Close() error {
 	e.slog.Info("closing es5 runner")
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	select {
+	case <-e.stopCh:
+		// già chiuso
+	default:
+		close(e.stopCh)
+	}
 	return nil
-}
-
-// ES5Message implementa message.Message per i dati processati
-// Espone metodi JS-friendly per data e metadata
-
-type ES5Message struct {
-	original message.Message
-	data     []byte
-	metadata map[string][]string
-}
-
-func (m *ES5Message) GetMetadata() (map[string][]string, error) {
-	if m.metadata != nil {
-		return m.metadata, nil
-	}
-	return m.original.GetMetadata()
-}
-
-func (m *ES5Message) SetMetadata(key string, value string) {
-	if m.metadata == nil {
-		orig, _ := m.original.GetMetadata()
-		m.metadata = make(map[string][]string, len(orig))
-		for k, v := range orig {
-			vv := make([]string, len(v))
-			copy(vv, v)
-			m.metadata[k] = vv
-		}
-	}
-	m.metadata[key] = []string{value}
-}
-
-func (m *ES5Message) AddMetadata(key string, value string) {
-	if m.metadata == nil {
-		orig, _ := m.original.GetMetadata()
-		m.metadata = make(map[string][]string, len(orig))
-		for k, v := range orig {
-			vv := make([]string, len(v))
-			copy(vv, v)
-			m.metadata[k] = vv
-		}
-	}
-	m.metadata[key] = append(m.metadata[key], value)
-}
-
-func (m *ES5Message) GetData() ([]byte, error) {
-	if m.data != nil {
-		return m.data, nil
-	}
-	return m.original.GetData()
-}
-
-func (m *ES5Message) SetData(data []byte) {
-	m.data = data
-}
-
-func (m *ES5Message) Ack() error {
-	return m.original.Ack()
-}
-
-func (m *ES5Message) Nak() error {
-	return m.original.Nak()
 }

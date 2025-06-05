@@ -2,6 +2,7 @@ package runners
 
 import (
 	"github.com/sandrolain/events-bridge/src/runners/es5runner"
+	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/runners/wasmrunner"
 )
 
