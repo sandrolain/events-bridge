@@ -1,0 +1,17 @@
+plugins:
+  - name: "example-plugin"
+
+source:
+  type: "plugin"
+  plugin:
+    id: "example-plugin"
+
+target:
+  type: "plugin"
+  plugin:
+    id: "example-plugin"
+
+runner:
+  type: "plugin"
+  plugin:
+    id: "example-plugin"

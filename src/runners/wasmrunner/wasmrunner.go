@@ -7,18 +7,25 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/models"
+	"github.com/sandrolain/events-bridge/src/runners/runner"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
-// Ensure WasmRunner implements models.Runner
-var _ models.Runner = &WasmRunner{}
+// Ensure WasmRunner implements runners.Runner
+var _ runner.Runner = &WasmRunner{}
+
+type RunnerWASMConfig struct {
+	Path     string        `yaml:"path" json:"module_path" validate:"required,filepath"`
+	Function string        `yaml:"function" json:"function" validate:"required"`
+	Timeout  time.Duration `yaml:"timeout" json:"timeout" validate:"required"`
+}
 
 type WasmRunner struct {
-	cfg       *models.RunnerWASMConfig
+	cfg       *RunnerWASMConfig
 	slog      *slog.Logger
 	rt        wazero.Runtime
 	ctx       context.Context
@@ -28,7 +35,7 @@ type WasmRunner struct {
 }
 
 // New crea una nuova istanza di WasmRunner
-func New(cfg *models.RunnerWASMConfig) (models.Runner, error) {
+func New(cfg *RunnerWASMConfig) (runner.Runner, error) {
 	if cfg.Path == "" {
 		return nil, fmt.Errorf("wasm module path is required")
 	}

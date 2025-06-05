@@ -26,6 +26,7 @@ func New(cfg *TargetMQTTConfig) (target.Target, error) {
 	return &MQTTTarget{
 		config: cfg,
 		slog:   slog.Default().With("context", "MQTT"),
+		stopCh: make(chan struct{}),
 	}, nil
 }
 
@@ -33,6 +34,7 @@ type MQTTTarget struct {
 	slog    *slog.Logger
 	config  *TargetMQTTConfig
 	stopped bool
+	stopCh  chan struct{}
 	client  mqtt.Client
 }
 
@@ -55,14 +57,21 @@ func (t *MQTTTarget) Consume(c <-chan message.Message) error {
 	t.slog.Info("MQTT target connected", "address", t.config.Address, "topic", t.config.Topic)
 
 	go func() {
-		for !t.stopped {
-			msg := <-c
-			err := t.publish(msg)
-			if err != nil {
-				msg.Nak()
-				t.slog.Error("error publishing MQTT message", "err", err)
-			} else {
-				msg.Ack()
+		for {
+			select {
+			case <-t.stopCh:
+				return
+			case msg, ok := <-c:
+				if !ok {
+					return
+				}
+				err := t.publish(msg)
+				if err != nil {
+					msg.Nak()
+					t.slog.Error("error publishing MQTT message", "err", err)
+				} else {
+					msg.Ack()
+				}
 			}
 		}
 	}()
@@ -101,6 +110,9 @@ func (t *MQTTTarget) publish(msg message.Message) error {
 
 func (t *MQTTTarget) Close() error {
 	t.stopped = true
+	if t.stopCh != nil {
+		close(t.stopCh)
+	}
 	if t.client != nil && t.client.IsConnected() {
 		t.client.Disconnect(250)
 	}

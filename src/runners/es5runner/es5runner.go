@@ -13,14 +13,19 @@ import (
 	"github.com/dop251/goja"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/models"
+	"github.com/sandrolain/events-bridge/src/runners/runner"
 )
 
 // Assicura che ES5Runner implementi models.Runner
-var _ models.Runner = &ES5Runner{}
+var _ runner.Runner = &ES5Runner{}
+
+type RunnerES5Config struct {
+	Path    string        `yaml:"path" json:"path" validate:"omitempty,filepath"`
+	Timeout time.Duration `yaml:"timeout" json:"timeout" validate:"required"`
+}
 
 type ES5Runner struct {
-	cfg     *models.RunnerES5Config
+	cfg     *RunnerES5Config
 	slog    *slog.Logger
 	program *goja.Program
 	mu      sync.Mutex
@@ -28,7 +33,7 @@ type ES5Runner struct {
 }
 
 // New crea una nuova istanza di ES5Runner
-func New(cfg *models.RunnerES5Config) (models.Runner, error) {
+func New(cfg *RunnerES5Config) (runner.Runner, error) {
 	if cfg.Path == "" {
 		return nil, fmt.Errorf("js program path is required")
 	}

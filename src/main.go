@@ -8,13 +8,17 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
 	"github.com/sandrolain/events-bridge/src/models"
+	"github.com/sandrolain/events-bridge/src/plugin"
+	"github.com/sandrolain/events-bridge/src/runners"
 	"github.com/sandrolain/events-bridge/src/runners/es5runner"
+	"github.com/sandrolain/events-bridge/src/runners/runner"
 	"github.com/sandrolain/events-bridge/src/runners/wasmrunner"
 	"github.com/sandrolain/events-bridge/src/sources"
 	"github.com/sandrolain/events-bridge/src/sources/coapsource"
 	"github.com/sandrolain/events-bridge/src/sources/httpsource"
 	"github.com/sandrolain/events-bridge/src/sources/mqttsource"
 	"github.com/sandrolain/events-bridge/src/sources/natssource"
+	"github.com/sandrolain/events-bridge/src/sources/pluginsource"
 	"github.com/sandrolain/events-bridge/src/sources/source"
 	"github.com/sandrolain/events-bridge/src/targets"
 	"github.com/sandrolain/events-bridge/src/targets/coaptarget"
@@ -53,7 +57,7 @@ func main() {
 	}
 
 	var source source.Source
-	var runner models.Runner
+	var runner runner.Runner
 	var target target.Target
 
 	switch cfg.Source.Type {
@@ -69,6 +73,14 @@ func main() {
 	case sources.SourceTypeNATS:
 		slog.Info("using NATS source", "address", cfg.Source.NATS.Address, "subject", cfg.Source.NATS.Subject, "queueGroup", cfg.Source.NATS.QueueGroup)
 		source, err = natssource.New(cfg.Source.NATS)
+	case sources.SourceTypePlugin:
+		slog.Info("using Plugin source", "path", cfg.Source.Plugin.ID)
+		mng, err := plugin.GetPluginManager()
+		if err != nil {
+			slog.Error("failed to get plugin manager", "error", err)
+			os.Exit(1)
+		}
+		source, err = pluginsource.New(mng, cfg.Source.Plugin)
 	default:
 		slog.Error("unsupported source type", "type", cfg.Source.Type)
 		os.Exit(1)
@@ -99,10 +111,10 @@ func main() {
 	defer target.Close()
 
 	switch cfg.Runner.Type {
-	case models.RunnerTypeWASM:
+	case runners.RunnerTypeWASM:
 		slog.Info("using WASM runner", "path", cfg.Runner.WASM.Path)
 		runner, err = wasmrunner.New(cfg.Runner.WASM)
-	case models.RunnerTypeES5:
+	case runners.RunnerTypeES5:
 		slog.Info("using ES5 runner", "path", cfg.Runner.ES5.Path)
 		runner, err = es5runner.New(cfg.Runner.ES5)
 	default:

@@ -36,6 +36,7 @@ func New(cfg *TargetCoAPConfig) (target.Target, error) {
 		config:  cfg,
 		slog:    slog.Default().With("context", "COAP"),
 		stopped: false,
+		stopCh:  make(chan struct{}),
 	}
 	return t, nil
 }
@@ -44,18 +45,23 @@ type CoAPTarget struct {
 	slog    *slog.Logger
 	config  *TargetCoAPConfig
 	stopped bool
+	stopCh  chan struct{}
 }
 
 func (t *CoAPTarget) Consume(c <-chan message.Message) error {
 	go func() {
-		for !t.stopped {
-			msg := <-c
-			err := t.send(msg)
-			if err != nil {
-				msg.Nak()
-				t.slog.Error("error sending coap message", "err", err)
-			} else {
-				msg.Ack()
+		for {
+			select {
+			case <-t.stopCh:
+				return
+			case msg := <-c:
+				err := t.send(msg)
+				if err != nil {
+					msg.Nak()
+					t.slog.Error("error sending coap message", "err", err)
+				} else {
+					msg.Ack()
+				}
 			}
 		}
 	}()
@@ -130,6 +136,9 @@ func (t *CoAPTarget) send(msg message.Message) error {
 
 func (t *CoAPTarget) Close() error {
 	t.stopped = true
+	if t.stopCh != nil {
+		close(t.stopCh)
+	}
 	return nil
 }
 

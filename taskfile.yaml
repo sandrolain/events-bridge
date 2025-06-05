@@ -7,16 +7,22 @@ tasks:
 
   test-http:
     cmds:
-      - viddy curl -X POST -H "Content-Type: application/json" -d '{"test":123}' http://localhost:8080/event
+      - 'viddy curl -X POST -H ''Content-Type: application/json'' -d ''{"test":123}'' ''http://localhost:8080/event'''
 
   test-nats:
     cmds:
       - viddy nats pub event.subject '{"test":123}' --server nats://localhost:4222
 
-  test-mqtt:
+  gen-plugin-proto:
+    dir: ./src/plugin/proto
     cmds:
-      - viddy mosquitto_pub -h localhost -t event/topic -m '{"test":123}'
+      - protoc --proto_path=. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./plugin.proto
 
-  test-kafka:
+  build-testers:
+    dir: ./testers
     cmds:
-      - viddy kafka-console-producer --broker-list localhost:9092 --topic event_topic <<< '{"test":123}'
+      - mkdir -p ./bin
+      - go build -o ./bin/coapsource ./coapsource
+      - go build -o ./bin/coaptarget ./coaptarget
+      - go build -o ./bin/httptarget ./httptarget
+      - go build -o ./bin/plugin ./plugin

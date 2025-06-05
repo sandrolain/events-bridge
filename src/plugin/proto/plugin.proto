@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+option go_package = "github.com/sandrolain/events-bridge/src/plugin/proto;proto";
+
+package eventsbridge.plugin.v1;
+
+// Common
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_STARTUP = 1;
+  STATUS_READY = 3;
+  STATUS_ERROR = 4;
+  STATUS_SHUTDOWN = 5;
+}
+
+enum Result {
+  RESULT_UNSPECIFIED = 0;
+  RESULT_SUCCESS = 1;
+  RESULT_ERROR = 2;
+  RESULT_ASYNC = 3;
+}
+
+message Metadata {
+  string name = 1;
+  string value = 2;
+}
+
+message Config {
+  string name = 1;
+  string value = 2;
+}
+
+// Plugin
+
+service PluginService {
+  rpc Status(StatusReq) returns (StatusRes);
+  rpc Shutdown(ShutdownReq) returns (ShutdownRes);
+  rpc Source(SourceReq) returns (stream PluginMessage);
+  rpc Runner(PluginMessage) returns (PluginMessage);
+  rpc Target(PluginMessage) returns (TargetRes);
+}
+
+message StatusReq {}
+message StatusRes {
+  Status status = 1;
+  optional string error = 2;
+}
+
+message ShutdownReq { optional string wait = 1; }
+message ShutdownRes {}
+
+message PluginMessage {
+  string uuid = 1;
+  repeated Metadata metadata = 2;
+  bytes data = 3;
+}
+
+message TargetRes {}
+
+message SourceReq { repeated Config configs = 1; }

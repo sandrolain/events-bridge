@@ -35,6 +35,7 @@ func New(cfg *TargetHTTPConfig) (res target.Target, err error) {
 		config: cfg,
 		slog:   slog.Default().With("context", "HTTP"),
 		client: client,
+		stopCh: make(chan struct{}),
 	}
 
 	return
@@ -44,19 +45,27 @@ type HTTPTarget struct {
 	slog    *slog.Logger
 	config  *TargetHTTPConfig
 	stopped bool
+	stopCh  chan struct{}
 	client  *fasthttp.Client
 }
 
 func (s *HTTPTarget) Consume(c <-chan message.Message) (err error) {
 	go func() {
-		for !s.stopped {
-			res := <-c
-			err := s.send(res)
-			if err != nil {
-				res.Nak()
-				s.slog.Error("error sending data", "err", err)
-			} else {
-				res.Ack()
+		for {
+			select {
+			case <-s.stopCh:
+				return
+			case res, ok := <-c:
+				if !ok {
+					return
+				}
+				err := s.send(res)
+				if err != nil {
+					res.Nak()
+					s.slog.Error("error sending data", "err", err)
+				} else {
+					res.Ack()
+				}
 			}
 		}
 	}()
@@ -118,5 +127,8 @@ func (s *HTTPTarget) send(result message.Message) (err error) {
 
 func (s *HTTPTarget) Close() (err error) {
 	s.stopped = true
+	if s.stopCh != nil {
+		close(s.stopCh)
+	}
 	return
 }
