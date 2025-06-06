@@ -51,7 +51,7 @@ func (p *PluginManager) Stop() (err error) {
 	return
 }
 
-func (p *PluginManager) CreatePlugin(cfg PluginConfig) (err error) {
+func (p *PluginManager) CreatePlugin(cfg PluginConfig) (plg *Plugin, err error) {
 	p.slog.Info("creating plugin", "id", cfg.Name)
 
 	_, ok := p.plugins[cfg.Name]
@@ -64,11 +64,12 @@ func (p *PluginManager) CreatePlugin(cfg PluginConfig) (err error) {
 
 	p.slog.Info("creating plugin", "id", id, "protocol", cfg.Protocol)
 
-	p.plugins[cfg.Name] = &Plugin{
+	plg = &Plugin{
 		Config: cfg,
 		ID:     id,
 		slog:   p.slog.With("plugin", cfg.Name, "id", id),
 	}
+	p.plugins[cfg.Name] = plg
 
 	return
 }

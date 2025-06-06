@@ -38,7 +38,7 @@ func New(mgr *plugin.PluginManager, cfg *TargetPluginConfig) (target.Target, err
 
 	t := &PluginTarget{
 		config: cfg,
-		slog:   slog.Default().With("context", "PLUGIN-TARGET"),
+		slog:   slog.Default().With("context", "Plugin Target", "name", cfg.Name),
 		mgr:    mgr,
 		plg:    plg,
 		stopCh: make(chan struct{}), // inizializza canale di stop

@@ -25,7 +25,6 @@ type PluginRunner struct {
 	slog   *slog.Logger
 	mgr    *plugin.PluginManager
 	plg    *plugin.Plugin
-	start  bool
 	stopCh chan struct{} // canale di stop
 }
 
@@ -53,13 +52,6 @@ func New(mgr *plugin.PluginManager, cfg *RunnerPluginConfig) (runner.Runner, err
 
 // Ingest riceve i messaggi, li processa tramite il plugin e restituisce i messaggi processati
 func (p *PluginRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	if !p.start {
-		err := p.plg.Start()
-		if err != nil {
-			return nil, fmt.Errorf("cannot start plugin %s: %w", p.cfg.Name, err)
-		}
-		p.start = true
-	}
 	p.slog.Info("starting plugin runner ingest", "id", p.cfg.Name)
 	out := make(chan message.Message)
 	go func() {

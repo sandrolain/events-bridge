@@ -75,9 +75,15 @@ func main() {
 		slog.Info("loading plugins", "count", len(cfg.Plugins))
 		for _, p := range cfg.Plugins {
 			slog.Info("loading plugin", "id", p.Name, "exec", p.Exec)
-			err = plgMan.CreatePlugin(p)
+			plg, err := plgMan.CreatePlugin(p)
 			if err != nil {
 				slog.Error("failed to load plugin", "id", p.Name, "error", err)
+				os.Exit(1)
+			}
+
+			err = plg.Start()
+			if err != nil {
+				slog.Error("failed to start plugin", "id", p.Name, "error", err)
 				os.Exit(1)
 			}
 		}

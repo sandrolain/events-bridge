@@ -23,9 +23,9 @@ type PluginConfig struct {
 	Args     []string      `yaml:"args" json:"args" validate:"omitempty"`
 	Env      []string      `yaml:"env" json:"env" validate:"omitempty"`
 	Protocol string        `yaml:"protocol" json:"protocol" validate:"required,oneof=unix tcp"`
-	Delay    time.Duration `yaml:"delay" json:"delay" default:"1s" validate:"omitempty"`
-	Retry    int           `yaml:"retry" json:"retry" default:"3" validate:"omitempty,gt=0"`
-	Output   bool          `yaml:"output" json:"output" default:"true"`
+	Delay    time.Duration `yaml:"delay" json:"delay" validate:"omitempty"`
+	Retry    int           `yaml:"retry" json:"retry" validate:"omitempty,gt=0"`
+	Output   bool          `yaml:"output" json:"output"`
 }
 
 type Plugin struct {
@@ -74,11 +74,12 @@ func (p *Plugin) Start() (err error) {
 	env = append(env, fmt.Sprintf("PLUGIN_ADDRESS=%s", address))
 	p.cmd.Env = env
 
-	p.slog.Debug("Plugin command", "name", cfg.Name, "exec", "protocol", cfg.Protocol, "exec", cfg.Exec, "args", cfg.Args, "env", env, "address", address)
-
-	var stdout io.ReadCloser
+	p.slog.Debug("Plugin start", "name", cfg.Name, "protocol", cfg.Protocol, "exec", cfg.Exec, "args", cfg.Args, "address", address)
 
 	if cfg.Output {
+		var stdout io.ReadCloser
+		var stderr io.ReadCloser
+
 		stdout, err = p.cmd.StdoutPipe()
 		if err != nil {
 			p.slog.Error("Cannot get stdout pipe", "name", cfg.Name, "err", err)
@@ -90,7 +91,24 @@ func (p *Plugin) Start() (err error) {
 			scanner := bufio.NewScanner(stdout)
 			for !p.stopped && scanner.Scan() {
 				m := scanner.Text()
-				fmt.Printf(`[PLUGIN: %s] %s\n`, cfg.Name, m)
+				//fmt.Printf(`[PLUGIN: %s] %s\n`, cfg.Name, m)
+				slog.Info("[PLUGIN]", "name", cfg.Name, "message", m)
+			}
+		}()
+
+		stderr, err = p.cmd.StderrPipe()
+		if err != nil {
+			p.slog.Error("Cannot get stderr pipe", "name", cfg.Name, "err", err)
+			return
+		}
+
+		go func() {
+			// print the error output of the subprocess
+			scanner := bufio.NewScanner(stderr)
+			for !p.stopped && scanner.Scan() {
+				m := scanner.Text()
+				//fmt.Printf(`[PLUGIN: %s] %s\n`, cfg.Name, m)
+				slog.Error("[PLUGIN]", "name", cfg.Name, "error", m)
 			}
 		}()
 	}

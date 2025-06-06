@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
@@ -41,6 +42,7 @@ func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan messag
 				}
 				streamRes, e := stream.Recv()
 				if e != nil {
+					time.Sleep(100 * time.Millisecond) // Attendi un po' prima di riprovare
 					p.slog.Error("failed to receive input", "error", e)
 					continue
 				}

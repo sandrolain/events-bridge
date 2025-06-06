@@ -4,6 +4,7 @@ plugins:
     protocol: "tcp"
     output: true
     delay: 1000ms
+    retry: 3
 
 source:
   type: "plugin"

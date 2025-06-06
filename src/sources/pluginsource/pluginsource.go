@@ -15,13 +15,12 @@ type SourcePluginConfig struct {
 }
 
 type PluginSource struct {
-	config  *SourcePluginConfig
-	slog    *slog.Logger
-	mgr     *plugin.PluginManager
-	plg     *plugin.Plugin
-	c       <-chan message.Message
-	close   func()
-	started bool
+	config *SourcePluginConfig
+	slog   *slog.Logger
+	mgr    *plugin.PluginManager
+	plg    *plugin.Plugin
+	c      <-chan message.Message
+	close  func()
 }
 
 func New(mgr *plugin.PluginManager, cfg *SourcePluginConfig) (source.Source, error) {
@@ -39,7 +38,7 @@ func New(mgr *plugin.PluginManager, cfg *SourcePluginConfig) (source.Source, err
 
 	ps := &PluginSource{
 		config: cfg,
-		slog:   slog.Default().With("context", "PLUGIN"),
+		slog:   slog.Default().With("context", "Plugin Source", "name", cfg.Name),
 		mgr:    mgr,
 		plg:    plg,
 	}
@@ -47,13 +46,6 @@ func New(mgr *plugin.PluginManager, cfg *SourcePluginConfig) (source.Source, err
 }
 
 func (s *PluginSource) Produce(buffer int) (<-chan message.Message, error) {
-	if s.started {
-		return s.c, nil
-	}
-	err := s.plg.Start()
-	if err != nil {
-		return nil, fmt.Errorf("cannot start plugin %s: %w", s.config.Name, err)
-	}
 	s.slog.Info("starting plugin source", "id", s.config.Name)
 	c, closeFn, err := s.plg.Source(buffer, s.config.Config)
 	if err != nil {
@@ -61,7 +53,6 @@ func (s *PluginSource) Produce(buffer int) (<-chan message.Message, error) {
 	}
 	s.c = c
 	s.close = closeFn
-	s.started = true
 	return c, nil
 }
 

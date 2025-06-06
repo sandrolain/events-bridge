@@ -37,12 +37,27 @@ var source plugin.SourceFn = func(req *proto.SourceReq, stream proto.PluginServi
 			return nil
 		case <-timer.C:
 
+			slog.Info("sending hardware stats")
+
+			dataMap := map[string]interface{}{
+				"cpu":    "Intel Core i7",
+				"memory": "16GB",
+				"disk":   "512GB SSD",
+				"time":   time.Now().Format(time.RFC3339),
+			}
+
+			data, err := cbor.Marshal(&dataMap)
+			if err != nil {
+				slog.Error("failed to marshal data", "error", err)
+				continue
+			}
+
 			res := plugin.ResponseMessage(map[string][]string{
 				"time": {time.Now().String()},
-			}, []byte(time.Now().Format(time.RFC3339Nano)))
+			}, data)
 
 			// Send the Hardware stats on the stream
-			err := stream.Send(res)
+			err = stream.Send(res)
 			if err != nil {
 				slog.Error("failed to send hardware stats", "error", err)
 			}

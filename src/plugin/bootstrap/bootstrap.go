@@ -209,22 +209,22 @@ func (s *server) Shutdown(ctx context.Context, in *proto.ShutdownReq) (*proto.Sh
 }
 
 func (s *server) Source(ctx *proto.SourceReq, srv proto.PluginService_SourceServer) error {
-	if s.Source != nil {
-		return s.Source(ctx, srv)
+	if s.source != nil {
+		return s.source(ctx, srv)
 	}
 	return status.Errorf(codes.Unimplemented, "method Source not implemented")
 }
 
 func (s *server) Runner(ctx context.Context, in *proto.PluginMessage) (*proto.PluginMessage, error) {
-	if s.Runner != nil {
-		return s.Runner(ctx, in)
+	if s.runner != nil {
+		return s.runner(ctx, in)
 	}
 	return nil, status.Errorf(codes.Unimplemented, "method Runner not implemented")
 }
 
 func (s *server) Target(ctx context.Context, in *proto.PluginMessage) (*proto.TargetRes, error) {
-	if s.Target != nil {
-		return s.Target(ctx, in)
+	if s.target != nil {
+		return s.target(ctx, in)
 	}
 	return nil, status.Errorf(codes.Unimplemented, "method Target not implemented")
 }
