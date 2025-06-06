@@ -24,7 +24,7 @@ const (
 
 type SourceConfig struct {
 	Type   SourceType                       `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc plugin"`
-	Buffer int                              `yaml:"buffer" json:"buffer" validate:"required"`
+	Buffer int                              `yaml:"buffer" json:"buffer"`
 	HTTP   *httpsource.SourceHTTPConfig     `yaml:"http" json:"http"`
 	CoAP   *coapsource.SourceCoAPConfig     `yaml:"coap" json:"coap"`
 	NATS   *natssource.SourceNATSConfig     `yaml:"nats" json:"nats"`

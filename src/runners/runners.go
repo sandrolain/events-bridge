@@ -9,12 +9,13 @@ import (
 type RunnerType string
 
 const (
-	RunnerTypeWASM RunnerType = "wasm"
-	RunnerTypeES5  RunnerType = "es5"
+	RunnerTypeWASM   RunnerType = "wasm"
+	RunnerTypeES5    RunnerType = "es5"
+	RunnerTypePlugin RunnerType = "plugin"
 )
 
 type RunnerConfig struct {
-	Type   RunnerType                       `yaml:"type" json:"type" validate:"required,oneof=wasm es5"`
+	Type   RunnerType                       `yaml:"type" json:"type" validate:"required,oneof=wasm es5 plugin"`
 	WASM   *wasmrunner.RunnerWASMConfig     `yaml:"wasm" json:"wasm"`
 	ES5    *es5runner.RunnerES5Config       `yaml:"es5" json:"es5"`
 	Plugin *pluginrunner.RunnerPluginConfig `yaml:"plugin" json:"plugin"`

@@ -18,54 +18,70 @@ import (
 )
 
 type PluginConfig struct {
-	ID      string   `yaml:"id" json:"id" validate:"required"`
-	Exec    string   `yaml:"exec" json:"exec" validate:"required"`
-	Args    []string `yaml:"args" json:"args" validate:"omitempty"`
-	Env     []string `yaml:"env" json:"env" validate:"omitempty"`
-	Delay   string   `yaml:"delay" json:"delay" default:"1s" validate:"omitempty,duration"`
-	Retry   int      `yaml:"retry" json:"retry" default:"3" validate:"omitempty,gt=0"`
-	Marshal string   `yaml:"marshal" json:"marshal" default:"msgpack" validate:"required,oneof=json msgpack gob"`
-	Output  bool     `yaml:"output" json:"output" default:"true"`
+	Name     string        `yaml:"name" json:"name" validate:"required"`
+	Exec     string        `yaml:"exec" json:"exec" validate:"required"`
+	Args     []string      `yaml:"args" json:"args" validate:"omitempty"`
+	Env      []string      `yaml:"env" json:"env" validate:"omitempty"`
+	Protocol string        `yaml:"protocol" json:"protocol" validate:"required,oneof=unix tcp"`
+	Delay    time.Duration `yaml:"delay" json:"delay" default:"1s" validate:"omitempty"`
+	Retry    int           `yaml:"retry" json:"retry" default:"3" validate:"omitempty,gt=0"`
+	Output   bool          `yaml:"output" json:"output" default:"true"`
 }
 
 type Plugin struct {
-	AppPort   int
-	ID        string
-	Host      string
-	Port      int
-	Exec      string
-	Name      string
-	Args      []string
-	Env       []string
-	Config    PluginConfig
-	Output    bool
-	cmd       *exec.Cmd
-	conn      *grpc.ClientConn
-	client    proto.PluginServiceClient
-	ConnRetry int
-	ConnDelay time.Duration
-	stopped   bool
-	slog      *slog.Logger
+	ID      string
+	Address string
+	Port    int
+	Config  PluginConfig
+	cmd     *exec.Cmd
+	conn    *grpc.ClientConn
+	client  proto.PluginServiceClient
+	stopped bool
+	slog    *slog.Logger
 }
 
 func (p *Plugin) Start() (err error) {
-	slog.Info("Starting plugin", "name", p.Name, "retries", p.ConnRetry, "delay", p.ConnDelay)
+	cfg := p.Config
 
-	p.cmd = exec.Command(p.Exec, p.Args...)
-	env := append(os.Environ(), p.Env...)
-	env = append(env, fmt.Sprintf("APP_PORT=%d", p.AppPort))
+	p.slog.Info("Starting plugin", "name", cfg.Name, "retries", cfg.Retry, "delay", cfg.Delay)
+
+	var address string
+	switch cfg.Protocol {
+	case "unix":
+		// For Unix sockets, we use the ID as the address
+		address = fmt.Sprintf("/tmp/%s_%d.sock", p.ID, time.Now().UnixMilli())
+		p.Address = fmt.Sprintf("unix://%s", address)
+	case "tcp":
+		var port int
+		port, err = GetFreePort()
+		if err != nil {
+			err = fmt.Errorf("cannot get free port: %w", err)
+			return
+		}
+		p.Port = port
+		// For TCP, we use the ID as the host and a default port
+		address = fmt.Sprintf("%s:%d", "0.0.0.0", p.Port)
+		p.Address = fmt.Sprintf("%s:%d", "localhost", p.Port)
+	default:
+		err = fmt.Errorf("unsupported protocol: %s", p.Config.Protocol)
+		return
+	}
+
+	p.cmd = exec.Command(cfg.Exec, cfg.Args...)
+	env := append(os.Environ(), cfg.Env...)
 	env = append(env, fmt.Sprintf("PLUGIN_ID=%s", p.ID))
-	env = append(env, fmt.Sprintf("PLUGIN_PORT=%d", p.Port))
-	env = append(env, fmt.Sprintf("CONN_RETRY=%d", p.ConnRetry))
-	env = append(env, fmt.Sprintf("CONN_DELAY=%s", p.ConnDelay))
+	env = append(env, fmt.Sprintf("PLUGIN_PROTOCOL=%s", cfg.Protocol))
+	env = append(env, fmt.Sprintf("PLUGIN_ADDRESS=%s", address))
 	p.cmd.Env = env
+
+	p.slog.Debug("Plugin command", "name", cfg.Name, "exec", "protocol", cfg.Protocol, "exec", cfg.Exec, "args", cfg.Args, "env", env, "address", address)
 
 	var stdout io.ReadCloser
 
-	if p.Output {
+	if cfg.Output {
 		stdout, err = p.cmd.StdoutPipe()
 		if err != nil {
-			slog.Error("Cannot get stdout pipe", "name", p.Name, "err", err)
+			p.slog.Error("Cannot get stdout pipe", "name", cfg.Name, "err", err)
 			return
 		}
 
@@ -74,21 +90,21 @@ func (p *Plugin) Start() (err error) {
 			scanner := bufio.NewScanner(stdout)
 			for !p.stopped && scanner.Scan() {
 				m := scanner.Text()
-				fmt.Printf(`[PLUGIN: %s] %s\n`, p.Name, m)
+				fmt.Printf(`[PLUGIN: %s] %s\n`, cfg.Name, m)
 			}
 		}()
 	}
 
 	err = p.cmd.Start()
 	if err != nil {
-		slog.Error("Cannot start plugin", "name", p.Name, "err", err)
+		p.slog.Error("Cannot start plugin", "name", cfg.Name, "err", err)
 		p.Stop()
 		return
 	}
 
 	err = p.connect()
 	if err != nil {
-		slog.Error("Cannot connect to plugin", "name", p.Name, "err", err, "retries", p.ConnRetry, "delay", p.ConnDelay)
+		p.slog.Error("Cannot connect to plugin", "name", cfg.Name, "err", err, "retries", cfg.Retry, "delay", cfg.Delay)
 		p.Stop()
 		return
 	}
@@ -99,24 +115,24 @@ func (p *Plugin) Start() (err error) {
 }
 
 func (p *Plugin) connect() (err error) {
-	addr := fmt.Sprintf("%s:%d", p.Host, p.Port)
+	cfg := p.Config
 
-	r := retrier.New(retrier.ConstantBackoff(p.ConnRetry, p.ConnDelay), nil)
+	r := retrier.New(retrier.ConstantBackoff(cfg.Retry, cfg.Delay), nil)
 
 	err = r.Run(func() (err error) {
-		slog.Debug("Connecting to plugin", "name", p.Name, "addr", addr)
-		p.conn, err = grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		p.slog.Debug("Connecting to plugin", "name", cfg.Name, "addr", p.Address)
+		p.conn, err = grpc.Dial(p.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			slog.Error("Error connecting to plugin", "name", p.Name, "err", err)
+			p.slog.Error("Error connecting to plugin", "name", cfg.Name, "err", err)
 			return
 		}
 		p.client = proto.NewPluginServiceClient(p.conn)
 		sts, err := p.checkStatus()
 		if err != nil {
-			slog.Error("Failed to check status", "name", p.Name, "err", err)
+			p.slog.Error("Failed to check status", "name", cfg.Name, "err", err)
 			return
 		}
-		p.slog.Info("Connected to plugin", "name", p.Name, "status", sts.Status)
+		p.slog.Info("Connected to plugin", "name", cfg.Name, "status", sts.Status)
 
 		if sts.Status != proto.Status_STATUS_READY {
 			err = fmt.Errorf("plugin not ready")
@@ -129,12 +145,13 @@ func (p *Plugin) connect() (err error) {
 }
 
 func (p *Plugin) startCheckStatus() {
+	cfg := p.Config
 	for !p.stopped {
 		sts, e := p.checkStatus()
 		if e != nil {
-			slog.Error("Failed to check status", "name", p.Name, "err", e)
+			p.slog.Error("Failed to check status", "name", cfg.Name, "err", e)
 		}
-		slog.Debug("Plugin status", "name", p.Name, "status", sts.Status)
+		p.slog.Debug("Plugin status", "name", cfg.Name, "status", sts.Status)
 		// TODO: handle status
 		// TODO: duration from config
 		time.Sleep(5 * time.Second)
@@ -151,27 +168,28 @@ func (p *Plugin) checkStatus() (sts *proto.StatusRes, err error) {
 }
 
 func (p *Plugin) Stop() {
+	cfg := p.Config
 	if p.client != nil {
-		slog.Debug("Shutting down plugin", "name", p.Name)
+		p.slog.Debug("Shutting down plugin", "name", cfg.Name)
 		_, err := p.client.Shutdown(context.Background(), &proto.ShutdownReq{})
 		if err != nil {
-			slog.Error("Error shutting down plugin", "name", p.Name, "err", err)
+			p.slog.Error("Error shutting down plugin", "name", cfg.Name, "err", err)
 		}
 	}
 
 	if p.conn != nil {
-		slog.Debug("Closing connection to plugin", "name", p.Name)
+		p.slog.Debug("Closing connection to plugin", "name", cfg.Name)
 		err := p.conn.Close()
 		if err != nil {
-			slog.Error("Error closing connection to plugin", "name", p.Name, "err", err)
+			p.slog.Error("Error closing connection to plugin", "name", cfg.Name, "err", err)
 		}
 	}
 
 	if p.cmd != nil && p.cmd.Process != nil {
-		slog.Debug("Killing plugin", "name", p.Name)
+		p.slog.Debug("Killing plugin", "name", cfg.Name)
 		err := p.cmd.Process.Kill()
 		if err != nil {
-			slog.Error("Error killing plugin", "name", p.Name, "err", err)
+			p.slog.Error("Error killing plugin", "name", cfg.Name, "err", err)
 		}
 	}
 }

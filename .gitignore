@@ -26,7 +26,7 @@ go.work.sum
 
 # temporary files
 tmp/
-testers/bin/
+bin/
 
 # OS generated files
 .DS_Store

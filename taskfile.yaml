@@ -1,6 +1,11 @@
 version: "3"
 
 tasks:
+  build:
+    cmds:
+      - mkdir -p ./bin
+      - go build -o ./bin/bridge ./src
+
   test-coap:
     cmds:
       - viddy go run ./coapclient 'localhost:5683' '/event' '{"test":123}'
@@ -26,3 +31,9 @@ tasks:
       - go build -o ./bin/coaptarget ./coaptarget
       - go build -o ./bin/httptarget ./httptarget
       - go build -o ./bin/plugin ./plugin
+
+  run-plugin-config:
+    env:
+      CONFIG_FILE_PATH: ./testers/config/plugin.config.yaml
+    cmds:
+      - go run ./src

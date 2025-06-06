@@ -10,8 +10,8 @@ import (
 )
 
 type TargetPluginConfig struct {
-	ID     string            `yaml:"id" json:"id" validate:"required"`
-	Config map[string]string `yaml:"config" json:"config" validate:"required"`
+	Name   string            `yaml:"name" json:"name" validate:"required"`
+	Config map[string]string `yaml:"config" json:"config"`
 }
 
 type PluginTarget struct {
@@ -24,9 +24,16 @@ type PluginTarget struct {
 }
 
 func New(mgr *plugin.PluginManager, cfg *TargetPluginConfig) (target.Target, error) {
-	plg, err := mgr.GetPlugin(cfg.ID)
+	if mgr == nil {
+		return nil, fmt.Errorf("plugin manager cannot be nil")
+	}
+	if cfg == nil {
+		return nil, fmt.Errorf("plugin target config cannot be nil")
+	}
+
+	plg, err := mgr.GetPlugin(cfg.Name)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.ID, err)
+		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
 	}
 
 	t := &PluginTarget{
@@ -40,7 +47,7 @@ func New(mgr *plugin.PluginManager, cfg *TargetPluginConfig) (target.Target, err
 }
 
 func (t *PluginTarget) Consume(c <-chan message.Message) error {
-	t.slog.Info("starting plugin target", "id", t.config.ID, "plugin", t.plg.Name)
+	t.slog.Info("starting plugin target", "name", t.config.Name, "plugin", t.plg.Config.Name)
 	go func() {
 		for {
 			select {

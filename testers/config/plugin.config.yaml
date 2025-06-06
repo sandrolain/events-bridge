@@ -1,17 +1,21 @@
 plugins:
   - name: "example-plugin"
+    exec: "./testers/bin/plugin"
+    protocol: "tcp"
+    output: true
+    delay: 1000ms
 
 source:
   type: "plugin"
   plugin:
-    id: "example-plugin"
+    name: "example-plugin"
 
 target:
   type: "plugin"
   plugin:
-    id: "example-plugin"
+    name: "example-plugin"
 
 runner:
   type: "plugin"
   plugin:
-    id: "example-plugin"
+    name: "example-plugin"

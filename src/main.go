@@ -11,6 +11,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin"
 	"github.com/sandrolain/events-bridge/src/runners"
 	"github.com/sandrolain/events-bridge/src/runners/es5runner"
+	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/runners/runner"
 	"github.com/sandrolain/events-bridge/src/runners/wasmrunner"
 	"github.com/sandrolain/events-bridge/src/sources"
@@ -24,6 +25,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/targets/coaptarget"
 	"github.com/sandrolain/events-bridge/src/targets/httptarget"
 	"github.com/sandrolain/events-bridge/src/targets/mqtttarget"
+	"github.com/sandrolain/events-bridge/src/targets/plugintarget"
 	"github.com/sandrolain/events-bridge/src/targets/target"
 )
 
@@ -50,6 +52,8 @@ func main() {
 	// the configuration, setting up sources and targets, and starting
 	// the event processing loop.
 
+	slog.Info("loading configuration file", "path", envCfg.ConfigFilePath)
+
 	cfg, err := config.LoadConfigFile[models.Config](envCfg.ConfigFilePath)
 	if err != nil {
 		slog.Error("failed to load configuration file", "error", err)
@@ -59,6 +63,27 @@ func main() {
 	var source source.Source
 	var runner runner.Runner
 	var target target.Target
+
+	// Plugin manager initialization
+	plgMan, err := plugin.GetPluginManager()
+	if err != nil {
+		slog.Error("failed to get plugin manager", "error", err)
+		os.Exit(1)
+	}
+
+	if cfg.Plugins != nil {
+		slog.Info("loading plugins", "count", len(cfg.Plugins))
+		for _, p := range cfg.Plugins {
+			slog.Info("loading plugin", "id", p.Name, "exec", p.Exec)
+			err = plgMan.CreatePlugin(p)
+			if err != nil {
+				slog.Error("failed to load plugin", "id", p.Name, "error", err)
+				os.Exit(1)
+			}
+		}
+	} else {
+		slog.Info("no plugins configured")
+	}
 
 	switch cfg.Source.Type {
 	case sources.SourceTypeHTTP:
@@ -74,13 +99,8 @@ func main() {
 		slog.Info("using NATS source", "address", cfg.Source.NATS.Address, "subject", cfg.Source.NATS.Subject, "queueGroup", cfg.Source.NATS.QueueGroup)
 		source, err = natssource.New(cfg.Source.NATS)
 	case sources.SourceTypePlugin:
-		slog.Info("using Plugin source", "path", cfg.Source.Plugin.ID)
-		mng, err := plugin.GetPluginManager()
-		if err != nil {
-			slog.Error("failed to get plugin manager", "error", err)
-			os.Exit(1)
-		}
-		source, err = pluginsource.New(mng, cfg.Source.Plugin)
+		slog.Info("using Plugin source", "path", cfg.Source.Plugin.Name)
+		source, err = pluginsource.New(plgMan, cfg.Source.Plugin)
 	default:
 		slog.Error("unsupported source type", "type", cfg.Source.Type)
 		os.Exit(1)
@@ -95,11 +115,16 @@ func main() {
 	// Target
 	switch cfg.Target.Type {
 	case targets.TargetTypeHTTP:
+		slog.Info("using HTTP target", "method", cfg.Target.HTTP.Method, "url", cfg.Target.HTTP.URL, "headers", cfg.Target.HTTP.Headers)
 		target, err = httptarget.New(cfg.Target.HTTP)
 	case targets.TargetTypeCoAP:
+		slog.Info("using CoAP target", "address", cfg.Target.CoAP.Address, "path", cfg.Target.CoAP.Path, "method", cfg.Target.CoAP.Method)
 		target, err = coaptarget.New(cfg.Target.CoAP)
 	case targets.TargetTypeMQTT:
+		slog.Info("using MQTT target", "address", cfg.Target.MQTT.Address, "topic", cfg.Target.MQTT.Topic, "qos", cfg.Target.MQTT.QoS)
 		target, err = mqtttarget.New(cfg.Target.MQTT)
+	case targets.TargetTypePlugin:
+		target, err = plugintarget.New(plgMan, cfg.Target.Plugin)
 	default:
 		slog.Error("unsupported target type", "type", cfg.Target.Type)
 		os.Exit(1)
@@ -117,6 +142,9 @@ func main() {
 	case runners.RunnerTypeES5:
 		slog.Info("using ES5 runner", "path", cfg.Runner.ES5.Path)
 		runner, err = es5runner.New(cfg.Runner.ES5)
+	case runners.RunnerTypePlugin:
+		slog.Info("using Plugin runner", "id", cfg.Runner.Plugin.Name)
+		runner, err = pluginrunner.New(plgMan, cfg.Runner.Plugin)
 	default:
 		slog.Error("unsupported runner type", "type", cfg.Runner.Type)
 		os.Exit(1)

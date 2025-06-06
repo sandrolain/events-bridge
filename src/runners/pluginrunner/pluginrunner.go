@@ -17,7 +17,7 @@ var _ runner.Runner = &PluginRunner{}
 // Eventuali altre opzioni possono essere aggiunte in futuro
 
 type RunnerPluginConfig struct {
-	ID string `yaml:"id" json:"id" validate:"required"`
+	Name string `yaml:"name" json:"name" validate:"required"`
 }
 
 type PluginRunner struct {
@@ -31,13 +31,20 @@ type PluginRunner struct {
 
 // New crea una nuova istanza di PluginRunner
 func New(mgr *plugin.PluginManager, cfg *RunnerPluginConfig) (runner.Runner, error) {
-	plg, err := mgr.GetPlugin(cfg.ID)
+	if mgr == nil {
+		return nil, fmt.Errorf("plugin manager cannot be nil")
+	}
+	if cfg == nil {
+		return nil, fmt.Errorf("runner plugin config cannot be nil")
+	}
+
+	plg, err := mgr.GetPlugin(cfg.Name)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.ID, err)
+		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
 	}
 	return &PluginRunner{
 		cfg:    cfg,
-		slog:   slog.Default().With("context", "Plugin Runner", "id", cfg.ID),
+		slog:   slog.Default().With("context", "Plugin Runner", "id", cfg.Name),
 		mgr:    mgr,
 		plg:    plg,
 		stopCh: make(chan struct{}),
@@ -49,11 +56,11 @@ func (p *PluginRunner) Ingest(in <-chan message.Message) (<-chan message.Message
 	if !p.start {
 		err := p.plg.Start()
 		if err != nil {
-			return nil, fmt.Errorf("cannot start plugin %s: %w", p.cfg.ID, err)
+			return nil, fmt.Errorf("cannot start plugin %s: %w", p.cfg.Name, err)
 		}
 		p.start = true
 	}
-	p.slog.Info("starting plugin runner ingest", "id", p.cfg.ID)
+	p.slog.Info("starting plugin runner ingest", "id", p.cfg.Name)
 	out := make(chan message.Message)
 	go func() {
 		defer close(out)

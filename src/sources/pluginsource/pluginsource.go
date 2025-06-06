@@ -10,7 +10,7 @@ import (
 )
 
 type SourcePluginConfig struct {
-	ID     string            `yaml:"id" json:"id" validate:"required"`
+	Name   string            `yaml:"name" json:"name" validate:"required"`
 	Config map[string]string `yaml:"config,omitempty" json:"config,omitempty"`
 }
 
@@ -25,9 +25,16 @@ type PluginSource struct {
 }
 
 func New(mgr *plugin.PluginManager, cfg *SourcePluginConfig) (source.Source, error) {
-	plg, err := mgr.GetPlugin(cfg.ID)
+	if mgr == nil {
+		return nil, fmt.Errorf("plugin manager cannot be nil")
+	}
+	if cfg == nil {
+		return nil, fmt.Errorf("plugin source config cannot be nil")
+	}
+
+	plg, err := mgr.GetPlugin(cfg.Name)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.ID, err)
+		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
 	}
 
 	ps := &PluginSource{
@@ -45,9 +52,9 @@ func (s *PluginSource) Produce(buffer int) (<-chan message.Message, error) {
 	}
 	err := s.plg.Start()
 	if err != nil {
-		return nil, fmt.Errorf("cannot start plugin %s: %w", s.config.ID, err)
+		return nil, fmt.Errorf("cannot start plugin %s: %w", s.config.Name, err)
 	}
-	s.slog.Info("starting plugin source", "id", s.config.ID)
+	s.slog.Info("starting plugin source", "id", s.config.Name)
 	c, closeFn, err := s.plg.Source(buffer, s.config.Config)
 	if err != nil {
 		return nil, err
