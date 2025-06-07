@@ -13,7 +13,6 @@ import (
 	"github.com/sandrolain/events-bridge/src/runners"
 	"github.com/sandrolain/events-bridge/src/runners/clirunner"
 	"github.com/sandrolain/events-bridge/src/runners/es5runner"
-	"github.com/sandrolain/events-bridge/src/runners/phprunner"
 	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/runners/runner"
 	"github.com/sandrolain/events-bridge/src/runners/wasmrunner"
@@ -156,9 +155,6 @@ func main() {
 	case runners.RunnerTypePlugin:
 		slog.Info("using Plugin runner", "id", cfg.Runner.Plugin.Name)
 		runner, err = pluginrunner.New(plgMan, cfg.Runner.Plugin)
-	case runners.RunnerTypePHP:
-		slog.Info("using PHP runner", "path", cfg.Runner.PHP.Path)
-		runner, err = phprunner.New(cfg.Runner.PHP)
 	case runners.RunnerTypeCLI:
 		slog.Info("using CLI runner", "command", cfg.Runner.CLI.Command, "args", cfg.Runner.CLI.Args)
 		runner, err = clirunner.New(cfg.Runner.CLI)
