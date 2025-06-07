@@ -91,8 +91,7 @@ func (p *Plugin) Start() (err error) {
 			scanner := bufio.NewScanner(stdout)
 			for !p.stopped && scanner.Scan() {
 				m := scanner.Text()
-				//fmt.Printf(`[PLUGIN: %s] %s\n`, cfg.Name, m)
-				slog.Info("[PLUGIN]", "name", cfg.Name, "message", m)
+				os.Stdout.WriteString(fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m))
 			}
 		}()
 
@@ -107,8 +106,7 @@ func (p *Plugin) Start() (err error) {
 			scanner := bufio.NewScanner(stderr)
 			for !p.stopped && scanner.Scan() {
 				m := scanner.Text()
-				//fmt.Printf(`[PLUGIN: %s] %s\n`, cfg.Name, m)
-				slog.Error("[PLUGIN]", "name", cfg.Name, "error", m)
+				os.Stderr.WriteString(fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m))
 			}
 		}()
 	}

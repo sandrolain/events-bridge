@@ -46,7 +46,7 @@ var source plugin.SourceFn = func(req *proto.SourceReq, stream proto.PluginServi
 				"time":   time.Now().Format(time.RFC3339),
 			}
 
-			data, err := cbor.Marshal(&dataMap)
+			data, err := json.Marshal(&dataMap)
 			if err != nil {
 				slog.Error("failed to marshal data", "error", err)
 				continue
@@ -66,7 +66,7 @@ var source plugin.SourceFn = func(req *proto.SourceReq, stream proto.PluginServi
 }
 
 var target plugin.TargetFn = func(ctx context.Context, req *proto.PluginMessage) (*proto.TargetRes, error) {
-	slog.Info("target received message", "uuid", req.GetUuid(), "data", string(req.GetData()))
+	slog.Info("target received message", "uuid", req.GetUuid(), "metadata", req.GetMetadata(), "data", string(req.GetData()))
 
 	// Simulate some processing
 	time.Sleep(500 * time.Millisecond)
@@ -79,12 +79,12 @@ var runner plugin.RunnerFn = func(ctx context.Context, req *proto.PluginMessage)
 	data := req.GetData()
 
 	var jsonData map[string]interface{}
-	err := cbor.Unmarshal(data, &jsonData)
+	err := json.Unmarshal(data, &jsonData)
 	if err != nil {
 		return nil, err
 	}
 
-	jsonBytes, err := json.Marshal(jsonData)
+	jsonBytes, err := cbor.Marshal(jsonData)
 	if err != nil {
 		return nil, err
 	}

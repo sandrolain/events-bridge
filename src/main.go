@@ -7,10 +7,13 @@ import (
 
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
+	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/models"
 	"github.com/sandrolain/events-bridge/src/plugin"
 	"github.com/sandrolain/events-bridge/src/runners"
+	"github.com/sandrolain/events-bridge/src/runners/clirunner"
 	"github.com/sandrolain/events-bridge/src/runners/es5runner"
+	"github.com/sandrolain/events-bridge/src/runners/phprunner"
 	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/runners/runner"
 	"github.com/sandrolain/events-bridge/src/runners/wasmrunner"
@@ -135,10 +138,12 @@ func main() {
 		slog.Error("unsupported target type", "type", cfg.Target.Type)
 		os.Exit(1)
 	}
+
 	if err != nil {
 		slog.Error("failed to create target", "error", err)
 		os.Exit(1)
 	}
+
 	defer target.Close()
 
 	switch cfg.Runner.Type {
@@ -151,6 +156,14 @@ func main() {
 	case runners.RunnerTypePlugin:
 		slog.Info("using Plugin runner", "id", cfg.Runner.Plugin.Name)
 		runner, err = pluginrunner.New(plgMan, cfg.Runner.Plugin)
+	case runners.RunnerTypePHP:
+		slog.Info("using PHP runner", "path", cfg.Runner.PHP.Path)
+		runner, err = phprunner.New(cfg.Runner.PHP)
+	case runners.RunnerTypeCLI:
+		slog.Info("using CLI runner", "command", cfg.Runner.CLI.Command, "args", cfg.Runner.CLI.Args)
+		runner, err = clirunner.New(cfg.Runner.CLI)
+	case runners.RunnerTypeNone:
+		slog.Info("no runner configured, messages will be passed through without processing")
 	default:
 		slog.Error("unsupported runner type", "type", cfg.Runner.Type)
 		os.Exit(1)
@@ -160,8 +173,9 @@ func main() {
 		slog.Error("failed to create runner", "error", err)
 		os.Exit(1)
 	}
-
-	defer runner.Close()
+	if runner != nil {
+		defer runner.Close()
+	}
 
 	c, err := source.Produce(cfg.Source.Buffer)
 	if err != nil {
@@ -169,20 +183,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("starting to consume messages from source")
-
-	r, err := runner.Ingest(c)
-	if err != nil {
-		slog.Error("failed to ingest messages with runner", "error", err)
-		os.Exit(1)
+	var r <-chan message.Message
+	if runner != nil {
+		slog.Info("runner starting to consume messages from source")
+		r, err = runner.Ingest(c)
+		if err != nil {
+			slog.Error("failed to ingest messages with runner", "error", err)
+			os.Exit(1)
+		}
+	} else {
+		slog.Info("no runner configured, passing messages through without processing")
+		r = c
 	}
+
+	slog.Info("target starting to consume messages from source")
 
 	err = target.Consume(r)
 	if err != nil {
 		slog.Error("failed to consume messages from target", "error", err)
 		os.Exit(1)
 	}
-	slog.Info("started consuming messages from source, processing...")
 
 	select {}
 

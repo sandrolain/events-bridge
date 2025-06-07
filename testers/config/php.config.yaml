@@ -1,0 +1,22 @@
+plugins:
+  - name: "example-plugin"
+    exec: "./testers/bin/plugin"
+    protocol: "tcp"
+    output: true
+    delay: 1000ms
+    retry: 3
+
+source:
+  type: "plugin"
+  plugin:
+    name: "example-plugin"
+
+target:
+  type: "plugin"
+  plugin:
+    name: "example-plugin"
+
+runner:
+  type: "php"
+  php:
+    path: "./testers/phprunner/test.php"

@@ -37,3 +37,15 @@ tasks:
       CONFIG_FILE_PATH: ./testers/config/plugin.config.yaml
     cmds:
       - go run ./src
+
+  run-php-config:
+    env:
+      CONFIG_FILE_PATH: ./testers/config/php.config.yaml
+    cmds:
+      - go run ./src
+
+  run-cli-config:
+    env:
+      CONFIG_FILE_PATH: ./testers/config/cli.config.yaml
+    cmds:
+      - go run ./src
