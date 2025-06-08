@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
@@ -13,12 +13,10 @@ import (
 )
 
 func main() {
-	addr := "0.0.0.0:8989"
-	if len(os.Args) > 1 {
-		addr = os.Args[1]
-	}
+	addr := flag.String("address", "0.0.0.0:8989", "Indirizzo di ascolto HTTP")
+	flag.Parse()
 
-	slog.Info("Starting httpdbg", "addr", addr)
+	slog.Info("Starting httpdbg", "addr", *addr)
 
 	black := color.New(color.FgBlack).Add(color.ResetUnderline).PrintfFunc()
 	blue := color.New(color.FgHiBlue).Add(color.Underline).PrintfFunc()
@@ -56,7 +54,7 @@ func main() {
 		}
 
 	}
-	if err := fasthttp.ListenAndServe(addr, handler); err != nil {
+	if err := fasthttp.ListenAndServe(*addr, handler); err != nil {
 		slog.Error("error serving httpdbg", "err", err)
 		panic(err)
 	}

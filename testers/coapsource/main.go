@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"flag"
 	"io"
 	"log/slog"
 	"os"
@@ -16,21 +16,17 @@ import (
 )
 
 func main() {
+	address := flag.String("address", "localhost:5683", "CoAP server address:port")
+	path := flag.String("path", "/test", "CoAP resource path")
+	payload := flag.String("payload", "{}", "JSON payload da inviare")
+	flag.Parse()
+
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	if len(os.Args) < 4 {
-		logger.Error("Usage: <host:port> <path> <json-payload>", "args", os.Args)
-		fmt.Printf("Usage: %s <host:port> <path> <json-payload>\n", os.Args[0])
-		os.Exit(1)
-	}
-	addr := os.Args[1]
-	path := os.Args[2]
-	jsonPayload := os.Args[3]
-
-	logger.Info("Preparing payload", "address", addr, "path", path)
+	logger.Info("Preparing payload", "address", *address, "path", *path)
 
 	var data interface{}
-	err := json.Unmarshal([]byte(jsonPayload), &data)
+	err := json.Unmarshal([]byte(*payload), &data)
 	if err != nil {
 		logger.Error("Invalid JSON payload", "error", err)
 		os.Exit(1)
@@ -45,16 +41,16 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	logger.Info("Connecting to CoAP server", "address", addr)
-	client, err := coapudp.Dial(addr)
+	logger.Info("Connecting to CoAP server", "address", *address)
+	client, err := coapudp.Dial(*address)
 	if err != nil {
 		logger.Error("Failed to dial CoAP server", "error", err)
 		os.Exit(1)
 	}
 	defer client.Close()
 
-	logger.Info("Sending POST request", "path", path, "payload_size", len(cborPayload))
-	resp, err := client.Post(ctx, path, coapmessage.AppCBOR, bytes.NewReader(cborPayload))
+	logger.Info("Sending POST request", "path", *path, "payload_size", len(cborPayload))
+	resp, err := client.Post(ctx, *path, coapmessage.AppCBOR, bytes.NewReader(cborPayload))
 	if err != nil {
 		logger.Error("Failed to send POST request", "error", err)
 		os.Exit(1)

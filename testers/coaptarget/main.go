@@ -2,10 +2,9 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"log"
-	"os"
-	"strings"
 	"time"
 
 	coap "github.com/plgd-dev/go-coap/v3"
@@ -48,29 +47,25 @@ func printRequestDetails(proto, remote string, req *coapmux.Message) {
 }
 
 func main() {
-	mode := "udp"
-	addr := ":5683"
-	if len(os.Args) > 1 {
-		mode = strings.ToLower(os.Args[1])
-	}
-	if len(os.Args) > 2 {
-		addr = os.Args[2]
-	}
-	log.Printf("Starting coapdbg in %s mode on %s", mode, addr)
+	mode := flag.String("mode", "udp", "Protocollo CoAP: udp o tcp")
+	addr := flag.String("address", ":5683", "Indirizzo di ascolto (es: :5683)")
+	flag.Parse()
+
+	log.Printf("Starting coapdbg in %s mode on %s", *mode, *addr)
 
 	router := coapmux.NewRouter()
 	router.Handle("/", coapmux.HandlerFunc(func(w coapmux.ResponseWriter, req *coapmux.Message) {
-		printRequestDetails(mode, w.Conn().RemoteAddr().String(), req)
+		printRequestDetails(*mode, w.Conn().RemoteAddr().String(), req)
 		w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader([]byte("OK")))
 	}))
 
-	switch mode {
+	switch *mode {
 	case "udp", "tcp":
-		err := coap.ListenAndServe(mode, addr, router)
+		err := coap.ListenAndServe(*mode, *addr, router)
 		if err != nil {
 			log.Fatalf("Serve error: %v", err)
 		}
 	default:
-		log.Fatalf("Unknown mode: %s (use udp or tcp)", mode)
+		log.Fatalf("Unknown mode: %s (use udp or tcp)", *mode)
 	}
 }
