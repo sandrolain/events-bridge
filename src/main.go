@@ -1,9 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
+
+	goplugin "plugin"
 
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
@@ -12,10 +16,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin"
 	"github.com/sandrolain/events-bridge/src/runners"
 	"github.com/sandrolain/events-bridge/src/runners/clirunner"
-	"github.com/sandrolain/events-bridge/src/runners/es5runner"
 	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
-	"github.com/sandrolain/events-bridge/src/runners/runner"
-	"github.com/sandrolain/events-bridge/src/runners/wasmrunner"
 	"github.com/sandrolain/events-bridge/src/sources"
 	"github.com/sandrolain/events-bridge/src/sources/coapsource"
 	"github.com/sandrolain/events-bridge/src/sources/httpsource"
@@ -63,7 +64,7 @@ func main() {
 	}
 
 	var source source.Source
-	var runner runner.Runner
+	var runner runners.Runner
 	var target target.Target
 
 	// Plugin manager initialization
@@ -148,16 +149,16 @@ func main() {
 	switch cfg.Runner.Type {
 	case runners.RunnerTypeWASM:
 		slog.Info("using WASM runner", "path", cfg.Runner.WASM.Path)
-		runner, err = wasmrunner.New(cfg.Runner.WASM)
+		runner, err = loadPlugin[*runners.RunnerWASMConfig, runners.Runner]("./runners/wasmrunner.so", cfg.Runner.WASM)
 	case runners.RunnerTypeES5:
 		slog.Info("using ES5 runner", "path", cfg.Runner.ES5.Path)
-		runner, err = es5runner.New(cfg.Runner.ES5)
-	case runners.RunnerTypePlugin:
-		slog.Info("using Plugin runner", "id", cfg.Runner.Plugin.Name)
-		runner, err = pluginrunner.New(plgMan, cfg.Runner.Plugin)
+		runner, err = loadPlugin[*runners.RunnerES5Config, runners.Runner]("./runners/es5runner.so", cfg.Runner.ES5)
 	case runners.RunnerTypeCLI:
 		slog.Info("using CLI runner", "command", cfg.Runner.CLI.Command, "args", cfg.Runner.CLI.Args)
 		runner, err = clirunner.New(cfg.Runner.CLI)
+	case runners.RunnerTypePlugin:
+		slog.Info("using Plugin runner", "id", cfg.Runner.Plugin.Name)
+		runner, err = pluginrunner.New(plgMan, cfg.Runner.Plugin)
 	case runners.RunnerTypeNone:
 		slog.Info("no runner configured, messages will be passed through without processing")
 	default:
@@ -169,6 +170,7 @@ func main() {
 		slog.Error("failed to create runner", "error", err)
 		os.Exit(1)
 	}
+
 	if runner != nil {
 		defer runner.Close()
 	}
@@ -202,4 +204,39 @@ func main() {
 
 	select {}
 
+}
+
+func loadPlugin[T any, R any](relPath string, cfg T) (R, error) {
+	exePath, err := os.Executable()
+	if err != nil {
+		var zero R
+		return zero, fmt.Errorf("failed to get executable path: %w", err)
+	}
+	exeDir := filepath.Dir(exePath)
+	absPath := relPath
+	if !os.IsPathSeparator(relPath[0]) {
+		absPath = fmt.Sprintf("%s/%s", exeDir, relPath)
+	}
+
+	p, err := goplugin.Open(absPath)
+	if err != nil {
+		var zero R
+		return zero, fmt.Errorf("failed to open plugin: %w", err)
+	}
+
+	sym, err := p.Lookup("New")
+	if err != nil {
+		var zero R
+		return zero, fmt.Errorf("failed to lookup New: %w", err)
+	}
+
+	fmt.Printf("sym: %T\n", sym)
+
+	constructor, ok := sym.(func(T) (R, error))
+	if !ok {
+		var zero R
+		return zero, fmt.Errorf("invalid constructor signature in plugin")
+	}
+
+	return constructor(cfg)
 }

@@ -1,16 +1,19 @@
-package wasmrunner
+package main
 
-import "github.com/sandrolain/events-bridge/src/message"
+import (
+	"github.com/sandrolain/events-bridge/src/message"
+)
 
 // WasmMessage implementa message.Message per i dati processati
 
 type WasmMessage struct {
 	original message.Message
 	data     []byte
+	metadata map[string][]string
 }
 
 func (m *WasmMessage) GetMetadata() (map[string][]string, error) {
-	return m.original.GetMetadata()
+	return m.metadata, nil
 }
 
 func (m *WasmMessage) GetData() ([]byte, error) {

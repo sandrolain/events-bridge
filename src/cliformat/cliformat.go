@@ -1,4 +1,4 @@
-package clirunner
+package cliformat
 
 import (
 	"bytes"

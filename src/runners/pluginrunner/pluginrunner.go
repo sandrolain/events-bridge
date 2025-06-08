@@ -6,22 +6,18 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
-	"github.com/sandrolain/events-bridge/src/runners/runner"
+	"github.com/sandrolain/events-bridge/src/runners"
 )
 
 // Assicura che PluginRunner implementi runner.Runner
-var _ runner.Runner = &PluginRunner{}
+var _ runners.Runner = &PluginRunner{}
 
 // Configurazione per il runner plugin
 // Usa solo l'ID del plugin da avviare
 // Eventuali altre opzioni possono essere aggiunte in futuro
 
-type RunnerPluginConfig struct {
-	Name string `yaml:"name" json:"name" validate:"required"`
-}
-
 type PluginRunner struct {
-	cfg    *RunnerPluginConfig
+	cfg    *runners.RunnerPluginConfig
 	slog   *slog.Logger
 	mgr    *plugin.PluginManager
 	plg    *plugin.Plugin
@@ -29,7 +25,7 @@ type PluginRunner struct {
 }
 
 // New crea una nuova istanza di PluginRunner
-func New(mgr *plugin.PluginManager, cfg *RunnerPluginConfig) (runner.Runner, error) {
+func New(mgr *plugin.PluginManager, cfg *runners.RunnerPluginConfig) (runners.Runner, error) {
 	if mgr == nil {
 		return nil, fmt.Errorf("plugin manager cannot be nil")
 	}

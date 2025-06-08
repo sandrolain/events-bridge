@@ -1,4 +1,4 @@
-package wasmrunner
+package main
 
 import (
 	"bytes"
@@ -9,23 +9,19 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/cliformat"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/runners/runner"
+	"github.com/sandrolain/events-bridge/src/runners"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 // Ensure WasmRunner implements runners.Runner
-var _ runner.Runner = &WasmRunner{}
-
-type RunnerWASMConfig struct {
-	Path     string        `yaml:"path" json:"module_path" validate:"required,filepath"`
-	Function string        `yaml:"function" json:"function" validate:"required"`
-	Timeout  time.Duration `yaml:"timeout" json:"timeout" validate:"required"`
-}
+var _ runners.Runner = &WasmRunner{}
 
 type WasmRunner struct {
-	cfg       *RunnerWASMConfig
+	cfg       *runners.RunnerWASMConfig
+	timeout   time.Duration // Timeout for processing messages
 	slog      *slog.Logger
 	rt        wazero.Runtime
 	ctx       context.Context
@@ -36,13 +32,18 @@ type WasmRunner struct {
 }
 
 // New crea una nuova istanza di WasmRunner
-func New(cfg *RunnerWASMConfig) (runner.Runner, error) {
+func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("wasm runner configuration cannot be nil")
+	}
+
 	if cfg.Path == "" {
 		return nil, fmt.Errorf("wasm module path is required")
 	}
 
-	if cfg.Function == "" {
-		return nil, fmt.Errorf("function name is required in wasm runner configuration")
+	timeout := cfg.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second // Default timeout if not set
 	}
 
 	log := slog.Default().With("context", "WASM")
@@ -72,6 +73,7 @@ func New(cfg *RunnerWASMConfig) (runner.Runner, error) {
 		cfg:       cfg,
 		slog:      log,
 		ctx:       ctx,
+		timeout:   timeout,
 		rt:        rt,
 		wasmBytes: wasmBytes,
 		module:    cmod,
@@ -81,7 +83,7 @@ func New(cfg *RunnerWASMConfig) (runner.Runner, error) {
 
 // Ingest riceve i messaggi, li processa tramite la runtime wasm e restituisce i messaggi processati
 func (w *WasmRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	w.slog.Info("starting wasm ingestion", "function", w.cfg.Function)
+	w.slog.Info("starting wasm ingestion")
 
 	out := make(chan message.Message)
 	go func() {
@@ -112,14 +114,20 @@ func (w *WasmRunner) processMessage(msg message.Message, out chan<- message.Mess
 		return fmt.Errorf("error getting data from message: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), w.cfg.Timeout)
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		msg.Nak()
+		return fmt.Errorf("error getting metadata from message: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	dataSize := len(data)
+	inData := cliformat.Encode(metadata, data)
 
-	w.slog.Debug("processing message", "function", w.cfg.Function, "data_size", dataSize, "timeout", w.cfg.Timeout)
+	w.slog.Debug("processing message", "timeout", w.timeout)
 
-	stdin := bytes.NewReader(data)
+	stdin := bytes.NewReader(inData)
 	stout := bytes.NewBuffer(nil)
 
 	module, err := w.rt.InstantiateModule(ctx, w.module, wazero.NewModuleConfig().
@@ -132,9 +140,17 @@ func (w *WasmRunner) processMessage(msg message.Message, out chan<- message.Mess
 	}
 	defer module.Close(ctx)
 
-	resultData := stout.Bytes()
+	outMeta, outData, err := cliformat.Decode(stout.Bytes())
+	if err != nil {
+		msg.Nak()
+		return fmt.Errorf("error decoding output data: %w", err)
+	}
 
-	processed := &WasmMessage{original: msg, data: resultData}
+	processed := &WasmMessage{
+		original: msg,
+		data:     outData,
+		metadata: outMeta,
+	}
 	out <- processed
 	return nil
 }

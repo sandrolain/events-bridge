@@ -3,48 +3,45 @@ package clirunner
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os/exec"
 	"sync"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/cliformat"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/runners/runner"
+	"github.com/sandrolain/events-bridge/src/runners"
 )
 
 // Assicura che CLIRunner implementi runner.Runner
-var _ runner.Runner = &CLIRunner{}
-
-type RunnerCLIConfig struct {
-	Command string            `yaml:"command" json:"command" validate:"required"`
-	Timeout time.Duration     `yaml:"timeout" json:"timeout"`
-	Args    []string          `yaml:"args" json:"args"`
-	Envs    map[string]string `yaml:"envs" json:"envs"`
-}
+var _ runners.Runner = &CLIRunner{}
 
 type CLIRunner struct {
-	cfg     *RunnerCLIConfig
+	cfg     *runners.RunnerCLIConfig
 	slog    *slog.Logger
 	mu      sync.Mutex
 	timeout time.Duration
 	stopCh  chan struct{}
 }
 
-func New(cfg *RunnerCLIConfig) (runner.Runner, error) {
+func New(cfg *runners.RunnerCLIConfig) (runners.Runner, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("cli runner config cannot be nil")
+	}
 	if cfg.Command == "" {
 		return nil, fmt.Errorf("cli command is required")
 	}
 	log := slog.Default().With("context", "CLI")
-	if cfg.Timeout == 0 {
-		cfg.Timeout = 5 * time.Second
+
+	timeout := cfg.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Second // Default timeout if not set
 	}
 	return &CLIRunner{
 		cfg:     cfg,
 		slog:    log,
-		timeout: cfg.Timeout,
+		timeout: timeout,
 		stopCh:  make(chan struct{}),
 	}, nil
 }
@@ -87,7 +84,7 @@ func (c *CLIRunner) processMessage(msg message.Message, out chan<- message.Messa
 		return fmt.Errorf("failed to get data: %w", err)
 	}
 
-	stdin := bytes.NewReader(encode(meta, data))
+	stdin := bytes.NewReader(cliformat.Encode(meta, data))
 	cmd := exec.CommandContext(ctx, c.cfg.Command, c.cfg.Args...)
 	cmd.Stdin = stdin
 	if len(c.cfg.Envs) > 0 {
@@ -109,7 +106,7 @@ func (c *CLIRunner) processMessage(msg message.Message, out chan<- message.Messa
 		return fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
 	}
 
-	outMeta, outData, err := decode(stdout.Bytes())
+	outMeta, outData, err := cliformat.Decode(stdout.Bytes())
 	if err != nil {
 		msg.Nak()
 		return fmt.Errorf("failed to decode cli output: %w", err)
@@ -152,34 +149,4 @@ func (c *CLIRunner) Close() error {
 		close(c.stopCh)
 	}
 	return nil
-}
-
-// rendo le funzioni Encode/Decode non in un file separato ma come funzioni private in clirunner.go per evitare import cycle
-
-func encode(meta map[string][]string, data []byte) []byte {
-	q := url.Values{}
-	for k, vals := range meta {
-		for _, v := range vals {
-			q.Add(k, v)
-		}
-	}
-	var buf bytes.Buffer
-	buf.WriteString(q.Encode())
-	buf.WriteByte('\n')
-	buf.Write(data)
-	return buf.Bytes()
-}
-
-func decode(input []byte) (map[string][]string, []byte, error) {
-	i := bytes.IndexByte(input, '\n')
-	if i < 0 {
-		return nil, nil, errors.New("invalid format: missing newline separator")
-	}
-	metaStr := string(input[:i])
-	data := input[i+1:]
-	m, err := url.ParseQuery(metaStr)
-	if err != nil {
-		return nil, nil, err
-	}
-	return m, data, nil
 }

@@ -1,4 +1,4 @@
-package es5runner
+package main
 
 import (
 	"context"
@@ -13,19 +13,14 @@ import (
 	"github.com/dop251/goja"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/runners/runner"
+	"github.com/sandrolain/events-bridge/src/runners"
 )
 
 // Assicura che ES5Runner implementi models.Runner
-var _ runner.Runner = &ES5Runner{}
-
-type RunnerES5Config struct {
-	Path    string        `yaml:"path" json:"path" validate:"omitempty,filepath"`
-	Timeout time.Duration `yaml:"timeout" json:"timeout" validate:"required"`
-}
+var _ runners.Runner = &ES5Runner{}
 
 type ES5Runner struct {
-	cfg     *RunnerES5Config
+	cfg     *runners.RunnerES5Config
 	slog    *slog.Logger
 	program *goja.Program
 	mu      sync.Mutex
@@ -34,7 +29,10 @@ type ES5Runner struct {
 }
 
 // New crea una nuova istanza di ES5Runner
-func New(cfg *RunnerES5Config) (runner.Runner, error) {
+func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("es5runner configuration cannot be nil")
+	}
 	if cfg.Path == "" {
 		return nil, fmt.Errorf("js program path is required")
 	}

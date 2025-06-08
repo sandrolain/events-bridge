@@ -3,8 +3,13 @@ version: "3"
 tasks:
   build:
     cmds:
-      - mkdir -p ./bin
-      - go build -o ./bin/bridge ./src
+      - rm -rf ./bin
+      - mkdir -p ./bin/sources
+      - mkdir -p ./bin/runners
+      - mkdir -p ./bin/targets
+      - go build -buildmode=plugin -o ./bin/runners/es5runner.so ./src/runners/es5runner
+      - go build -buildmode=plugin -o ./bin/runners/wasmrunner.so ./src/runners/wasmrunner
+      - go build -o ./bin/events-bridge ./src
 
   test-coap:
     cmds:
@@ -31,6 +36,7 @@ tasks:
       - go build -o ./bin/coaptarget ./coaptarget
       - go build -o ./bin/httptarget ./httptarget
       - go build -o ./bin/plugin ./plugin
+      - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./wasmrunner
 
   run-plugin-config:
     env:
@@ -42,4 +48,10 @@ tasks:
     env:
       CONFIG_FILE_PATH: ./testers/config/phpcli.config.yaml
     cmds:
-      - go run ./src
+      - ./bin/events-bridge
+
+  run-wasmrunner-config:
+    env:
+      CONFIG_FILE_PATH: ./testers/config/wasmrunner.config.yaml
+    cmds:
+      - ./bin/events-bridge
