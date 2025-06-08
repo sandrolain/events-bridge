@@ -1,4 +1,4 @@
-package models
+package config
 
 import (
 	"github.com/sandrolain/events-bridge/src/plugin"

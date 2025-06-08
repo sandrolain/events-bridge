@@ -1,4 +1,4 @@
-package natssource
+package main
 
 import (
 	"fmt"
@@ -7,19 +7,11 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources/source"
+	"github.com/sandrolain/events-bridge/src/sources"
 )
 
-type SourceNATSConfig struct {
-	Address    string `yaml:"address" json:"address" validate:"required"`
-	Stream     string `yaml:"stream" json:"stream"`
-	Subject    string `yaml:"subject" json:"subject" validate:"required"`
-	Consumer   string `yaml:"consumer" json:"consumer"`     // opzionale: consumer name/id per JetStream
-	QueueGroup string `yaml:"queueGroup" json:"queueGroup"` // opzionale: queue group per NATS core
-}
-
 type NATSSource struct {
-	config  *SourceNATSConfig
+	config  *sources.SourceNATSConfig
 	slog    *slog.Logger
 	c       chan message.Message
 	nc      *nats.Conn
@@ -27,7 +19,7 @@ type NATSSource struct {
 	started bool
 }
 
-func New(cfg *SourceNATSConfig) (source.Source, error) {
+func New(cfg *sources.SourceNATSConfig) (sources.Source, error) {
 	if cfg.Address == "" || cfg.Subject == "" {
 		return nil, fmt.Errorf("address and subject are required for NATS source")
 	}

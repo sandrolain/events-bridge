@@ -1,9 +1,11 @@
-package coaptarget
+package main
 
 import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/sandrolain/events-bridge/src/targets"
 )
 
 type mockMessage struct {
@@ -19,7 +21,7 @@ func (m *mockMessage) Nak() error                                { m.nak = true;
 // Dummy client to avoid real network calls
 // You can expand this with a build tag for integration tests
 func TestSend_UnsupportedProtocol(t *testing.T) {
-	cfg := &TargetCoAPConfig{
+	cfg := &targets.TargetCoAPConfig{
 		Protocol: "invalid",
 		Address:  "localhost:5683",
 		Path:     "/test",
@@ -37,7 +39,7 @@ func TestSend_UnsupportedProtocol(t *testing.T) {
 }
 
 func TestSend_UnsupportedMethod(t *testing.T) {
-	cfg := &TargetCoAPConfig{
+	cfg := &targets.TargetCoAPConfig{
 		Protocol: "udp",
 		Address:  "localhost:5683",
 		Path:     "/test",
@@ -60,7 +62,7 @@ func TestSend_UnsupportedMethod(t *testing.T) {
 }
 
 func TestSend_ErrorGettingData(t *testing.T) {
-	cfg := &TargetCoAPConfig{
+	cfg := &targets.TargetCoAPConfig{
 		Protocol: "udp",
 		Address:  "localhost:5683",
 		Path:     "/test",
@@ -80,7 +82,7 @@ func TestSend_ErrorGettingData(t *testing.T) {
 const errUnexpected = "unexpected error: %v"
 
 func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
-	cfg := &TargetCoAPConfig{
+	cfg := &targets.TargetCoAPConfig{
 		Protocol: "udp",
 		Address:  "127.0.0.1:9999", // porta non usata, nessun server
 		Path:     "/test",
@@ -98,7 +100,7 @@ func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
 }
 
 func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
-	cfg := &TargetCoAPConfig{
+	cfg := &targets.TargetCoAPConfig{
 		Protocol: "tcp",
 		Address:  "127.0.0.1:9999", // porta non usata, nessun server
 		Path:     "/test",

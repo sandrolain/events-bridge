@@ -1,4 +1,4 @@
-package coapsource
+package main
 
 import (
 	"fmt"
@@ -14,25 +14,11 @@ import (
 	coapnet "github.com/plgd-dev/go-coap/v3/net"
 
 	msg "github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources/source"
+	"github.com/sandrolain/events-bridge/src/sources"
 )
 
-type CoAPProtocol string
-
-const (
-	CoAPProtocolUDP CoAPProtocol = "udp"
-	CoAPProtocolTCP CoAPProtocol = "tcp"
-)
-
-type SourceCoAPConfig struct {
-	Protocol CoAPProtocol `yaml:"protocol" json:"protocol" validate:"required,oneof=udp tcp"`
-	Address  string       `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Path     string       `yaml:"path" json:"path" validate:"required"`
-	Method   string       `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT GET"`
-}
-
-func New(cfg *SourceCoAPConfig) (source.Source, error) {
-	if cfg.Protocol != CoAPProtocolUDP && cfg.Protocol != CoAPProtocolTCP {
+func New(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
+	if cfg.Protocol != sources.CoAPProtocolUDP && cfg.Protocol != sources.CoAPProtocolTCP {
 		return nil, fmt.Errorf("invalid CoAP protocol: %q (must be 'udp' or 'tcp')", cfg.Protocol)
 	}
 	return &CoAPSource{
@@ -42,7 +28,7 @@ func New(cfg *SourceCoAPConfig) (source.Source, error) {
 }
 
 type CoAPSource struct {
-	config   *SourceCoAPConfig
+	config   *sources.SourceCoAPConfig
 	slog     *slog.Logger
 	c        chan msg.Message
 	started  bool

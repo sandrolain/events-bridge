@@ -1,37 +1,21 @@
 // Implementazione di un target CoAP configurabile (endpoint, path, protocol)
-package coaptarget
+package main
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coaptcp "github.com/plgd-dev/go-coap/v3/tcp"
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets/target"
+	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-type CoAPProtocol string
-
-const (
-	CoAPProtocolUDP CoAPProtocol = "udp"
-	CoAPProtocolTCP CoAPProtocol = "tcp"
-)
-
-type TargetCoAPConfig struct {
-	Protocol CoAPProtocol  `yaml:"protocol" json:"protocol" validate:"required,oneof=udp tcp"`
-	Address  string        `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Path     string        `yaml:"path" json:"path" validate:"required"`
-	Method   string        `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT GET"`
-	Timeout  time.Duration `yaml:"timeout" json:"timeout" validate:"required"`
-}
-
-func New(cfg *TargetCoAPConfig) (target.Target, error) {
+func New(cfg *targets.TargetCoAPConfig) (targets.Target, error) {
 	t := &CoAPTarget{
 		config:  cfg,
 		slog:    slog.Default().With("context", "COAP"),
@@ -43,7 +27,7 @@ func New(cfg *TargetCoAPConfig) (target.Target, error) {
 
 type CoAPTarget struct {
 	slog    *slog.Logger
-	config  *TargetCoAPConfig
+	config  *targets.TargetCoAPConfig
 	stopped bool
 	stopCh  chan struct{}
 }

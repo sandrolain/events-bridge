@@ -6,16 +6,11 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
-	"github.com/sandrolain/events-bridge/src/targets/target"
+	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-type TargetPluginConfig struct {
-	Name   string            `yaml:"name" json:"name" validate:"required"`
-	Config map[string]string `yaml:"config" json:"config"`
-}
-
 type PluginTarget struct {
-	config  *TargetPluginConfig
+	config  *targets.TargetPluginConfig
 	slog    *slog.Logger
 	mgr     *plugin.PluginManager
 	plg     *plugin.Plugin
@@ -23,7 +18,7 @@ type PluginTarget struct {
 	stopCh  chan struct{} // canale di stop
 }
 
-func New(mgr *plugin.PluginManager, cfg *TargetPluginConfig) (target.Target, error) {
+func New(mgr *plugin.PluginManager, cfg *targets.TargetPluginConfig) (targets.Target, error) {
 	if mgr == nil {
 		return nil, fmt.Errorf("plugin manager cannot be nil")
 	}

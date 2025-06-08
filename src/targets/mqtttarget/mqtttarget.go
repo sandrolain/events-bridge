@@ -1,4 +1,4 @@
-package mqtttarget
+package main
 
 import (
 	"fmt"
@@ -8,18 +8,10 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets/target"
+	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-type TargetMQTTConfig struct {
-	Address              string `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Topic                string `yaml:"topic" json:"topic" validate:"required"`
-	ClientID             string `yaml:"clientID" json:"clientID" validate:"omitempty,alphanum"`
-	QoS                  int    `yaml:"qos" json:"qos" validate:"omitempty,min=0,max=2"`
-	TopicFromMetadataKey string `yaml:"topicFromMetadataKey" json:"topicFromMetadataKey"`
-}
-
-func New(cfg *TargetMQTTConfig) (target.Target, error) {
+func New(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT target")
 	}
@@ -32,7 +24,7 @@ func New(cfg *TargetMQTTConfig) (target.Target, error) {
 
 type MQTTTarget struct {
 	slog    *slog.Logger
-	config  *TargetMQTTConfig
+	config  *targets.TargetMQTTConfig
 	stopped bool
 	stopCh  chan struct{}
 	client  mqtt.Client

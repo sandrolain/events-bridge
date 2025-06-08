@@ -12,24 +12,16 @@ import (
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/models"
 	"github.com/sandrolain/events-bridge/src/plugin"
 	"github.com/sandrolain/events-bridge/src/runners"
 	"github.com/sandrolain/events-bridge/src/runners/clirunner"
 	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/sources/coapsource"
 	"github.com/sandrolain/events-bridge/src/sources/httpsource"
-	"github.com/sandrolain/events-bridge/src/sources/mqttsource"
-	"github.com/sandrolain/events-bridge/src/sources/natssource"
 	"github.com/sandrolain/events-bridge/src/sources/pluginsource"
-	"github.com/sandrolain/events-bridge/src/sources/source"
 	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/targets/coaptarget"
 	"github.com/sandrolain/events-bridge/src/targets/httptarget"
-	"github.com/sandrolain/events-bridge/src/targets/mqtttarget"
 	"github.com/sandrolain/events-bridge/src/targets/plugintarget"
-	"github.com/sandrolain/events-bridge/src/targets/target"
 )
 
 func main() {
@@ -43,7 +35,7 @@ func main() {
 		}),
 	))
 
-	envCfg, err := config.LoadEnvConfigFile[models.EnvConfig]()
+	envCfg, err := config.LoadEnvConfigFile[config.EnvConfig]()
 
 	if err != nil {
 		slog.Error("failed to load environment configuration", "error", err)
@@ -57,15 +49,15 @@ func main() {
 
 	slog.Info("loading configuration file", "path", envCfg.ConfigFilePath)
 
-	cfg, err := config.LoadConfigFile[models.Config](envCfg.ConfigFilePath)
+	cfg, err := config.LoadConfigFile[config.Config](envCfg.ConfigFilePath)
 	if err != nil {
 		slog.Error("failed to load configuration file", "error", err)
 		os.Exit(1)
 	}
 
-	var source source.Source
+	var source sources.Source
 	var runner runners.Runner
-	var target target.Target
+	var target targets.Target
 
 	// Plugin manager initialization
 	plgMan, err := plugin.GetPluginManager()
@@ -100,13 +92,13 @@ func main() {
 		source, err = httpsource.New(cfg.Source.HTTP)
 	case sources.SourceTypeCoAP:
 		slog.Info("using CoAP source", "address", cfg.Source.CoAP.Address, "path", cfg.Source.CoAP.Path, "method", cfg.Source.CoAP.Method)
-		source, err = coapsource.New(cfg.Source.CoAP)
+		source, err = loadPlugin[*sources.SourceCoAPConfig, sources.Source]("./sources/coapsource.so", cfg.Source.CoAP)
 	case sources.SourceTypeMQTT:
 		slog.Info("using MQTT source", "address", cfg.Source.MQTT.Address, "topic", cfg.Source.MQTT.Topic, "consumerGroup", cfg.Source.MQTT.ConsumerGroup)
-		source, err = mqttsource.New(cfg.Source.MQTT)
+		source, err = loadPlugin[*sources.SourceMQTTConfig, sources.Source]("./sources/mqttsource.so", cfg.Source.MQTT)
 	case sources.SourceTypeNATS:
 		slog.Info("using NATS source", "address", cfg.Source.NATS.Address, "subject", cfg.Source.NATS.Subject, "queueGroup", cfg.Source.NATS.QueueGroup)
-		source, err = natssource.New(cfg.Source.NATS)
+		source, err = loadPlugin[*sources.SourceNATSConfig, sources.Source]("./sources/natssource.so", cfg.Source.NATS)
 	case sources.SourceTypePlugin:
 		slog.Info("using Plugin source", "path", cfg.Source.Plugin.Name)
 		source, err = pluginsource.New(plgMan, cfg.Source.Plugin)
@@ -128,10 +120,10 @@ func main() {
 		target, err = httptarget.New(cfg.Target.HTTP)
 	case targets.TargetTypeCoAP:
 		slog.Info("using CoAP target", "address", cfg.Target.CoAP.Address, "path", cfg.Target.CoAP.Path, "method", cfg.Target.CoAP.Method)
-		target, err = coaptarget.New(cfg.Target.CoAP)
+		target, err = loadPlugin[*targets.TargetCoAPConfig, targets.Target]("./targets/coaptarget.so", cfg.Target.CoAP)
 	case targets.TargetTypeMQTT:
 		slog.Info("using MQTT target", "address", cfg.Target.MQTT.Address, "topic", cfg.Target.MQTT.Topic, "qos", cfg.Target.MQTT.QoS)
-		target, err = mqtttarget.New(cfg.Target.MQTT)
+		target, err = loadPlugin[*targets.TargetMQTTConfig, targets.Target]("./targets/mqtttarget.so", cfg.Target.MQTT)
 	case targets.TargetTypePlugin:
 		target, err = plugintarget.New(plgMan, cfg.Target.Plugin)
 	default:

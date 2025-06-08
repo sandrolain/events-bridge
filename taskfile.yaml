@@ -9,6 +9,11 @@ tasks:
       - mkdir -p ./bin/targets
       - go build -buildmode=plugin -o ./bin/runners/es5runner.so ./src/runners/es5runner
       - go build -buildmode=plugin -o ./bin/runners/wasmrunner.so ./src/runners/wasmrunner
+      - go build -buildmode=plugin -o ./bin/sources/coapsource.so ./src/sources/coapsource
+      - go build -buildmode=plugin -o ./bin/sources/natssource.so ./src/sources/natssource
+      - go build -buildmode=plugin -o ./bin/sources/mqttsource.so ./src/sources/mqttsource
+      - go build -buildmode=plugin -o ./bin/targets/coaptarget.so ./src/targets/coaptarget
+      - go build -buildmode=plugin -o ./bin/targets/mqtttarget.so ./src/targets/mqtttarget
       - go build -o ./bin/events-bridge ./src
 
   test-coap:

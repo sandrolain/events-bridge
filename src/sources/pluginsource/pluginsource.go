@@ -6,16 +6,11 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
-	"github.com/sandrolain/events-bridge/src/sources/source"
+	"github.com/sandrolain/events-bridge/src/sources"
 )
 
-type SourcePluginConfig struct {
-	Name   string            `yaml:"name" json:"name" validate:"required"`
-	Config map[string]string `yaml:"config,omitempty" json:"config,omitempty"`
-}
-
 type PluginSource struct {
-	config *SourcePluginConfig
+	config *sources.SourcePluginConfig
 	slog   *slog.Logger
 	mgr    *plugin.PluginManager
 	plg    *plugin.Plugin
@@ -23,7 +18,7 @@ type PluginSource struct {
 	close  func()
 }
 
-func New(mgr *plugin.PluginManager, cfg *SourcePluginConfig) (source.Source, error) {
+func New(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sources.Source, error) {
 	if mgr == nil {
 		return nil, fmt.Errorf("plugin manager cannot be nil")
 	}

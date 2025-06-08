@@ -7,17 +7,11 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources/source"
+	"github.com/sandrolain/events-bridge/src/sources"
 	"github.com/valyala/fasthttp"
 )
 
-type SourceHTTPConfig struct {
-	Address string `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Method  string `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT PATCH"`
-	Path    string `yaml:"path" json:"path" validate:"required"`
-}
-
-func New(cfg *SourceHTTPConfig) (res source.Source, err error) {
+func New(cfg *sources.SourceHTTPConfig) (res sources.Source, err error) {
 	conn := &HTTPSource{
 		config: cfg,
 		slog:   slog.Default().With("context", "HTTP"),
@@ -29,7 +23,7 @@ func New(cfg *SourceHTTPConfig) (res source.Source, err error) {
 }
 
 type HTTPSource struct {
-	config   *SourceHTTPConfig
+	config   *sources.SourceHTTPConfig
 	slog     *slog.Logger
 	listener net.Listener
 	c        chan message.Message

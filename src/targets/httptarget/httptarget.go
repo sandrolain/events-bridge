@@ -4,21 +4,13 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets/target"
+	"github.com/sandrolain/events-bridge/src/targets"
 	"github.com/valyala/fasthttp"
 )
 
-type TargetHTTPConfig struct {
-	Method  string            `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT PATCH"`
-	URL     string            `yaml:"url" json:"url" validate:"required"`
-	Headers map[string]string `yaml:"headers" json:"headers" validate:"omitempty,dive"`
-	Timeout time.Duration     `yaml:"timeout" json:"timeout" validate:"required"`
-}
-
-func New(cfg *TargetHTTPConfig) (res target.Target, err error) {
+func New(cfg *targets.TargetHTTPConfig) (res targets.Target, err error) {
 	client := &fasthttp.Client{
 		ReadTimeout:                   cfg.Timeout,
 		WriteTimeout:                  cfg.Timeout,
@@ -43,7 +35,7 @@ func New(cfg *TargetHTTPConfig) (res target.Target, err error) {
 
 type HTTPTarget struct {
 	slog    *slog.Logger
-	config  *TargetHTTPConfig
+	config  *targets.TargetHTTPConfig
 	stopped bool
 	stopCh  chan struct{}
 	client  *fasthttp.Client

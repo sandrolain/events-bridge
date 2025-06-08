@@ -1,4 +1,4 @@
-package coaptarget_test
+package main_test
 
 import (
 	"testing"
@@ -13,7 +13,8 @@ import (
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets/coaptarget"
+	"github.com/sandrolain/events-bridge/src/targets"
+	coaptarget "github.com/sandrolain/events-bridge/src/targets/coaptarget"
 )
 
 type dummyMessage struct {
@@ -76,7 +77,7 @@ func TestIntegration_SendUDP(t *testing.T) {
 	var received bool
 	stop := startUDPServer(t, addr, func() { received = true })
 	defer stop()
-	cfg := &coaptarget.TargetCoAPConfig{
+	cfg := &targets.TargetCoAPConfig{
 		Protocol: "udp",
 		Address:  addr,
 		Path:     "/test",
@@ -101,7 +102,7 @@ func TestIntegration_SendTCP(t *testing.T) {
 	var received bool
 	stop := startTCPServer(t, addr, func() { received = true })
 	defer stop()
-	cfg := &coaptarget.TargetCoAPConfig{
+	cfg := &targets.TargetCoAPConfig{
 		Protocol: "tcp",
 		Address:  addr,
 		Path:     "/test",

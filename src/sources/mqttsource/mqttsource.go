@@ -1,4 +1,4 @@
-package mqttsource
+package main
 
 import (
 	"fmt"
@@ -7,25 +7,18 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources/source"
+	"github.com/sandrolain/events-bridge/src/sources"
 )
 
-type SourceMQTTConfig struct {
-	Address       string `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Topic         string `yaml:"topic" json:"topic" validate:"required"`
-	ClientID      string `yaml:"clientID" json:"clientID" validate:"omitempty,alphanum"`
-	ConsumerGroup string `yaml:"consumerGroup" json:"consumerGroup"`
-}
-
 type MQTTSource struct {
-	config  *SourceMQTTConfig
+	config  *sources.SourceMQTTConfig
 	slog    *slog.Logger
 	c       chan message.Message
 	client  mqtt.Client
 	started bool
 }
 
-func New(cfg *SourceMQTTConfig) (source.Source, error) {
+func New(cfg *sources.SourceMQTTConfig) (sources.Source, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT source")
 	}
