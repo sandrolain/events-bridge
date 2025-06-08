@@ -47,8 +47,8 @@ func printRequestDetails(proto, remote string, req *coapmux.Message) {
 }
 
 func main() {
-	mode := flag.String("mode", "udp", "Protocollo CoAP: udp o tcp")
-	addr := flag.String("address", ":5683", "Indirizzo di ascolto (es: :5683)")
+	mode := flag.String("mode", "udp", "CoAP protocol: udp or tcp")
+	addr := flag.String("address", ":5683", "Listen address (e.g.: :5683)")
 	flag.Parse()
 
 	log.Printf("Starting coapdbg in %s mode on %s", *mode, *addr)

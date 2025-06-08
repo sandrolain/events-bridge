@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	addr := flag.String("address", "0.0.0.0:8989", "Indirizzo di ascolto HTTP")
+	addr := flag.String("address", "0.0.0.0:8989", "HTTP listen address")
 	flag.Parse()
 
 	slog.Info("Starting httpdbg", "addr", *addr)
