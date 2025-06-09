@@ -54,8 +54,8 @@ type SourceHTTPConfig struct {
 type SourceMQTTConfig struct {
 	Address       string `yaml:"address" json:"address" validate:"required,hostname_port"`
 	Topic         string `yaml:"topic" json:"topic" validate:"required"`
-	ClientID      string `yaml:"clientID" json:"clientID" validate:"omitempty,alphanum"`
-	ConsumerGroup string `yaml:"consumerGroup" json:"consumerGroup"`
+	ClientID      string `yaml:"client_id" json:"client_id" validate:"omitempty"`
+	ConsumerGroup string `yaml:"consumer_group" json:"consumer_group"`
 }
 
 type SourceNATSConfig struct {

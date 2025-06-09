@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coaptcp "github.com/plgd-dev/go-coap/v3/tcp"
@@ -16,6 +17,10 @@ import (
 )
 
 func New(cfg *targets.TargetCoAPConfig) (targets.Target, error) {
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = targets.DefaultTimeout
+	}
 	t := &CoAPTarget{
 		config:  cfg,
 		slog:    slog.Default().With("context", "COAP"),
@@ -28,6 +33,7 @@ func New(cfg *targets.TargetCoAPConfig) (targets.Target, error) {
 type CoAPTarget struct {
 	slog    *slog.Logger
 	config  *targets.TargetCoAPConfig
+	timeout time.Duration
 	stopped bool
 	stopCh  chan struct{}
 }
@@ -69,7 +75,8 @@ func (t *CoAPTarget) send(msg message.Message) error {
 	protocol := string(t.config.Protocol)
 	t.slog.Debug("sending coap message", "protocol", protocol, "address", address, "path", path, "method", method)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	defer cancel()
 
 	switch protocol {
 	case "udp":

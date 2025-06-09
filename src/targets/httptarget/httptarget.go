@@ -11,9 +11,14 @@ import (
 )
 
 func New(cfg *targets.TargetHTTPConfig) (res targets.Target, err error) {
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = targets.DefaultTimeout
+	}
+
 	client := &fasthttp.Client{
-		ReadTimeout:                   cfg.Timeout,
-		WriteTimeout:                  cfg.Timeout,
+		ReadTimeout:                   timeout,
+		WriteTimeout:                  timeout,
 		NoDefaultUserAgentHeader:      true,
 		DisableHeaderNamesNormalizing: true,
 		DisablePathNormalizing:        true,

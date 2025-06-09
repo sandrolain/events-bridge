@@ -9,10 +9,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-func (p *Plugin) Target(msg message.Message) (err error) {
+func (p *Plugin) Target(ctx context.Context, msg message.Message) (err error) {
 	uid := uuid.New().String()
-
-	ctx := context.TODO()
 
 	data, e := msg.GetData()
 	if e != nil {

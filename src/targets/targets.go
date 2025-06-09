@@ -31,8 +31,10 @@ type TargetConfig struct {
 	HTTP   *TargetHTTPConfig   `yaml:"http" json:"http"`
 	CoAP   *TargetCoAPConfig   `yaml:"coap" json:"coap"`
 	MQTT   *TargetMQTTConfig   `yaml:"mqtt" json:"mqtt"`
-	Plugin *TargetPluginConfig `yaml:"plugin" json:"plugin"`
+	Plugin *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
 }
+
+const DefaultTimeout = 5 * time.Second
 
 type CoAPProtocol string
 
@@ -46,12 +48,13 @@ type TargetCoAPConfig struct {
 	Address  string        `yaml:"address" json:"address" validate:"required,hostname_port"`
 	Path     string        `yaml:"path" json:"path" validate:"required"`
 	Method   string        `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT GET"`
-	Timeout  time.Duration `yaml:"timeout" json:"timeout" validate:"required"`
+	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
 }
 
 type TargetPluginConfig struct {
-	Name   string            `yaml:"name" json:"name" validate:"required"`
-	Config map[string]string `yaml:"config" json:"config"`
+	Name    string            `yaml:"name" json:"name" validate:"required"`
+	Config  map[string]string `yaml:"config" json:"config"`
+	Timeout time.Duration     `yaml:"timeout" json:"timeout"`
 }
 
 type TargetMQTTConfig struct {
@@ -66,5 +69,5 @@ type TargetHTTPConfig struct {
 	Method  string            `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT PATCH"`
 	URL     string            `yaml:"url" json:"url" validate:"required"`
 	Headers map[string]string `yaml:"headers" json:"headers" validate:"omitempty,dive"`
-	Timeout time.Duration     `yaml:"timeout" json:"timeout" validate:"required"`
+	Timeout time.Duration     `yaml:"timeout" json:"timeout"`
 }

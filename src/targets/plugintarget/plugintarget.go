@@ -1,8 +1,10 @@
 package plugintarget
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
@@ -11,11 +13,12 @@ import (
 
 type PluginTarget struct {
 	config  *targets.TargetPluginConfig
+	timeout time.Duration
 	slog    *slog.Logger
 	mgr     *plugin.PluginManager
 	plg     *plugin.Plugin
 	stopped bool
-	stopCh  chan struct{} // canale di stop
+	stopCh  chan struct{}
 }
 
 func New(mgr *plugin.PluginManager, cfg *targets.TargetPluginConfig) (targets.Target, error) {
@@ -31,12 +34,18 @@ func New(mgr *plugin.PluginManager, cfg *targets.TargetPluginConfig) (targets.Ta
 		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
 	}
 
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = targets.DefaultTimeout
+	}
+
 	t := &PluginTarget{
-		config: cfg,
-		slog:   slog.Default().With("context", "Plugin Target", "name", cfg.Name),
-		mgr:    mgr,
-		plg:    plg,
-		stopCh: make(chan struct{}), // inizializza canale di stop
+		config:  cfg,
+		timeout: timeout,
+		slog:    slog.Default().With("context", "Plugin Target", "name", cfg.Name),
+		mgr:     mgr,
+		plg:     plg,
+		stopCh:  make(chan struct{}),
 	}
 	return t, nil
 }
@@ -52,13 +61,15 @@ func (t *PluginTarget) Consume(c <-chan message.Message) error {
 				if !ok {
 					return
 				}
-				err := t.plg.Target(msg)
+				ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+				err := t.plg.Target(ctx, msg)
 				if err != nil {
 					msg.Nak()
 					t.slog.Error("plugin target error", "err", err)
 				} else {
 					msg.Ack()
 				}
+				cancel()
 			}
 		}
 	}()
