@@ -60,3 +60,9 @@ tasks:
       CONFIG_FILE_PATH: ./testers/config/wasmrunner.config.yaml
     cmds:
       - ./bin/events-bridge
+
+  run-mqtt-to-http-config:
+    env:
+      CONFIG_FILE_PATH: ./testers/config/mqtt-to-http.config.yaml
+    cmds:
+      - ./bin/events-bridge

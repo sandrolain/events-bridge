@@ -1,0 +1,18 @@
+source:
+  type: "mqtt"
+  mqtt:
+    address: "localhost:1883"
+    topic: "test/topic"
+    client_id: "mqtt-to-http-client"
+    consumer_group: "mqtt-to-http-group"
+
+target:
+  type: "http"
+  http:
+    method: "POST"
+    url: "http://localhost:8080/api/data"
+
+runner:
+  type: "wasm"
+  wasm:
+    path: "./testers/bin/wasmrunner.wasm"
