@@ -1,0 +1,14 @@
+commands:
+  - name: httptarget
+    cmd: "./testers/bin/httptarget"
+    args: []
+    restart: false
+  - name: task
+    cmd: "task"
+    args: ["run-mqtt-to-http-config"]
+    restart: false
+  - name: mqttsource
+    cmd: "./testers/bin/mqttsource"
+    args: []
+    restart: false
+killOnExit: true
