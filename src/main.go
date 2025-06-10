@@ -222,8 +222,6 @@ func loadPlugin[T any, R any](relPath string, cfg T) (R, error) {
 		return zero, fmt.Errorf("failed to lookup New: %w", err)
 	}
 
-	fmt.Printf("sym: %T\n", sym)
-
 	constructor, ok := sym.(func(T) (R, error))
 	if !ok {
 		var zero R
