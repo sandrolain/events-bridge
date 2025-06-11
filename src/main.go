@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"time"
-
-	goplugin "plugin"
 
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
@@ -17,11 +14,10 @@ import (
 	"github.com/sandrolain/events-bridge/src/runners/clirunner"
 	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/sources/httpsource"
 	"github.com/sandrolain/events-bridge/src/sources/pluginsource"
 	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/targets/httptarget"
 	"github.com/sandrolain/events-bridge/src/targets/plugintarget"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func main() {
@@ -86,78 +82,21 @@ func main() {
 		slog.Info("no plugins configured")
 	}
 
-	switch cfg.Source.Type {
-	case sources.SourceTypeHTTP:
-		slog.Info("using HTTP source", "address", cfg.Source.HTTP.Address, "path", cfg.Source.HTTP.Path, "method", cfg.Source.HTTP.Method)
-		source, err = httpsource.New(cfg.Source.HTTP)
-	case sources.SourceTypeCoAP:
-		slog.Info("using CoAP source", "address", cfg.Source.CoAP.Address, "path", cfg.Source.CoAP.Path, "method", cfg.Source.CoAP.Method)
-		source, err = loadPlugin[*sources.SourceCoAPConfig, sources.Source]("./sources/coapsource.so", cfg.Source.CoAP)
-	case sources.SourceTypeMQTT:
-		slog.Info("using MQTT source", "address", cfg.Source.MQTT.Address, "topic", cfg.Source.MQTT.Topic, "consumerGroup", cfg.Source.MQTT.ConsumerGroup)
-		source, err = loadPlugin[*sources.SourceMQTTConfig, sources.Source]("./sources/mqttsource.so", cfg.Source.MQTT)
-	case sources.SourceTypeNATS:
-		slog.Info("using NATS source", "address", cfg.Source.NATS.Address, "subject", cfg.Source.NATS.Subject, "queueGroup", cfg.Source.NATS.QueueGroup)
-		source, err = loadPlugin[*sources.SourceNATSConfig, sources.Source]("./sources/natssource.so", cfg.Source.NATS)
-	case sources.SourceTypePlugin:
-		slog.Info("using Plugin source", "path", cfg.Source.Plugin.Name)
-		source, err = pluginsource.New(plgMan, cfg.Source.Plugin)
-	default:
-		slog.Error("unsupported source type", "type", cfg.Source.Type)
-		os.Exit(1)
-	}
-
+	source, err = createSource(cfg.Source)
 	if err != nil {
 		slog.Error("failed to create source", "error", err)
 		os.Exit(1)
 	}
 	defer source.Close()
 
-	// Target
-	switch cfg.Target.Type {
-	case targets.TargetTypeHTTP:
-		slog.Info("using HTTP target", "method", cfg.Target.HTTP.Method, "url", cfg.Target.HTTP.URL, "headers", cfg.Target.HTTP.Headers)
-		target, err = httptarget.New(cfg.Target.HTTP)
-	case targets.TargetTypeCoAP:
-		slog.Info("using CoAP target", "address", cfg.Target.CoAP.Address, "path", cfg.Target.CoAP.Path, "method", cfg.Target.CoAP.Method)
-		target, err = loadPlugin[*targets.TargetCoAPConfig, targets.Target]("./targets/coaptarget.so", cfg.Target.CoAP)
-	case targets.TargetTypeMQTT:
-		slog.Info("using MQTT target", "address", cfg.Target.MQTT.Address, "topic", cfg.Target.MQTT.Topic, "qos", cfg.Target.MQTT.QoS)
-		target, err = loadPlugin[*targets.TargetMQTTConfig, targets.Target]("./targets/mqtttarget.so", cfg.Target.MQTT)
-	case targets.TargetTypePlugin:
-		target, err = plugintarget.New(plgMan, cfg.Target.Plugin)
-	default:
-		slog.Error("unsupported target type", "type", cfg.Target.Type)
-		os.Exit(1)
-	}
-
+	target, err = createTarget(cfg.Target)
 	if err != nil {
 		slog.Error("failed to create target", "error", err)
 		os.Exit(1)
 	}
-
 	defer target.Close()
 
-	switch cfg.Runner.Type {
-	case runners.RunnerTypeWASM:
-		slog.Info("using WASM runner", "path", cfg.Runner.WASM.Path)
-		runner, err = loadPlugin[*runners.RunnerWASMConfig, runners.Runner]("./runners/wasmrunner.so", cfg.Runner.WASM)
-	case runners.RunnerTypeES5:
-		slog.Info("using ES5 runner", "path", cfg.Runner.ES5.Path)
-		runner, err = loadPlugin[*runners.RunnerES5Config, runners.Runner]("./runners/es5runner.so", cfg.Runner.ES5)
-	case runners.RunnerTypeCLI:
-		slog.Info("using CLI runner", "command", cfg.Runner.CLI.Command, "args", cfg.Runner.CLI.Args)
-		runner, err = clirunner.New(cfg.Runner.CLI)
-	case runners.RunnerTypePlugin:
-		slog.Info("using Plugin runner", "id", cfg.Runner.Plugin.Name)
-		runner, err = pluginrunner.New(plgMan, cfg.Runner.Plugin)
-	case runners.RunnerTypeNone:
-		slog.Info("no runner configured, messages will be passed through without processing")
-	default:
-		slog.Error("unsupported runner type", "type", cfg.Runner.Type)
-		os.Exit(1)
-	}
-
+	runner, err = createRunner(cfg.Runner)
 	if err != nil {
 		slog.Error("failed to create runner", "error", err)
 		os.Exit(1)
@@ -198,35 +137,76 @@ func main() {
 
 }
 
-func loadPlugin[T any, R any](relPath string, cfg T) (R, error) {
-	exePath, err := os.Executable()
-	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("failed to get executable path: %w", err)
-	}
-	exeDir := filepath.Dir(exePath)
-	absPath := relPath
-	if !os.IsPathSeparator(relPath[0]) {
-		absPath = fmt.Sprintf("%s/%s", exeDir, relPath)
-	}
+func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
+	slog.Info("creating source", "type", cfg.Type, "buffer", cfg.Buffer)
 
-	p, err := goplugin.Open(absPath)
-	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("failed to open plugin: %w", err)
+	switch cfg.Type {
+	case sources.SourceTypeHTTP:
+		source, err = utils.LoadPlugin[*sources.SourceHTTPConfig, sources.Source]("./sources/httpsource.so", cfg.HTTP)
+	case sources.SourceTypeCoAP:
+		source, err = utils.LoadPlugin[*sources.SourceCoAPConfig, sources.Source]("./sources/coapsource.so", cfg.CoAP)
+	case sources.SourceTypeMQTT:
+		source, err = utils.LoadPlugin[*sources.SourceMQTTConfig, sources.Source]("./sources/mqttsource.so", cfg.MQTT)
+	case sources.SourceTypeNATS:
+		source, err = utils.LoadPlugin[*sources.SourceNATSConfig, sources.Source]("./sources/natssource.so", cfg.NATS)
+	case sources.SourceTypePGSQL:
+		source, err = utils.LoadPlugin[*sources.SourcePGSQLConfig, sources.Source]("./sources/pgsqlsource.so", cfg.PgSQL)
+	case sources.SourceTypePlugin:
+		slog.Info("using Plugin source", "path", cfg.Plugin.Name)
+		plgMan, e := plugin.GetPluginManager()
+		if e != nil {
+			err = fmt.Errorf("failed to get plugin manager: %w", e)
+			return
+		}
+		source, err = pluginsource.New(plgMan, cfg.Plugin)
+	default:
+		err = fmt.Errorf("unsupported source type: %s", cfg.Type)
 	}
+	return
+}
 
-	sym, err := p.Lookup("New")
-	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("failed to lookup New: %w", err)
+func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
+	slog.Info("creating target", "type", cfg.Type)
+
+	switch cfg.Type {
+	case targets.TargetTypeHTTP:
+		target, err = utils.LoadPlugin[*targets.TargetHTTPConfig, targets.Target]("./targets/httptarget.so", cfg.HTTP)
+	case targets.TargetTypeCoAP:
+		target, err = utils.LoadPlugin[*targets.TargetCoAPConfig, targets.Target]("./targets/coaptarget.so", cfg.CoAP)
+	case targets.TargetTypeMQTT:
+		target, err = utils.LoadPlugin[*targets.TargetMQTTConfig, targets.Target]("./targets/mqtttarget.so", cfg.MQTT)
+	case targets.TargetTypePlugin:
+		plgMan, e := plugin.GetPluginManager()
+		if e != nil {
+			err = fmt.Errorf("failed to get plugin manager: %w", e)
+			return
+		}
+		target, err = plugintarget.New(plgMan, cfg.Plugin)
+	default:
+		err = fmt.Errorf("unsupported target type: %s", cfg.Type)
 	}
+	return
+}
 
-	constructor, ok := sym.(func(T) (R, error))
-	if !ok {
-		var zero R
-		return zero, fmt.Errorf("invalid constructor signature in plugin")
+func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
+	slog.Info("creating runner", "type", cfg.Type)
+
+	switch cfg.Type {
+	case runners.RunnerTypeWASM:
+		runner, err = utils.LoadPlugin[*runners.RunnerWASMConfig, runners.Runner]("./runners/wasmrunner.so", cfg.WASM)
+	case runners.RunnerTypeES5:
+		runner, err = utils.LoadPlugin[*runners.RunnerES5Config, runners.Runner]("./runners/es5runner.so", cfg.ES5)
+	case runners.RunnerTypeCLI:
+		runner, err = clirunner.New(cfg.CLI)
+	case runners.RunnerTypePlugin:
+		plgMan, e := plugin.GetPluginManager()
+		if e != nil {
+			err = fmt.Errorf("failed to get plugin manager: %w", e)
+			return
+		}
+		runner, err = pluginrunner.New(plgMan, cfg.Plugin)
+	default:
+		err = fmt.Errorf("unsupported runner type: %s", cfg.Type)
 	}
-
-	return constructor(cfg)
+	return
 }

@@ -1,4 +1,4 @@
-package httpsource
+package main
 
 import (
 	"fmt"

@@ -83,7 +83,7 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 
 // Ingest riceve i messaggi, li processa tramite la runtime wasm e restituisce i messaggi processati
 func (w *WasmRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	w.slog.Info("starting wasm ingestion")
+	w.slog.Info("starting wasm runner ingest", "timeout", w.timeout)
 
 	out := make(chan message.Message)
 	go func() {

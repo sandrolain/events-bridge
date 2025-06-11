@@ -1,4 +1,4 @@
-package httptarget
+package main
 
 import (
 	"fmt"
@@ -47,6 +47,7 @@ type HTTPTarget struct {
 }
 
 func (s *HTTPTarget) Consume(c <-chan message.Message) (err error) {
+	s.slog.Info("starting HTTP target", "url", s.config.URL, "method", s.config.Method)
 	go func() {
 		for {
 			select {

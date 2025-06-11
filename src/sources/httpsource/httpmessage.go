@@ -1,4 +1,4 @@
-package httpsource
+package main
 
 import (
 	"github.com/sandrolain/events-bridge/src/message"
