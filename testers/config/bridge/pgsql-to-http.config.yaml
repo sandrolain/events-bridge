@@ -1,0 +1,16 @@
+source:
+  type: "pgsql"
+  pgsql:
+    conn_string: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+    table: "test_table"
+
+target:
+  type: "http"
+  http:
+    method: "POST"
+    url: "http://localhost:8080/api/data"
+
+runner:
+  type: "wasm"
+  wasm:
+    path: "./testers/bin/wasmrunner.wasm"
