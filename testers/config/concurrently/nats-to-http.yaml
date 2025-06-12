@@ -1,0 +1,16 @@
+commands:
+  - name: httptarget
+    cmd: "./testers/bin/httptarget"
+    args: []
+    restart: false
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/nats-to-http.config.yaml
+    args: []
+    restart: false
+  - name: natssource
+    cmd: "./testers/bin/natssource"
+    args: ["--interval", "500ms", "--stream", "test-stream"]
+    restart: false
+killOnExit: true

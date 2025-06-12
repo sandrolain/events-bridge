@@ -41,6 +41,7 @@ tasks:
     cmds:
       - mkdir -p ./bin
       - go build -o ./bin/concurrently ./concurrently
+      - go build -o ./bin/natssource ./natssource
       - go build -o ./bin/coapsource ./coapsource
       - go build -o ./bin/pgsqlsource ./pgsqlsource
       - go build -o ./bin/coaptarget ./coaptarget
@@ -73,3 +74,7 @@ tasks:
   run-pgsql-to-http:
     cmds:
       - cat ./testers/config/concurrently/pgsql-to-http.yaml | ./testers/bin/concurrently
+
+  run-nats-to-http:
+    cmds:
+      - cat ./testers/config/concurrently/nats-to-http.yaml | ./testers/bin/concurrently
