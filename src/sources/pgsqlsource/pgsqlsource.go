@@ -42,9 +42,10 @@ func (s *PGSQLSource) Produce(buffer int) (<-chan message.Message, error) {
 	}
 	s.conn = conn
 
-	channelName := channelNameForTable(s.config.Table)
-
-	query := fmt.Sprintf("LISTEN %s", pgx.Identifier{channelName}.Sanitize())
+	query, err := s.setupTrigger(ctx, conn, s.config.Table)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup trigger for table %s: %w", s.config.Table, err)
+	}
 
 	_, err = conn.Exec(ctx, query)
 	if err != nil {
@@ -84,80 +85,78 @@ func (s *PGSQLSource) Close() error {
 	return nil
 }
 
-// PGSQLMessage implements message.Message
-var _ message.Message = &PGSQLMessage{}
-
-type PGSQLMessage struct {
-	channel string
-	payload string
-}
-
-func (m *PGSQLMessage) GetMetadata() (map[string][]string, error) {
-	return map[string][]string{"channel": {m.channel}}, nil
-}
-
-func (m *PGSQLMessage) GetData() ([]byte, error) {
-	return []byte(m.payload), nil
-}
-
-func (m *PGSQLMessage) Ack() error {
-	// Nessuna azione necessaria per Ack su NOTIFY
-	return nil
-}
-
-func (m *PGSQLMessage) Nak() error {
-	// Nessuna azione necessaria per Nak su NOTIFY
-	return nil
-}
-
 func channelNameForTable(tableName string) string {
 	return fmt.Sprintf("%s_changes", tableName)
 }
 
-func setupTrigger(ctx context.Context, conn *pgx.Conn, tableName string) error {
+func (s *PGSQLSource) setupTrigger(ctx context.Context, conn *pgx.Conn, tableName string) (string, error) {
 	funcName := fmt.Sprintf("eb_notify_%s_change", tableName)
 	triggerName := fmt.Sprintf("eb_change_%s", tableName)
 	channelName := channelNameForTable(tableName)
 
-	// 1. Crea la funzione se non esiste
-	createFuncQuery := `DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_proc WHERE proname = $1
-    ) THEN
-        EXECUTE format('
-            CREATE FUNCTION %s() RETURNS trigger AS $$
-            BEGIN
-                PERFORM pg_notify(''%s'', json_build_object(''table'', TG_TABLE_NAME, ''operation'', TG_OP, ''data'', row_to_json(NEW))::text);
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;', $1, $2);
-    END IF;
-END;
-$$;`
-	_, err := conn.Exec(ctx, createFuncQuery, funcName, channelName)
+	s.slog.Debug("setting up trigger", "table", tableName, "function", funcName, "trigger", triggerName, "channel", channelName)
+
+	var exists bool
+	err := conn.QueryRow(ctx, fmt.Sprintf(`
+        SELECT EXISTS (
+            SELECT 1 FROM pg_proc WHERE proname = '%s'
+        )
+    `, funcName)).Scan(&exists)
 	if err != nil {
-		return fmt.Errorf("create function failed: %w", err)
+		return "", fmt.Errorf("check function existence failed: %w", err)
+	}
+
+	if !exists {
+		createFuncQuery := fmt.Sprintf(`
+			CREATE FUNCTION %s()
+			RETURNS trigger AS $$
+			BEGIN
+					IF TG_OP = 'DELETE' THEN
+						PERFORM pg_notify('%s', json_build_object('table', TG_TABLE_NAME, 'operation', TG_OP, 'data', row_to_json(OLD))::text);
+					ELSE
+						PERFORM pg_notify('%s', json_build_object('table', TG_TABLE_NAME, 'operation', TG_OP, 'data', row_to_json(NEW))::text);
+					END IF;
+					RETURN COALESCE(NEW, OLD);
+			END;
+			$$ LANGUAGE plpgsql; 
+		`, funcName, channelName, channelName)
+
+		s.slog.Debug("creating function", "query", createFuncQuery)
+
+		_, err := conn.Exec(ctx, createFuncQuery)
+		if err != nil {
+			return "", fmt.Errorf("create function failed: %w", err)
+		}
+	} else {
+		s.slog.Debug("function already exists", "function", funcName)
 	}
 
 	// 2. Crea il trigger se non esiste
-	createTriggerQuery := `DO $$
+	createTriggerQuery := fmt.Sprintf(`
+DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = $1
-    ) THEN
-        EXECUTE format('
-            CREATE TRIGGER %s
-            AFTER INSERT OR UPDATE OR DELETE ON %s
-            FOR EACH ROW
-            EXECUTE FUNCTION %s();', $1, $2, $3);
-    END IF;
+		IF NOT EXISTS (
+				SELECT 1 FROM pg_trigger WHERE tgname = '%s'
+		) THEN
+				CREATE TRIGGER %s
+				AFTER INSERT OR UPDATE OR DELETE ON %s
+				FOR EACH ROW
+				EXECUTE FUNCTION %s();
+		END IF;
 END;
-$$;`
-	_, err = conn.Exec(ctx, createTriggerQuery, triggerName, tableName, funcName)
+$$;
+`, triggerName, triggerName, tableName, funcName)
+
+	s.slog.Debug("creating trigger", "query", createTriggerQuery)
+
+	_, err = conn.Exec(ctx, createTriggerQuery)
 	if err != nil {
-		return fmt.Errorf("create trigger failed: %w", err)
+		return "", fmt.Errorf("create trigger failed: %w", err)
 	}
 
-	return nil
+	query := fmt.Sprintf("LISTEN %s", pgx.Identifier{channelName}.Sanitize())
+
+	s.slog.Debug("listening on channel", "query", query)
+
+	return query, nil
 }
