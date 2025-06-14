@@ -8,17 +8,17 @@ import (
 )
 
 func main() {
-	// Leggi da stdin
+	// Read from stdin
 	meta, data, err := cliformat.DecodeFromReader(os.Stdin)
 	if err != nil {
 		log.Fatalf("decode error: %v", err)
 	}
 
-	// Esempio di elaborazione: aggiungi una chiave ai metadati e modifica i dati
+	// Example processing: add a key to metadata and modify data
 	meta["wasm-processed"] = []string{"true"}
 	newData := append([]byte("[WASM] "), data...)
 
-	// Scrivi su stdout
+	// Write to stdout
 	out := cliformat.Encode(meta, newData)
 	os.Stdout.Write(out)
 }

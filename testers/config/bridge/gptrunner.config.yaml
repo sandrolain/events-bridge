@@ -1,0 +1,28 @@
+# Example configuration for events-bridge with GPT runner
+
+source:
+  type: http
+  http:
+    address: ":8080"
+    method: "POST"
+    path: "/event"
+    buffer: 10
+
+runner:
+  type: gpt
+  gpt:
+    action: "Give sentimental analysis of the text: positive, negative, or neutral."
+    model: "google/gemma-3-4b"
+    batch_size: 2
+    batch_wait: 2s
+    max_tokens: 256
+    timeout: 15s
+    api_url: "http://localhost:1234/v1"
+    # api_key: "${OPENAI_API_KEY}"
+
+target:
+  type: http
+  http:
+    url: "http://localhost:8081/processed"
+    method: POST
+    timeout: 5s
