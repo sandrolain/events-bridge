@@ -9,6 +9,8 @@ tasks:
       - mkdir -p ./bin/targets
       - go build -buildmode=plugin -o ./bin/runners/es5runner.so ./src/runners/es5runner
       - go build -buildmode=plugin -o ./bin/runners/wasmrunner.so ./src/runners/wasmrunner
+      - go build -buildmode=plugin -o ./bin/runners/gptrunner.so ./src/runners/gptrunner
+      - go build -buildmode=plugin -o ./bin/runners/jlorunner.so ./src/runners/jlorunner
       - go build -buildmode=plugin -o ./bin/sources/httpsource.so ./src/sources/httpsource
       - go build -buildmode=plugin -o ./bin/sources/coapsource.so ./src/sources/coapsource
       - go build -buildmode=plugin -o ./bin/sources/natssource.so ./src/sources/natssource
@@ -41,13 +43,15 @@ tasks:
     cmds:
       - mkdir -p ./bin
       - go build -o ./bin/concurrently ./concurrently
-      - go build -o ./bin/natssource ./natssource
-      - go build -o ./bin/coapsource ./coapsource
-      - go build -o ./bin/pgsqlsource ./pgsqlsource
-      - go build -o ./bin/coaptarget ./coaptarget
-      - go build -o ./bin/httptarget ./httptarget
-      - go build -o ./bin/plugin ./plugin
-      - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./wasmrunner
+      - go build -o ./bin/natssource ./sources/natssource
+      - go build -o ./bin/coapsource ./sources/coapsource
+      - go build -o ./bin/pgsqlsource ./sources/pgsqlsource
+      - go build -o ./bin/mqttsource ./sources/mqttsource
+      - go build -o ./bin/httpsource ./sources/httpsource
+      - go build -o ./bin/coaptarget ./targets/coaptarget
+      - go build -o ./bin/httptarget ./targets/httptarget
+      - go build -o ./bin/plugin ./plugins/plugin
+      - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner
 
   run-plugin-config:
     env:
@@ -78,3 +82,7 @@ tasks:
   run-nats-to-http:
     cmds:
       - cat ./testers/config/concurrently/nats-to-http.yaml | ./testers/bin/concurrently
+
+  run-gptrunner-config:
+    cmds:
+      - cat ./testers/config/concurrently/gptrunner.yaml | ./testers/bin/concurrently
