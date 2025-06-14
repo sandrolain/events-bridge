@@ -205,6 +205,10 @@ func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 			return
 		}
 		runner, err = pluginrunner.New(plgMan, cfg.Plugin)
+	case runners.RunnerTypeGPT:
+		runner, err = utils.LoadPlugin[*runners.RunnerGPTRunnerConfig, runners.Runner]("./runners/gptrunner.so", cfg.GPT)
+	case runners.RunnerTypeJSONLogic:
+		runner, err = utils.LoadPlugin[*runners.RunnerJSONLogicConfig, runners.Runner]("./runners/jlorunner.so", cfg.JSONLogic)
 	default:
 		err = fmt.Errorf("unsupported runner type: %s", cfg.Type)
 	}

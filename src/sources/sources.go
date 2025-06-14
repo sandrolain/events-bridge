@@ -51,7 +51,7 @@ type SourceCoAPConfig struct {
 
 type SourceHTTPConfig struct {
 	Address string `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Method  string `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT PATCH"`
+	Method  string `yaml:"method" json:"method" validate:"required,oneof=POST PUT PATCH"`
 	Path    string `yaml:"path" json:"path" validate:"required"`
 }
 
