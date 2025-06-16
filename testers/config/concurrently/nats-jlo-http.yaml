@@ -6,11 +6,11 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      CONFIG_FILE_PATH: ./testers/config/bridge/nats-to-http.config.yaml
+      CONFIG_FILE_PATH: ./testers/config/bridge/nats-jlo-http.config.yaml
     args: []
     restart: false
   - name: natssource
     cmd: "./testers/bin/natssource"
-    args: ["--interval", "50ms", "--stream", "test-stream"]
+    args: ["--interval", "2000ms", "--payload", '{"a":10, "b":20}']
     restart: false
 killOnExit: true

@@ -124,7 +124,13 @@ func (j *JSONLogicRunner) processMessage(msg message.Message, out chan<- message
 		}
 	}
 
-	output, err := json.Marshal(result)
+	// TODO: config params to obtain only the result
+	outputStruct := map[string]interface{}{
+		"payload": input,
+		"result":  result,
+	}
+
+	output, err := json.Marshal(outputStruct)
 	if err != nil {
 		msg.Nak()
 		return fmt.Errorf("failed to marshal jsonlogic result: %w", err)

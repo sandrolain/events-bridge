@@ -75,9 +75,13 @@ tasks:
     cmds:
       - cat ./testers/config/concurrently/pgsql-to-http.yaml | ./testers/bin/concurrently
 
-  run-nats-to-http:
+  run-nats-wasm-http:
     cmds:
-      - cat ./testers/config/concurrently/nats-to-http.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/concurrently/nats-wasm-http.yaml | ./testers/bin/concurrently
+
+  run-nats-jlo-http:
+    cmds:
+      - cat ./testers/config/concurrently/nats-jlo-http.yaml | ./testers/bin/concurrently
 
   run-gptrunner-config:
     cmds:

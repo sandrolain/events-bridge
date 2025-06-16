@@ -7,14 +7,16 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	testpayload "github.com/sandrolain/events-bridge/testers/sources/testpayload"
 )
 
 func main() {
 	address := flag.String("address", "nats://localhost:4222", "NATS server address")
 	subject := flag.String("subject", "test.subject", "NATS subject")
-	payload := flag.String("payload", "hello", "Payload to send")
+	payload := flag.String("payload", "{nowtime}", "Payload to send")
 	interval := flag.String("interval", "5s", "Send interval (duration, es: 5s, 1m)")
 	stream := flag.String("stream", "", "JetStream stream name (se valorizzato, usa JetStream)")
+	testPayloadType := flag.String("testpayload", "", "If set, use testpayload generator: json, cbor, sentiment, sentence")
 	flag.Parse()
 
 	dur, err := time.ParseDuration(*interval)
@@ -30,6 +32,25 @@ func main() {
 	}
 	defer nc.Close()
 
+	getPayload := func() ([]byte, error) {
+		if *testPayloadType != "" {
+			switch *testPayloadType {
+			case "json":
+				return testpayload.GenerateRandomJSON()
+			case "cbor":
+				return testpayload.GenerateRandomCBOR()
+			case "sentiment":
+				return []byte(testpayload.GenerateSentimentPhrase()), nil
+			case "sentence":
+				return []byte(testpayload.GenerateSentence()), nil
+			default:
+				return nil, fmt.Errorf("Unknown testpayload type: %s", *testPayloadType)
+			}
+		} else {
+			return testpayload.Interpolate(*payload)
+		}
+	}
+
 	if *stream != "" {
 		js, err := nc.JetStream()
 		if err != nil {
@@ -40,7 +61,12 @@ func main() {
 		ticker := time.NewTicker(dur)
 		defer ticker.Stop()
 		for range ticker.C {
-			ack, err := js.Publish(*subject, []byte(*payload))
+			b, err := getPayload()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Payload error: %v\n", err)
+				continue
+			}
+			ack, err := js.Publish(*subject, b)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "JetStream publish error: %v\n", err)
 			} else {
@@ -52,11 +78,16 @@ func main() {
 		ticker := time.NewTicker(dur)
 		defer ticker.Stop()
 		for range ticker.C {
-			err := nc.Publish(*subject, []byte(*payload))
+			b, err := getPayload()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Payload error: %v\n", err)
+				continue
+			}
+			err = nc.Publish(*subject, b)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Publish error: %v\n", err)
 			} else {
-				fmt.Printf("Payload sent to %s: %s\n", *subject, *payload)
+				fmt.Printf("Payload sent to %s: %s\n", *subject, string(b))
 			}
 		}
 	}
