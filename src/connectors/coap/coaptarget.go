@@ -16,13 +16,14 @@ import (
 	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-func New(cfg *targets.TargetCoAPConfig) (targets.Target, error) {
+func NewTarget(cfg *targets.TargetCoAPConfig) (targets.Target, error) {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = targets.DefaultTimeout
 	}
 	t := &CoAPTarget{
 		config:  cfg,
+		timeout: timeout,
 		slog:    slog.Default().With("context", "COAP"),
 		stopped: false,
 		stopCh:  make(chan struct{}),

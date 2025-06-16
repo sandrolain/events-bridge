@@ -19,7 +19,7 @@ type PGSQLSource struct {
 	started bool
 }
 
-func New(cfg *sources.SourcePGSQLConfig) (sources.Source, error) {
+func NewSource(cfg *sources.SourcePGSQLConfig) (sources.Source, error) {
 	if cfg.ConnString == "" || cfg.Table == "" {
 		return nil, fmt.Errorf("connString and table are required for PGSQL source")
 	}

@@ -18,7 +18,7 @@ type MQTTSource struct {
 	started bool
 }
 
-func New(cfg *sources.SourceMQTTConfig) (sources.Source, error) {
+func NewSource(cfg *sources.SourceMQTTConfig) (sources.Source, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT source")
 	}

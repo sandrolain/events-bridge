@@ -27,7 +27,7 @@ func TestSend_UnsupportedProtocol(t *testing.T) {
 		Path:     "/test",
 		Method:   "POST",
 	}
-	target, err := New(cfg)
+	target, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestSend_UnsupportedMethod(t *testing.T) {
 		Path:     "/test",
 		Method:   "DELETE",
 	}
-	target, err := New(cfg)
+	target, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestSend_ErrorGettingData(t *testing.T) {
 		Path:     "/test",
 		Method:   "POST",
 	}
-	target, err := New(cfg)
+	target, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
 		Path:     "/test",
 		Method:   "POST",
 	}
-	target, err := New(cfg)
+	target, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}
@@ -106,7 +106,7 @@ func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
 		Path:     "/test",
 		Method:   "POST",
 	}
-	target, err := New(cfg)
+	target, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}

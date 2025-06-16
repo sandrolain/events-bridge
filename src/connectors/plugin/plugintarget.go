@@ -1,4 +1,4 @@
-package plugintarget
+package pluginconn
 
 import (
 	"context"
@@ -21,7 +21,7 @@ type PluginTarget struct {
 	stopCh  chan struct{}
 }
 
-func New(mgr *plugin.PluginManager, cfg *targets.TargetPluginConfig) (targets.Target, error) {
+func NewTarget(mgr *plugin.PluginManager, cfg *targets.TargetPluginConfig) (targets.Target, error) {
 	if mgr == nil {
 		return nil, fmt.Errorf("plugin manager cannot be nil")
 	}

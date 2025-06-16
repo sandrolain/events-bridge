@@ -6,6 +6,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+const NewMethodName = "New"
+
 type Runner interface {
 	Ingest(<-chan message.Message) (<-chan message.Message, error)
 	Close() error

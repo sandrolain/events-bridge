@@ -11,6 +11,6 @@ commands:
     restart: false
   - name: natssource
     cmd: "./testers/bin/natssource"
-    args: ["--interval", "500ms", "--stream", "test-stream"]
+    args: ["--interval", "50ms", "--stream", "test-stream"]
     restart: false
 killOnExit: true

@@ -1,4 +1,4 @@
-package pluginsource
+package pluginconn
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type PluginSource struct {
 	close  func()
 }
 
-func New(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sources.Source, error) {
+func NewSource(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sources.Source, error) {
 	if mgr == nil {
 		return nil, fmt.Errorf("plugin manager cannot be nil")
 	}

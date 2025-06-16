@@ -2,26 +2,25 @@ package dbstore_test
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
-	connectpkg "github.com/sandrolain/gomsvc/pkg/dblib/connect"
+	connectpkg "github.com/sandrolain/events-bridge/src/connectors/pgsql/connect"
 )
 
 var (
-	testDB        *sql.DB
+	testDB        *pgxpool.Pool
 	testTerminate func()
 )
 
-func setupPostgresContainer(t *testing.T) (container *postgres.PostgresContainer, db *sql.DB, terminate func()) {
+func setupPostgresContainer(t *testing.T) (container *postgres.PostgresContainer, db *pgxpool.Pool, terminate func()) {
 	ctx := context.Background()
 	container, err := postgres.Run(ctx, "postgres:17",
 		postgres.WithDatabase("testdb"),
@@ -47,8 +46,8 @@ func setupPostgresContainer(t *testing.T) (container *postgres.PostgresContainer
 		panic(err)
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%s user=testuser password=testpass dbname=testdb sslmode=disable", host, port.Port())
-	db, err = sql.Open("postgres", dsn)
+	dsn := fmt.Sprintf("postgres://testuser:testpass@%s:%s/testdb?sslmode=disable", host, port.Port())
+	pool, err := pgxpool.New(ctx, dsn)
 	if t != nil {
 		require.NoError(t, err)
 	} else if err != nil {
@@ -57,7 +56,7 @@ func setupPostgresContainer(t *testing.T) (container *postgres.PostgresContainer
 
 	// Wait for DB to be ready
 	for i := 0; i < 10; i++ {
-		err = db.Ping()
+		err = pool.Ping(ctx)
 		if err == nil {
 			break
 		}
@@ -69,8 +68,8 @@ func setupPostgresContainer(t *testing.T) (container *postgres.PostgresContainer
 		panic(err)
 	}
 
-	return container, db, func() {
-		_ = db.Close()
+	return container, pool, func() {
+		pool.Close()
 		_ = container.Terminate(ctx)
 	}
 }
@@ -84,9 +83,9 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func createTestTable(t *testing.T, db *sql.DB) {
-	_, _ = db.Exec(`DROP TABLE IF EXISTS test_records`)
-	_, err := db.Exec(`
+func createTestTable(t *testing.T, db *pgxpool.Pool) {
+	_, _ = db.Exec(context.Background(), `DROP TABLE IF EXISTS test_records`)
+	_, err := db.Exec(context.Background(), `
 		CREATE TABLE test_records (
 			id SERIAL PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -118,13 +117,9 @@ func TestInsertRecordSingleAndBatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check all records
-	rows, err := testDB.Query("SELECT name, age, active FROM test_records ORDER BY id")
+	rows, err := testDB.Query(context.Background(), "SELECT name, age, active FROM test_records ORDER BY id")
 	require.NoError(t, err)
-	defer func() {
-		if err := rows.Close(); err != nil {
-			fmt.Printf("error closing rows: %v\n", err)
-		}
-	}()
+	defer rows.Close()
 	var names []string
 	for rows.Next() {
 		var name string
@@ -155,7 +150,7 @@ func TestInsertRecordOtherColumnJSONB(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check meta column
-	row := testDB.QueryRow("SELECT meta FROM test_records WHERE name = 'Dario'")
+	row := testDB.QueryRow(context.Background(), "SELECT meta FROM test_records WHERE name = 'Dario'")
 	var metaRaw []byte
 	require.NoError(t, row.Scan(&metaRaw))
 	var meta map[string]interface{}
@@ -176,7 +171,7 @@ func TestInsertRecordOnConflictAndBatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Insert with conflict (same name, but name is not unique, so add constraint)
-	_, err = testDB.Exec("CREATE UNIQUE INDEX unique_name ON test_records(name)")
+	_, err = testDB.Exec(context.Background(), "CREATE UNIQUE INDEX unique_name ON test_records(name)")
 	require.NoError(t, err)
 
 	args.BatchRecords = []connectpkg.Record{{"name": "Eve", "age": 51, "active": false}}
@@ -186,7 +181,7 @@ func TestInsertRecordOnConflictAndBatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should not update
-	row := testDB.QueryRow("SELECT age, active FROM test_records WHERE name = 'Eve'")
+	row := testDB.QueryRow(context.Background(), "SELECT age, active FROM test_records WHERE name = 'Eve'")
 	var age int
 	var active bool
 	require.NoError(t, row.Scan(&age, &active))
@@ -200,7 +195,7 @@ func TestInsertRecordOnConflictAndBatch(t *testing.T) {
 	err = connectpkg.InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
-	row = testDB.QueryRow("SELECT age, active FROM test_records WHERE name = 'Eve'")
+	row = testDB.QueryRow(context.Background(), "SELECT age, active FROM test_records WHERE name = 'Eve'")
 	require.NoError(t, row.Scan(&age, &active))
 	require.Equal(t, 60, age)
 	require.Equal(t, false, active)
@@ -225,7 +220,7 @@ func TestInsertRecordBatchSize(t *testing.T) {
 	require.NoError(t, err)
 
 	var count int
-	row := testDB.QueryRow("SELECT COUNT(*) FROM test_records")
+	row := testDB.QueryRow(context.Background(), "SELECT COUNT(*) FROM test_records")
 	require.NoError(t, row.Scan(&count))
 	require.Equal(t, 150, count)
 }
@@ -244,10 +239,11 @@ func TestInsertRecordNullAndTypes(t *testing.T) {
 	err := connectpkg.InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
-	row := testDB.QueryRow("SELECT age FROM test_records WHERE name = 'NullTest'")
-	var age sql.NullInt64
-	require.NoError(t, row.Scan(&age))
-	require.False(t, age.Valid)
+	row := testDB.QueryRow(context.Background(), "SELECT age FROM test_records WHERE name = 'NullTest'")
+	var age *int32
+	err = row.Scan(&age)
+	require.NoError(t, err)
+	require.Nil(t, age)
 }
 
 func TestInsertRecordErrorCases(t *testing.T) {

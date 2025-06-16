@@ -8,15 +8,14 @@ import (
 
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
+	pluginconn "github.com/sandrolain/events-bridge/src/connectors/plugin"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
 	"github.com/sandrolain/events-bridge/src/runners"
 	"github.com/sandrolain/events-bridge/src/runners/clirunner"
 	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/sources/pluginsource"
 	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/targets/plugintarget"
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
@@ -142,15 +141,15 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 
 	switch cfg.Type {
 	case sources.SourceTypeHTTP:
-		source, err = utils.LoadPlugin[*sources.SourceHTTPConfig, sources.Source]("./sources/httpsource.so", cfg.HTTP)
+		source, err = utils.LoadPlugin[*sources.SourceHTTPConfig, sources.Source]("./connectors/http.so", sources.NewMethodName, cfg.HTTP)
 	case sources.SourceTypeCoAP:
-		source, err = utils.LoadPlugin[*sources.SourceCoAPConfig, sources.Source]("./sources/coapsource.so", cfg.CoAP)
+		source, err = utils.LoadPlugin[*sources.SourceCoAPConfig, sources.Source]("./connectors/coap.so", sources.NewMethodName, cfg.CoAP)
 	case sources.SourceTypeMQTT:
-		source, err = utils.LoadPlugin[*sources.SourceMQTTConfig, sources.Source]("./sources/mqttsource.so", cfg.MQTT)
+		source, err = utils.LoadPlugin[*sources.SourceMQTTConfig, sources.Source]("./connectors/mqtt.so", sources.NewMethodName, cfg.MQTT)
 	case sources.SourceTypeNATS:
-		source, err = utils.LoadPlugin[*sources.SourceNATSConfig, sources.Source]("./sources/natssource.so", cfg.NATS)
+		source, err = utils.LoadPlugin[*sources.SourceNATSConfig, sources.Source]("./connectors/nats.so", sources.NewMethodName, cfg.NATS)
 	case sources.SourceTypePGSQL:
-		source, err = utils.LoadPlugin[*sources.SourcePGSQLConfig, sources.Source]("./sources/pgsqlsource.so", cfg.PgSQL)
+		source, err = utils.LoadPlugin[*sources.SourcePGSQLConfig, sources.Source]("./connectors/pgsql.so", sources.NewMethodName, cfg.PgSQL)
 	case sources.SourceTypePlugin:
 		slog.Info("using Plugin source", "path", cfg.Plugin.Name)
 		plgMan, e := plugin.GetPluginManager()
@@ -158,7 +157,7 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 			err = fmt.Errorf("failed to get plugin manager: %w", e)
 			return
 		}
-		source, err = pluginsource.New(plgMan, cfg.Plugin)
+		source, err = pluginconn.NewSource(plgMan, cfg.Plugin)
 	default:
 		err = fmt.Errorf("unsupported source type: %s", cfg.Type)
 	}
@@ -170,18 +169,18 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 
 	switch cfg.Type {
 	case targets.TargetTypeHTTP:
-		target, err = utils.LoadPlugin[*targets.TargetHTTPConfig, targets.Target]("./targets/httptarget.so", cfg.HTTP)
+		target, err = utils.LoadPlugin[*targets.TargetHTTPConfig, targets.Target]("./connectors/http.so", targets.NewMethodName, cfg.HTTP)
 	case targets.TargetTypeCoAP:
-		target, err = utils.LoadPlugin[*targets.TargetCoAPConfig, targets.Target]("./targets/coaptarget.so", cfg.CoAP)
+		target, err = utils.LoadPlugin[*targets.TargetCoAPConfig, targets.Target]("./connectors/coap.so", targets.NewMethodName, cfg.CoAP)
 	case targets.TargetTypeMQTT:
-		target, err = utils.LoadPlugin[*targets.TargetMQTTConfig, targets.Target]("./targets/mqtttarget.so", cfg.MQTT)
+		target, err = utils.LoadPlugin[*targets.TargetMQTTConfig, targets.Target]("./connectors/mqtt.so", targets.NewMethodName, cfg.MQTT)
 	case targets.TargetTypePlugin:
 		plgMan, e := plugin.GetPluginManager()
 		if e != nil {
 			err = fmt.Errorf("failed to get plugin manager: %w", e)
 			return
 		}
-		target, err = plugintarget.New(plgMan, cfg.Plugin)
+		target, err = pluginconn.NewTarget(plgMan, cfg.Plugin)
 	default:
 		err = fmt.Errorf("unsupported target type: %s", cfg.Type)
 	}
@@ -193,9 +192,13 @@ func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 
 	switch cfg.Type {
 	case runners.RunnerTypeWASM:
-		runner, err = utils.LoadPlugin[*runners.RunnerWASMConfig, runners.Runner]("./runners/wasmrunner.so", cfg.WASM)
+		runner, err = utils.LoadPlugin[*runners.RunnerWASMConfig, runners.Runner]("./runners/wasmrunner.so", runners.NewMethodName, cfg.WASM)
 	case runners.RunnerTypeES5:
-		runner, err = utils.LoadPlugin[*runners.RunnerES5Config, runners.Runner]("./runners/es5runner.so", cfg.ES5)
+		runner, err = utils.LoadPlugin[*runners.RunnerES5Config, runners.Runner]("./runners/es5runner.so", runners.NewMethodName, cfg.ES5)
+	case runners.RunnerTypeGPT:
+		runner, err = utils.LoadPlugin[*runners.RunnerGPTRunnerConfig, runners.Runner]("./runners/gptrunner.so", runners.NewMethodName, cfg.GPT)
+	case runners.RunnerTypeJSONLogic:
+		runner, err = utils.LoadPlugin[*runners.RunnerJSONLogicConfig, runners.Runner]("./runners/jlorunner.so", runners.NewMethodName, cfg.JSONLogic)
 	case runners.RunnerTypeCLI:
 		runner, err = clirunner.New(cfg.CLI)
 	case runners.RunnerTypePlugin:
@@ -205,10 +208,6 @@ func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 			return
 		}
 		runner, err = pluginrunner.New(plgMan, cfg.Plugin)
-	case runners.RunnerTypeGPT:
-		runner, err = utils.LoadPlugin[*runners.RunnerGPTRunnerConfig, runners.Runner]("./runners/gptrunner.so", cfg.GPT)
-	case runners.RunnerTypeJSONLogic:
-		runner, err = utils.LoadPlugin[*runners.RunnerJSONLogicConfig, runners.Runner]("./runners/jlorunner.so", cfg.JSONLogic)
 	default:
 		err = fmt.Errorf("unsupported runner type: %s", cfg.Type)
 	}

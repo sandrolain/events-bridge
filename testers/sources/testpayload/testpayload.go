@@ -3,6 +3,7 @@ package testpayload
 import (
 	"encoding/json"
 	"math/rand"
+	"time"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/go-faker/faker/v4"
@@ -49,4 +50,15 @@ func GenerateSentimentPhrase() string {
 	adjectives := []string{"great", "terrible", "amazing", "awful", "funny", "boring"}
 	objects := []string{"this product", "the service", "the movie", "the food", "the weather", "the app"}
 	return starts[rand.Intn(len(starts))] + " " + adjectives[rand.Intn(len(adjectives))] + " " + objects[rand.Intn(len(objects))]
+}
+
+func GenerateRandomTime() string {
+	// Genera un timestamp Unix random tra 1 e 10 anni fa
+	timestamp := rand.Int63n(10*365*24*3600) + (time.Now().Unix() - 10*365*24*3600)
+	return time.Unix(timestamp, 0).Format(time.RFC3339)
+}
+
+func GenerateNowTime() string {
+	// Genera il timestamp corrente in RFC3339
+	return time.Now().Format(time.RFC3339)
 }

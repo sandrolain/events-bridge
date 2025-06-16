@@ -6,6 +6,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+const NewMethodName = "NewTarget"
+
 type Target interface {
 	Consume(<-chan message.Message) error
 	Close() error

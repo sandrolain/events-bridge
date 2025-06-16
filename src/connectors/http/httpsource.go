@@ -11,7 +11,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func New(cfg *sources.SourceHTTPConfig) (res sources.Source, err error) {
+func NewSource(cfg *sources.SourceHTTPConfig) (res sources.Source, err error) {
 	conn := &HTTPSource{
 		config: cfg,
 		slog:   slog.Default().With("context", "HTTP"),

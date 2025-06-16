@@ -11,7 +11,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-func New(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
+func NewTarget(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT target")
 	}

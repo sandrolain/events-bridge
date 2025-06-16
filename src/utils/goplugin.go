@@ -7,7 +7,7 @@ import (
 	goplugin "plugin"
 )
 
-func LoadPlugin[T any, R any](relPath string, cfg T) (R, error) {
+func LoadPlugin[T any, R any](relPath string, method string, cfg T) (R, error) {
 	exePath, err := os.Executable()
 	if err != nil {
 		var zero R
@@ -25,7 +25,7 @@ func LoadPlugin[T any, R any](relPath string, cfg T) (R, error) {
 		return zero, fmt.Errorf("failed to open plugin: %w", err)
 	}
 
-	sym, err := p.Lookup("New")
+	sym, err := p.Lookup(method)
 	if err != nil {
 		var zero R
 		return zero, fmt.Errorf("failed to lookup New: %w", err)

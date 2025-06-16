@@ -10,7 +10,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func New(cfg *targets.TargetHTTPConfig) (res targets.Target, err error) {
+func NewTarget(cfg *targets.TargetHTTPConfig) (res targets.Target, err error) {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = targets.DefaultTimeout

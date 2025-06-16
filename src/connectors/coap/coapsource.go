@@ -17,7 +17,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/sources"
 )
 
-func New(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
+func NewSource(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
 	if cfg.Protocol != sources.CoAPProtocolUDP && cfg.Protocol != sources.CoAPProtocolTCP {
 		return nil, fmt.Errorf("invalid CoAP protocol: %q (must be 'udp' or 'tcp')", cfg.Protocol)
 	}

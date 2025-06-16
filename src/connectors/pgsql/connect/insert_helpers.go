@@ -4,13 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/lib/pq"
 )
 
-// buildPreparedStatement constructs the SQL INSERT statement and its parameters for a batch of records.
-// It builds the column list, value tuples, and ON CONFLICT clause as needed.
-// Returns the SQL string and a slice of parameters (empty, since values are inlined for now).
+// buildPreparedStatement costruisce la query SQL INSERT e i parametri per un batch di record.
+// Compatibile con pgx/pgxpool.
 func buildPreparedStatement(args InsertRecordArgs, columns []Column, records []Record) (string, []interface{}, error) {
 	tableName := args.TableName
 	otherColumn := args.OtherColumn
@@ -88,7 +85,7 @@ func buildSingleRecordValues(columns []Column, otherColumn string, colMap map[st
 		if err != nil {
 			return "", err
 		}
-		recordValues = append(recordValues, pq.QuoteLiteral(string(otherJSON)))
+		recordValues = append(recordValues, QuoteLiteral(string(otherJSON)))
 	}
 	return fmt.Sprintf("(%s)", strings.Join(recordValues, ", ")), nil
 }

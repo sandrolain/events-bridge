@@ -2,16 +2,17 @@ package dbstore
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // InsertRecord inserts records into the specified table in batches.
 // It retrieves column metadata, splits the records into batches, and calls insertBatch for each batch.
 // If TableName is empty, returns ErrInvalidTableName. If BatchRecords is empty, does nothing.
 // BatchSize defaults to 100 if not specified.
-func InsertRecord(ctx context.Context, db *sql.DB, args InsertRecordArgs) error {
+func InsertRecord(ctx context.Context, db *pgxpool.Pool, args InsertRecordArgs) error {
 	if args.TableName == "" {
 		return ErrInvalidTableName
 	}
@@ -62,22 +63,12 @@ func filterInsertableColumns(columns []Column) []Column {
 // insertBatch builds and executes a prepared statement for a batch of records.
 // It uses buildPreparedStatement to generate the SQL and parameters, prepares the statement,
 // executes it, and returns any error encountered.
-func insertBatch(ctx context.Context, db *sql.DB, args InsertRecordArgs, columns []Column, records []Record) error {
+func insertBatch(ctx context.Context, db *pgxpool.Pool, args InsertRecordArgs, columns []Column, records []Record) error {
 	query, params, err := buildPreparedStatement(args, columns, records)
 	if err != nil {
 		return fmt.Errorf("failed to build prepared statement: %w", err)
 	}
-	stmt, err := db.PrepareContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to prepare statement: %w", err)
-	}
-	defer func() {
-		err := stmt.Close()
-		if err != nil {
-			fmt.Printf("failed to close statement: %v\n", err)
-		}
-	}()
-	_, err = stmt.ExecContext(ctx, params...)
+	_, err = db.Exec(ctx, query, params...)
 	if err != nil {
 		return fmt.Errorf("failed to execute statement: %w", err)
 	}

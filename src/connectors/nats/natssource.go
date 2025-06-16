@@ -19,7 +19,7 @@ type NATSSource struct {
 	started bool
 }
 
-func New(cfg *sources.SourceNATSConfig) (sources.Source, error) {
+func NewSource(cfg *sources.SourceNATSConfig) (sources.Source, error) {
 	if cfg.Address == "" || cfg.Subject == "" {
 		return nil, fmt.Errorf("address and subject are required for NATS source")
 	}
