@@ -174,6 +174,8 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 		target, err = utils.LoadPlugin[*targets.TargetCoAPConfig, targets.Target]("./connectors/coap.so", targets.NewMethodName, cfg.CoAP)
 	case targets.TargetTypeMQTT:
 		target, err = utils.LoadPlugin[*targets.TargetMQTTConfig, targets.Target]("./connectors/mqtt.so", targets.NewMethodName, cfg.MQTT)
+	case targets.TargetTypeNATS:
+		target, err = utils.LoadPlugin[*targets.TargetNATSConfig, targets.Target]("./connectors/nats.so", targets.NewMethodName, cfg.NATS)
 	case targets.TargetTypePlugin:
 		plgMan, e := plugin.GetPluginManager()
 		if e != nil {

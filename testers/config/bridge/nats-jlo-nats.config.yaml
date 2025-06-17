@@ -1,0 +1,17 @@
+source:
+  type: "nats"
+  nats:
+    address: "localhost:4222"
+    subject: "test.subject.in"
+
+target:
+  type: "nats"
+  nats:
+    address: "localhost:4222"
+    subject: "test.subject.out"
+
+runner:
+  type: "jsonlogic"
+  jsonlogic:
+    path: "./testers/config/bridge/jsonlogic-rule.json"
+    # puoi cambiare il path o la regola secondo necessità

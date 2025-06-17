@@ -1,0 +1,26 @@
+commands:
+  - name: natstarget
+    cmd: "./testers/bin/natstarget"
+    args: ["--address", "localhost:4222", "--subject", "test.subject.out"]
+    restart: false
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/nats-jlo-nats.config.yaml
+    args: []
+    restart: false
+  - name: natssource
+    cmd: "./testers/bin/natssource"
+    args:
+      [
+        "--address",
+        "localhost:4222",
+        "--subject",
+        "test.subject.in",
+        "--interval",
+        "1s",
+        "--payload",
+        '{"a":10, "b":20, "date": "{nowtime}"}',
+      ]
+    restart: false
+killOnExit: true

@@ -33,6 +33,7 @@ type TargetConfig struct {
 	HTTP   *TargetHTTPConfig   `yaml:"http" json:"http"`
 	CoAP   *TargetCoAPConfig   `yaml:"coap" json:"coap"`
 	MQTT   *TargetMQTTConfig   `yaml:"mqtt" json:"mqtt"`
+	NATS   *TargetNATSConfig   `yaml:"nats" json:"nats"`
 	Plugin *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
 }
 
@@ -72,4 +73,11 @@ type TargetHTTPConfig struct {
 	URL     string            `yaml:"url" json:"url" validate:"required"`
 	Headers map[string]string `yaml:"headers" json:"headers" validate:"omitempty,dive"`
 	Timeout time.Duration     `yaml:"timeout" json:"timeout"`
+}
+
+type TargetNATSConfig struct {
+	Address                string        `yaml:"address" json:"address" validate:"required,hostname_port"`
+	Subject                string        `yaml:"subject" json:"subject" validate:"required"`
+	SubjectFromMetadataKey string        `yaml:"subjectFromMetadataKey" json:"subjectFromMetadataKey"`
+	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
 }

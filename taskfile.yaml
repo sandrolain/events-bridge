@@ -46,6 +46,7 @@ tasks:
       - go build -o ./bin/httpsource ./sources/httpsource
       - go build -o ./bin/coaptarget ./targets/coaptarget
       - go build -o ./bin/httptarget ./targets/httptarget
+      - go build -o ./bin/natstarget ./targets/natstarget
       - go build -o ./bin/plugin ./plugins/plugin
       - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner
 
@@ -82,6 +83,10 @@ tasks:
   run-nats-jlo-http:
     cmds:
       - cat ./testers/config/concurrently/nats-jlo-http.yaml | ./testers/bin/concurrently
+
+  run-nats-jlo-nats:
+    cmds:
+      - cat ./testers/config/concurrently/nats-jlo-nats.yaml | ./testers/bin/concurrently
 
   run-gptrunner-config:
     cmds:
