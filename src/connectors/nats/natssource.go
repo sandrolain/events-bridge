@@ -62,9 +62,7 @@ func (s *NATSSource) Produce(buffer int) (<-chan message.Message, error) {
 func (s *NATSSource) consumeCore(queue string) {
 	handler := func(msg *nats.Msg) {
 		m := &NATSMessage{
-			subject: msg.Subject,
-			payload: msg.Data,
-			msg:     msg,
+			msg: msg,
 		}
 		s.c <- m
 	}
@@ -95,9 +93,7 @@ func (s *NATSSource) consumeJetStream() {
 		}
 		for _, msg := range msgs {
 			m := &NATSMessage{
-				subject: msg.Subject,
-				payload: msg.Data,
-				msg:     msg,
+				msg: msg,
 			}
 			s.c <- m
 		}

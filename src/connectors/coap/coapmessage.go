@@ -17,6 +17,13 @@ type CoAPMessage struct {
 
 var _ msg.Message = &CoAPMessage{}
 
+func (m *CoAPMessage) GetID() []byte {
+	if m.req == nil {
+		return nil
+	}
+	return m.req.Token()
+}
+
 func (m *CoAPMessage) GetMetadata() (map[string][]string, error) {
 	res := make(map[string][]string)
 	for _, opt := range m.req.Options() {

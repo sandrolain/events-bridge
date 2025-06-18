@@ -1,6 +1,10 @@
 package main
 
-import "github.com/sandrolain/events-bridge/src/message"
+import (
+	"crypto/sha256"
+
+	"github.com/sandrolain/events-bridge/src/message"
+)
 
 // PGSQLMessage implements message.Message
 var _ message.Message = &PGSQLMessage{}
@@ -8,6 +12,11 @@ var _ message.Message = &PGSQLMessage{}
 type PGSQLMessage struct {
 	channel string
 	payload string
+}
+
+func (m *PGSQLMessage) GetID() []byte {
+	hash := sha256.Sum256([]byte(m.channel + ":" + m.payload))
+	return hash[:]
 }
 
 func (m *PGSQLMessage) GetMetadata() (map[string][]string, error) {

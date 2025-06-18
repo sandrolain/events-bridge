@@ -1,13 +1,13 @@
 package main
 
 import (
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
 type MQTTMessage struct {
-	topic   string
-	payload []byte
-	done    chan responseStatus
+	orig mqtt.Message
+	done chan responseStatus
 }
 
 var _ message.Message = &MQTTMessage{}
@@ -19,12 +19,17 @@ const (
 	statusNak
 )
 
+func (m *MQTTMessage) GetID() []byte {
+	id := m.orig.MessageID()
+	return []byte{byte(id >> 8), byte(id & 0xff)}
+}
+
 func (m *MQTTMessage) GetMetadata() (map[string][]string, error) {
-	return map[string][]string{"topic": {m.topic}}, nil
+	return map[string][]string{"topic": {m.orig.Topic()}}, nil
 }
 
 func (m *MQTTMessage) GetData() ([]byte, error) {
-	return m.payload, nil
+	return m.orig.Payload(), nil
 }
 
 func (m *MQTTMessage) Ack() error {

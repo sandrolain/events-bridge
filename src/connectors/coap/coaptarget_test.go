@@ -13,6 +13,7 @@ type mockMessage struct {
 	ack, nak bool
 }
 
+func (m *mockMessage) GetID() []byte                             { return []byte("mock-id") }
 func (m *mockMessage) GetMetadata() (map[string][]string, error) { return nil, nil }
 func (m *mockMessage) GetData() ([]byte, error)                  { return m.data, nil }
 func (m *mockMessage) Ack() error                                { m.ack = true; return nil }
@@ -123,6 +124,7 @@ func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
 
 type mockMessageWithError struct{}
 
+func (m *mockMessageWithError) GetID() []byte                             { return []byte("mock-id-error") }
 func (m *mockMessageWithError) GetMetadata() (map[string][]string, error) { return nil, nil }
 func (m *mockMessageWithError) GetData() ([]byte, error)                  { return nil, errors.New("fail") }
 func (m *mockMessageWithError) Ack() error                                { return nil }

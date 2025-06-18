@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -15,7 +14,7 @@ import (
 func main() {
 	brokers := flag.String("brokers", "localhost:9092", "Kafka broker address")
 	topic := flag.String("topic", "test", "Kafka topic")
-	group := flag.String("group", "test-group", "Kafka consumer group")
+	group := flag.String("group", "", "Kafka consumer group")
 	flag.Parse()
 
 	r := kafka.NewReader(kafka.ReaderConfig{
@@ -31,19 +30,17 @@ func main() {
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigc
-		fmt.Println("\nInterrotto dall'utente")
+		fmt.Println("\nInterrupted by user")
 		os.Exit(0)
 	}()
 
-	fmt.Printf("In ascolto su topic '%s' da broker '%s'...\n", *topic, *brokers)
+	fmt.Printf("Listening on topic '%s' from broker '%s'...\n", *topic, *brokers)
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		m, err := r.ReadMessage(ctx)
-		cancel()
+		m, err := r.ReadMessage(context.Background())
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Errore nella lettura del messaggio: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error reading message: %v\n", err)
 			break
 		}
-		fmt.Printf("Messaggio ricevuto: %s\n", string(m.Value))
+		fmt.Printf("Message received: %s\n", string(m.Value))
 	}
 }

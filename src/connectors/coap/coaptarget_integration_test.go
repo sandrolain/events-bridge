@@ -22,6 +22,7 @@ type dummyMessage struct {
 	acked, naked bool
 }
 
+func (m *dummyMessage) GetID() []byte                             { return []byte("dummy-id") }
 func (m *dummyMessage) GetMetadata() (map[string][]string, error) { return nil, nil }
 func (m *dummyMessage) GetData() ([]byte, error)                  { return m.data, nil }
 func (m *dummyMessage) Ack() error                                { m.acked = true; return nil }

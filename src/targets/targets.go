@@ -88,7 +88,8 @@ type TargetNATSConfig struct {
 // Topic: nome del topic
 // KeyFromMetadataKey: opzionale, chiave da metadati
 type TargetKafkaConfig struct {
-	Brokers            []string `yaml:"brokers" json:"brokers" validate:"required,dive,hostname_port"`
-	Topic              string   `yaml:"topic" json:"topic" validate:"required"`
-	KeyFromMetadataKey string   `yaml:"keyFromMetadataKey" json:"keyFromMetadataKey"`
+	Brokers           []string `yaml:"brokers" json:"brokers" validate:"required,dive,hostname_port"`
+	Topic             string   `yaml:"topic" json:"topic" validate:"required"`
+	Partitions        int      `yaml:"partitions" json:"partitions"`
+	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
 }

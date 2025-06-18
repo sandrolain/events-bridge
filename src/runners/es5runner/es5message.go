@@ -11,6 +11,10 @@ type ES5Message struct {
 	metadata map[string][]string
 }
 
+func (m *ES5Message) GetID() []byte {
+	return m.original.GetID()
+}
+
 func (m *ES5Message) GetMetadata() (map[string][]string, error) {
 	if m.metadata != nil {
 		return m.metadata, nil

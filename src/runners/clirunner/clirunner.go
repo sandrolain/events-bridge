@@ -122,6 +122,10 @@ type cliMessage struct {
 	data     []byte
 }
 
+func (m *cliMessage) GetID() []byte {
+	return m.original.GetID()
+}
+
 func (m *cliMessage) GetMetadata() (map[string][]string, error) {
 	return m.meta, nil
 }

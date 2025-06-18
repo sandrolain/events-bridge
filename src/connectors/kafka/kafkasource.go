@@ -29,6 +29,13 @@ func NewSource(cfg *sources.SourceKafkaConfig) (sources.Source, error) {
 }
 
 func (s *KafkaSource) Produce(buffer int) (<-chan message.Message, error) {
+	// Create the topic if it does not exist
+	err := ensureKafkaTopic(s.slog, s.config.Brokers, s.config.Topic, s.config.Partitions, s.config.ReplicationFactor)
+	if err != nil {
+		s.slog.Error("error creating/verifying topic", "err", err)
+		return nil, err
+	}
+
 	s.c = make(chan message.Message, buffer)
 
 	s.slog.Info("starting Kafka source", "brokers", s.config.Brokers, "topic", s.config.Topic, "groupID", s.config.GroupID)

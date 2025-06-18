@@ -12,6 +12,10 @@ type WasmMessage struct {
 	metadata map[string][]string
 }
 
+func (m *WasmMessage) GetID() []byte {
+	return m.original.GetID()
+}
+
 func (m *WasmMessage) GetMetadata() (map[string][]string, error) {
 	return m.metadata, nil
 }

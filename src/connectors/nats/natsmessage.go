@@ -5,20 +5,24 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+const NatsMessageIdHeader = "Nats-Msg-Id"
+
 type NATSMessage struct {
-	subject string
-	payload []byte
-	msg     *nats.Msg
+	msg *nats.Msg
 }
 
 var _ message.Message = &NATSMessage{}
 
+func (m *NATSMessage) GetID() []byte {
+	return []byte(m.msg.Header.Get(NatsMessageIdHeader))
+}
+
 func (m *NATSMessage) GetMetadata() (map[string][]string, error) {
-	return map[string][]string{"subject": {m.subject}}, nil
+	return map[string][]string{"subject": {m.msg.Subject}}, nil
 }
 
 func (m *NATSMessage) GetData() ([]byte, error) {
-	return m.payload, nil
+	return m.msg.Data, nil
 }
 
 func (m *NATSMessage) Ack() error {

@@ -37,7 +37,7 @@ func main() {
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigc
-		fmt.Println("\nInterrotto dall'utente")
+		fmt.Println("\nInterrupted by user")
 		os.Exit(0)
 	}()
 
@@ -75,9 +75,9 @@ func main() {
 		})
 		cancel()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Errore nell'invio del messaggio: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error sending message: %v\n", err)
 		} else {
-			fmt.Println("Messaggio inviato con successo su Kafka!")
+			fmt.Println("Message successfully sent to Kafka!")
 		}
 	}
 }

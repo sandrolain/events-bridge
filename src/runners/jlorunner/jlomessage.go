@@ -7,6 +7,10 @@ type jsonlogicMessage struct {
 	data     []byte
 }
 
+func (m *jsonlogicMessage) GetID() []byte {
+	return m.original.GetID()
+}
+
 func (m *jsonlogicMessage) GetMetadata() (map[string][]string, error) {
 	return nil, nil
 }

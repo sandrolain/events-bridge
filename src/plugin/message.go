@@ -13,6 +13,13 @@ type PluginMessage struct {
 	res *proto.PluginMessage
 }
 
+func (m *PluginMessage) GetID() []byte {
+	if m.res == nil {
+		return nil
+	}
+	return []byte(m.res.Uuid)
+}
+
 func (m *PluginMessage) GetMetadata() (map[string][]string, error) {
 	metadata := make(map[string][]string)
 	for _, md := range m.res.Metadata {
@@ -20,16 +27,19 @@ func (m *PluginMessage) GetMetadata() (map[string][]string, error) {
 	}
 	return metadata, nil
 }
+
 func (m *PluginMessage) GetData() ([]byte, error) {
 	if m.res == nil {
 		return nil, fmt.Errorf("message is nil")
 	}
 	return m.res.Data, nil
 }
+
 func (m *PluginMessage) Ack() error {
 	// TODO: Implement Ack logic if needed
 	return nil
 }
+
 func (m *PluginMessage) Nak() error {
 	// TODO: Implement Nak logic if needed
 	return nil

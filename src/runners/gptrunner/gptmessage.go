@@ -7,6 +7,10 @@ type gptMessage struct {
 	data     []byte
 }
 
+func (m *gptMessage) GetID() []byte {
+	return m.original.GetID()
+}
+
 func (m *gptMessage) GetMetadata() (map[string][]string, error) {
 	return m.original.GetMetadata()
 }

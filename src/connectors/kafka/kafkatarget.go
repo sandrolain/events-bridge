@@ -15,6 +15,7 @@ func NewTarget(cfg *targets.TargetKafkaConfig) (targets.Target, error) {
 	if cfg.Brokers == nil || len(cfg.Brokers) == 0 || cfg.Topic == "" {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka target")
 	}
+
 	return &KafkaTarget{
 		config: cfg,
 		slog:   slog.Default().With("context", "Kafka"),
@@ -31,11 +32,17 @@ type KafkaTarget struct {
 }
 
 func (t *KafkaTarget) Consume(c <-chan message.Message) error {
-	t.writer = &kafka.Writer{
-		Addr:     kafka.TCP(t.config.Brokers...),
-		Topic:    t.config.Topic,
-		Balancer: &kafka.LeastBytes{},
+	// Create the topic if it does not exist
+	err := ensureKafkaTopic(t.slog, t.config.Brokers, t.config.Topic, t.config.Partitions, t.config.ReplicationFactor)
+	if err != nil {
+		t.slog.Error("error creating/verifying topic", "err", err)
+		return err
 	}
+
+	t.writer = kafka.NewWriter(kafka.WriterConfig{
+		Brokers: t.config.Brokers,
+		Topic:   t.config.Topic,
+	})
 	t.slog.Info("Kafka target connected", "brokers", t.config.Brokers, "topic", t.config.Topic)
 
 	go func() {
@@ -66,18 +73,10 @@ func (t *KafkaTarget) publish(msg message.Message) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	key := []byte{}
-	if t.config.KeyFromMetadataKey != "" {
-		metadata, _ := msg.GetMetadata()
-		if v, ok := metadata[t.config.KeyFromMetadataKey]; ok && len(v) > 0 {
-			key = []byte(v[0])
-		}
-	}
-
 	t.slog.Debug("publishing Kafka message", "topic", t.config.Topic, "bodysize", len(data))
 
 	kmsg := kafka.Message{
-		Key:   key,
+		Key:   msg.GetID(),
 		Value: data,
 	}
 

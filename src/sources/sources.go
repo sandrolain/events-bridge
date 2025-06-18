@@ -84,8 +84,9 @@ type SourcePGSQLConfig struct {
 }
 
 type SourceKafkaConfig struct {
-	Brokers  []string `yaml:"brokers" json:"brokers" validate:"required,dive,hostname_port"`
-	Topic    string   `yaml:"topic" json:"topic" validate:"required"`
-	GroupID  string   `yaml:"group_id" json:"group_id"`
-	ClientID string   `yaml:"client_id" json:"client_id"`
+	Brokers           []string `yaml:"brokers" json:"brokers" validate:"required,dive,hostname_port"`
+	GroupID           string   `yaml:"group_id" json:"group_id"`
+	Topic             string   `yaml:"topic" json:"topic" validate:"required"`
+	Partitions        int      `yaml:"partitions" json:"partitions"`
+	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
 }

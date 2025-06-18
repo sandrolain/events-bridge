@@ -12,6 +12,10 @@ type HTTPMessage struct {
 	done    chan responseStatus
 }
 
+func (m *HTTPMessage) GetID() []byte {
+	return m.httpCtx.Request.Header.Peek("X-Request-ID")
+}
+
 func (m HTTPMessage) GetMetadata() (res map[string][]string, err error) {
 	res = make(map[string][]string)
 	header := &m.httpCtx.Request.Header

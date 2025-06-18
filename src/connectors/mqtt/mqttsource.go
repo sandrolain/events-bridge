@@ -62,9 +62,8 @@ func (s *MQTTSource) Produce(buffer int) (<-chan message.Message, error) {
 	handler := func(client mqtt.Client, msg mqtt.Message) {
 		done := make(chan responseStatus)
 		m := &MQTTMessage{
-			topic:   msg.Topic(),
-			payload: msg.Payload(),
-			done:    done,
+			orig: msg,
+			done: done,
 		}
 		s.c <- m
 		// Attendi Ack/Nak o timeout
