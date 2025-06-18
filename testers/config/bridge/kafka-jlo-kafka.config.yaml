@@ -1,0 +1,17 @@
+source:
+  type: "kafka"
+  kafka:
+    brokers: ["localhost:9092"]
+    topic: "test.topic.in"
+
+target:
+  type: "kafka"
+  kafka:
+    brokers: ["localhost:9092"]
+    topic: "test.topic.out"
+
+runner:
+  type: "jsonlogic"
+  jsonlogic:
+    path: "./testers/config/bridge/jsonlogic-rule.json"
+    # puoi cambiare il path o la regola secondo necessità

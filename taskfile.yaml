@@ -6,15 +6,16 @@ tasks:
       - rm -rf ./bin
       - mkdir -p ./bin/connectors
       - mkdir -p ./bin/runners
-      - go build -buildmode=plugin -o ./bin/connectors/http.so ./src/connectors/http
-      - go build -buildmode=plugin -o ./bin/connectors/coap.so ./src/connectors/coap
-      - go build -buildmode=plugin -o ./bin/connectors/nats.so ./src/connectors/nats
-      - go build -buildmode=plugin -o ./bin/connectors/mqtt.so ./src/connectors/mqtt
-      - go build -buildmode=plugin -o ./bin/connectors/pgsql.so ./src/connectors/pgsql
-      - go build -buildmode=plugin -o ./bin/runners/es5runner.so ./src/runners/es5runner
-      - go build -buildmode=plugin -o ./bin/runners/wasmrunner.so ./src/runners/wasmrunner
-      - go build -buildmode=plugin -o ./bin/runners/gptrunner.so ./src/runners/gptrunner
-      - go build -buildmode=plugin -o ./bin/runners/jlorunner.so ./src/runners/jlorunner
+      - go build -buildmode=plugin -o ./bin/connectors/http.so ./src/connectors/http && du -h ./bin/connectors/http.so
+      - go build -buildmode=plugin -o ./bin/connectors/coap.so ./src/connectors/coap && du -h ./bin/connectors/coap.so
+      - go build -buildmode=plugin -o ./bin/connectors/nats.so ./src/connectors/nats && du -h ./bin/connectors/nats.so
+      - go build -buildmode=plugin -o ./bin/connectors/mqtt.so ./src/connectors/mqtt && du -h ./bin/connectors/mqtt.so
+      - go build -buildmode=plugin -o ./bin/connectors/pgsql.so ./src/connectors/pgsql && du -h ./bin/connectors/pgsql.so
+      - go build -buildmode=plugin -o ./bin/connectors/kafka.so ./src/connectors/kafka && du -h ./bin/connectors/kafka.so
+      - go build -buildmode=plugin -o ./bin/runners/es5runner.so ./src/runners/es5runner && du -h ./bin/runners/es5runner.so
+      - go build -buildmode=plugin -o ./bin/runners/wasmrunner.so ./src/runners/wasmrunner && du -h ./bin/runners/wasmrunner.so
+      - go build -buildmode=plugin -o ./bin/runners/gptrunner.so ./src/runners/gptrunner && du -h ./bin/runners/gptrunner.so
+      - go build -buildmode=plugin -o ./bin/runners/jlorunner.so ./src/runners/jlorunner && du -h ./bin/runners/jlorunner.so
       - go build -o ./bin/events-bridge ./src
 
   test-coap:
@@ -38,17 +39,19 @@ tasks:
     dir: ./testers
     cmds:
       - mkdir -p ./bin
-      - go build -o ./bin/concurrently ./concurrently
-      - go build -o ./bin/natssource ./sources/natssource
-      - go build -o ./bin/coapsource ./sources/coapsource
-      - go build -o ./bin/pgsqlsource ./sources/pgsqlsource
-      - go build -o ./bin/mqttsource ./sources/mqttsource
-      - go build -o ./bin/httpsource ./sources/httpsource
-      - go build -o ./bin/coaptarget ./targets/coaptarget
-      - go build -o ./bin/httptarget ./targets/httptarget
-      - go build -o ./bin/natstarget ./targets/natstarget
-      - go build -o ./bin/plugin ./plugins/plugin
-      - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner
+      - go build -o ./bin/concurrently ./concurrently && du -h ./bin/concurrently
+      - go build -o ./bin/natssource ./sources/natssource && du -h ./bin/natssource
+      - go build -o ./bin/coapsource ./sources/coapsource && du -h ./bin/coapsource
+      - go build -o ./bin/pgsqlsource ./sources/pgsqlsource && du -h ./bin/pgsqlsource
+      - go build -o ./bin/mqttsource ./sources/mqttsource && du -h ./bin/mqttsource
+      - go build -o ./bin/httpsource ./sources/httpsource && du -h ./bin/httpsource
+      - go build -o ./bin/kafkasource ./sources/kafkasource && du -h ./bin/kafkasource
+      - go build -o ./bin/kafkatarget ./targets/kafkatarget && du -h ./bin/kafkatarget
+      - go build -o ./bin/coaptarget ./targets/coaptarget && du -h ./bin/coaptarget
+      - go build -o ./bin/httptarget ./targets/httptarget && du -h ./bin/httptarget
+      - go build -o ./bin/natstarget ./targets/natstarget && du -h ./bin/natstarget
+      - go build -o ./bin/plugin ./plugins/plugin && du -h ./bin/plugin
+      - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
 
   run-plugin-config:
     env:
@@ -91,3 +94,7 @@ tasks:
   run-gptrunner-config:
     cmds:
       - cat ./testers/config/concurrently/gptrunner.yaml | ./testers/bin/concurrently
+
+  run-kafka-jlo-kafka:
+    cmds:
+      - cat ./testers/config/concurrently/kafka-jlo-kafka.yaml | ./testers/bin/concurrently

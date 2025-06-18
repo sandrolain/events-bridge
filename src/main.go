@@ -148,6 +148,8 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 		source, err = utils.LoadPlugin[*sources.SourceMQTTConfig, sources.Source]("./connectors/mqtt.so", sources.NewMethodName, cfg.MQTT)
 	case sources.SourceTypeNATS:
 		source, err = utils.LoadPlugin[*sources.SourceNATSConfig, sources.Source]("./connectors/nats.so", sources.NewMethodName, cfg.NATS)
+	case sources.SourceTypeKafka:
+		source, err = utils.LoadPlugin[*sources.SourceKafkaConfig, sources.Source]("./connectors/kafka.so", sources.NewMethodName, cfg.Kafka)
 	case sources.SourceTypePGSQL:
 		source, err = utils.LoadPlugin[*sources.SourcePGSQLConfig, sources.Source]("./connectors/pgsql.so", sources.NewMethodName, cfg.PgSQL)
 	case sources.SourceTypePlugin:
@@ -176,6 +178,8 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 		target, err = utils.LoadPlugin[*targets.TargetMQTTConfig, targets.Target]("./connectors/mqtt.so", targets.NewMethodName, cfg.MQTT)
 	case targets.TargetTypeNATS:
 		target, err = utils.LoadPlugin[*targets.TargetNATSConfig, targets.Target]("./connectors/nats.so", targets.NewMethodName, cfg.NATS)
+	case targets.TargetTypeKafka:
+		target, err = utils.LoadPlugin[*targets.TargetKafkaConfig, targets.Target]("./connectors/kafka.so", targets.NewMethodName, cfg.Kafka)
 	case targets.TargetTypePlugin:
 		plgMan, e := plugin.GetPluginManager()
 		if e != nil {

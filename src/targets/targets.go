@@ -34,6 +34,7 @@ type TargetConfig struct {
 	CoAP   *TargetCoAPConfig   `yaml:"coap" json:"coap"`
 	MQTT   *TargetMQTTConfig   `yaml:"mqtt" json:"mqtt"`
 	NATS   *TargetNATSConfig   `yaml:"nats" json:"nats"`
+	Kafka  *TargetKafkaConfig  `yaml:"kafka" json:"kafka"`
 	Plugin *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
 }
 
@@ -80,4 +81,14 @@ type TargetNATSConfig struct {
 	Subject                string        `yaml:"subject" json:"subject" validate:"required"`
 	SubjectFromMetadataKey string        `yaml:"subjectFromMetadataKey" json:"subjectFromMetadataKey"`
 	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
+}
+
+// Kafka target config
+// Brokers: lista di broker (es: ["localhost:9092"])
+// Topic: nome del topic
+// KeyFromMetadataKey: opzionale, chiave da metadati
+type TargetKafkaConfig struct {
+	Brokers            []string `yaml:"brokers" json:"brokers" validate:"required,dive,hostname_port"`
+	Topic              string   `yaml:"topic" json:"topic" validate:"required"`
+	KeyFromMetadataKey string   `yaml:"keyFromMetadataKey" json:"keyFromMetadataKey"`
 }

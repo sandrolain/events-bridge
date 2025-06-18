@@ -35,6 +35,7 @@ type SourceConfig struct {
 	MQTT   *SourceMQTTConfig   `yaml:"mqtt" json:"mqtt"`
 	PgSQL  *SourcePGSQLConfig  `yaml:"pgsql" json:"pgsql"`
 	Plugin *SourcePluginConfig `yaml:"plugin" json:"plugin"`
+	Kafka  *SourceKafkaConfig  `yaml:"kafka" json:"kafka"`
 }
 
 type CoAPProtocol string
@@ -80,4 +81,11 @@ type SourcePluginConfig struct {
 type SourcePGSQLConfig struct {
 	ConnString string `yaml:"conn_string" json:"conn_string" validate:"required"`
 	Table      string `yaml:"table" json:"table"`
+}
+
+type SourceKafkaConfig struct {
+	Brokers  []string `yaml:"brokers" json:"brokers" validate:"required,dive,hostname_port"`
+	Topic    string   `yaml:"topic" json:"topic" validate:"required"`
+	GroupID  string   `yaml:"group_id" json:"group_id"`
+	ClientID string   `yaml:"client_id" json:"client_id"`
 }

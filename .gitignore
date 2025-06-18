@@ -34,3 +34,4 @@ bin/
 # IDE specific files
 .idea/
 .vscode/
+todo.md
