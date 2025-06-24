@@ -36,6 +36,7 @@ type TargetConfig struct {
 	NATS   *TargetNATSConfig   `yaml:"nats" json:"nats"`
 	Kafka  *TargetKafkaConfig  `yaml:"kafka" json:"kafka"`
 	Plugin *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
+	PubSub *TargetPubSubConfig `yaml:"pubsub" json:"pubsub"`
 }
 
 const DefaultTimeout = 5 * time.Second
@@ -92,4 +93,9 @@ type TargetKafkaConfig struct {
 	Topic             string   `yaml:"topic" json:"topic" validate:"required"`
 	Partitions        int      `yaml:"partitions" json:"partitions"`
 	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
+}
+
+type TargetPubSubConfig struct {
+	ProjectID string `yaml:"project_id" json:"project_id" validate:"required"`
+	Topic     string `yaml:"topic" json:"topic" validate:"required"`
 }

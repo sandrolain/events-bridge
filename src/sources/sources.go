@@ -36,6 +36,7 @@ type SourceConfig struct {
 	PgSQL  *SourcePGSQLConfig  `yaml:"pgsql" json:"pgsql"`
 	Plugin *SourcePluginConfig `yaml:"plugin" json:"plugin"`
 	Kafka  *SourceKafkaConfig  `yaml:"kafka" json:"kafka"`
+	PubSub *SourcePubSubConfig `yaml:"pubsub" json:"pubsub"`
 }
 
 type CoAPProtocol string
@@ -89,4 +90,14 @@ type SourceKafkaConfig struct {
 	Topic             string   `yaml:"topic" json:"topic" validate:"required"`
 	Partitions        int      `yaml:"partitions" json:"partitions"`
 	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
+}
+
+type SourcePubSubConfig struct {
+	ProjectID         string `yaml:"project_id" json:"project_id" validate:"required"`
+	Subscription      string `yaml:"subscription" json:"subscription" validate:"required"`
+	CreateIfNotExists bool   `yaml:"create_if_not_exists" json:"create_if_not_exists"`
+	Topic             string `yaml:"topic" json:"topic"`
+	AckDeadline       int    `yaml:"ack_deadline" json:"ack_deadline"`
+	RetainAcked       bool   `yaml:"retain_acked" json:"retain_acked"`
+	RetentionDuration int    `yaml:"retention_duration" json:"retention_duration"` // secondi
 }
