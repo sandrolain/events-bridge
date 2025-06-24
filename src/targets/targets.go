@@ -99,3 +99,10 @@ type TargetPubSubConfig struct {
 	ProjectID string `yaml:"project_id" json:"project_id" validate:"required"`
 	Topic     string `yaml:"topic" json:"topic" validate:"required"`
 }
+
+type TargetRedisConfig struct {
+	Address                string        `yaml:"address" json:"address" validate:"required,hostname_port"`
+	Channel                string        `yaml:"channel" json:"channel" validate:"required"`
+	ChannelFromMetadataKey string        `yaml:"channelFromMetadataKey" json:"channelFromMetadataKey"`
+	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
+}

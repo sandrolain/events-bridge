@@ -101,3 +101,8 @@ type SourcePubSubConfig struct {
 	RetainAcked       bool   `yaml:"retain_acked" json:"retain_acked"`
 	RetentionDuration int    `yaml:"retention_duration" json:"retention_duration"` // secondi
 }
+
+type SourceRedisConfig struct {
+	Address string `yaml:"address" json:"address" validate:"required,hostname_port"`
+	Channel string `yaml:"channel" json:"channel" validate:"required"`
+}
