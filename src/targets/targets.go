@@ -35,6 +35,7 @@ type TargetConfig struct {
 	MQTT   *TargetMQTTConfig   `yaml:"mqtt" json:"mqtt"`
 	NATS   *TargetNATSConfig   `yaml:"nats" json:"nats"`
 	Kafka  *TargetKafkaConfig  `yaml:"kafka" json:"kafka"`
+	Redis  *TargetRedisConfig  `yaml:"redis" json:"redis"`
 	Plugin *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
 	PubSub *TargetPubSubConfig `yaml:"pubsub" json:"pubsub"`
 }
@@ -101,15 +102,15 @@ type TargetPubSubConfig struct {
 }
 
 type TargetRedisConfig struct {
-	Address                string        `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Channel                string        `yaml:"channel" json:"channel" validate:"required"`
-	ChannelFromMetadataKey string        `yaml:"channelFromMetadataKey" json:"channelFromMetadataKey"`
-	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
-}
-
-type TargetRedisStreamConfig struct {
-	Address               string        `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Stream                string        `yaml:"stream" json:"stream" validate:"required"`
+	Address string `yaml:"address" json:"address" validate:"required,hostname_port"`
+	// PubSub
+	Channel                string `yaml:"channel" json:"channel"`
+	ChannelFromMetadataKey string `yaml:"channelFromMetadataKey" json:"channelFromMetadataKey"`
+	// Stream
+	Stream                string        `yaml:"stream" json:"stream"`
 	StreamFromMetadataKey string        `yaml:"streamFromMetadataKey" json:"streamFromMetadataKey"`
+	ConsumerGroup         string        `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
+	ConsumerName          string        `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
 	Timeout               time.Duration `yaml:"timeout" json:"timeout"`
+	StreamDataKey         string        `yaml:"stream_data_key" json:"stream_data_key"`
 }

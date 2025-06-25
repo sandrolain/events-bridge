@@ -36,6 +36,7 @@ type SourceConfig struct {
 	PgSQL  *SourcePGSQLConfig  `yaml:"pgsql" json:"pgsql"`
 	Plugin *SourcePluginConfig `yaml:"plugin" json:"plugin"`
 	Kafka  *SourceKafkaConfig  `yaml:"kafka" json:"kafka"`
+	Redis  *SourceRedisConfig  `yaml:"redis" json:"redis"`
 	PubSub *SourcePubSubConfig `yaml:"pubsub" json:"pubsub"`
 }
 
@@ -104,12 +105,11 @@ type SourcePubSubConfig struct {
 
 type SourceRedisConfig struct {
 	Address string `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Channel string `yaml:"channel" json:"channel" validate:"required"`
-}
-
-type SourceRedisStreamConfig struct {
-	Address       string `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Stream        string `yaml:"stream" json:"stream" validate:"required"`
+	// PubSub
+	Channel string `yaml:"channel" json:"channel"`
+	// Stream
+	Stream        string `yaml:"stream" json:"stream"`
 	ConsumerGroup string `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
 	ConsumerName  string `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
+	StreamDataKey string `yaml:"stream_data_key" json:"stream_data_key"`
 }

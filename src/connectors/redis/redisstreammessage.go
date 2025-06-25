@@ -8,7 +8,8 @@ import (
 )
 
 type RedisStreamMessage struct {
-	msg redis.XMessage
+	msg     redis.XMessage
+	dataKey string
 }
 
 var _ message.Message = &RedisStreamMessage{}
@@ -26,7 +27,11 @@ func (m *RedisStreamMessage) GetMetadata() (map[string][]string, error) {
 }
 
 func (m *RedisStreamMessage) GetData() ([]byte, error) {
-	if v, ok := m.msg.Values["data"]; ok {
+	dataKey := m.dataKey
+	if dataKey == "" {
+		dataKey = "data"
+	}
+	if v, ok := m.msg.Values[dataKey]; ok {
 		switch val := v.(type) {
 		case string:
 			return []byte(val), nil
