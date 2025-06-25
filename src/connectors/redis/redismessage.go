@@ -24,9 +24,9 @@ func (m *RedisMessage) GetData() ([]byte, error) {
 }
 
 func (m *RedisMessage) Ack() error {
-	return nil // Redis Pub/Sub does not support explicit ack
+	return nil
 }
 
 func (m *RedisMessage) Nak() error {
-	return nil // Redis Pub/Sub does not support explicit nak
+	return nil
 }

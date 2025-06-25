@@ -106,3 +106,10 @@ type SourceRedisConfig struct {
 	Address string `yaml:"address" json:"address" validate:"required,hostname_port"`
 	Channel string `yaml:"channel" json:"channel" validate:"required"`
 }
+
+type SourceRedisStreamConfig struct {
+	Address       string `yaml:"address" json:"address" validate:"required,hostname_port"`
+	Stream        string `yaml:"stream" json:"stream" validate:"required"`
+	ConsumerGroup string `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
+	ConsumerName  string `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
+}

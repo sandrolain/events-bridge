@@ -106,3 +106,10 @@ type TargetRedisConfig struct {
 	ChannelFromMetadataKey string        `yaml:"channelFromMetadataKey" json:"channelFromMetadataKey"`
 	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
 }
+
+type TargetRedisStreamConfig struct {
+	Address               string        `yaml:"address" json:"address" validate:"required,hostname_port"`
+	Stream                string        `yaml:"stream" json:"stream" validate:"required"`
+	StreamFromMetadataKey string        `yaml:"streamFromMetadataKey" json:"streamFromMetadataKey"`
+	Timeout               time.Duration `yaml:"timeout" json:"timeout"`
+}
