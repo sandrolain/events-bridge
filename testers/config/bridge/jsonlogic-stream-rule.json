@@ -1,0 +1,79 @@
+{
+  "merge": [
+    {
+      "var": ""
+    },
+    {
+      "processed_temperature_celsius": {
+        "var": "temperature"
+      },
+      "processed_temperature_fahrenheit": {
+        "+": [
+          {
+            "*": [
+              {
+                "var": "temperature"
+              },
+              1.8
+            ]
+          },
+          32
+        ]
+      },
+      "processed_humidity_level": {
+        "if": [
+          {
+            ">": [
+              {
+                "var": "humidity"
+              },
+              70
+            ]
+          },
+          "high",
+          {
+            "if": [
+              {
+                ">": [
+                  {
+                    "var": "humidity"
+                  },
+                  40
+                ]
+              },
+              "medium",
+              "low"
+            ]
+          }
+        ]
+      },
+      "processing_timestamp": "{nowtime}",
+      "alert": {
+        "if": [
+          {
+            "or": [
+              {
+                ">": [
+                  {
+                    "var": "temperature"
+                  },
+                  30
+                ]
+              },
+              {
+                ">": [
+                  {
+                    "var": "humidity"
+                  },
+                  80
+                ]
+              }
+            ]
+          },
+          "high_alert",
+          "normal"
+        ]
+      }
+    }
+  ]
+}

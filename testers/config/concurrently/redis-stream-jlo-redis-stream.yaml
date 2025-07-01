@@ -1,0 +1,38 @@
+commands:
+  - name: redistarget-stream
+    cmd: "./testers/bin/redistarget"
+    args:
+      [
+        "--address",
+        "localhost:6379",
+        "--stream",
+        "test.stream.out",
+        "--group",
+        "test-consumer-group",
+        "--consumer",
+        "consumer-1",
+        "--dataKey",
+        "data",
+      ]
+    restart: false
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/redis-stream-jlo-redis-stream.config.yaml
+    args: []
+    restart: false
+  - name: redissource-stream
+    cmd: "./testers/bin/redissource"
+    args:
+      [
+        "--address",
+        "localhost:6379",
+        "--stream",
+        "test.stream.in",
+        "--interval",
+        "2s",
+        "--payload",
+        '{"temperature": 25.5, "humidity": 60, "location": "sensor-001", "timestamp": "{nowtime}"}',
+      ]
+    restart: false
+killOnExit: true

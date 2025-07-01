@@ -1,0 +1,20 @@
+source:
+  type: "redis"
+  redis:
+    address: "localhost:6379"
+    stream: "test.stream.in"
+    consumer_group: "bridge-consumer-group"
+    consumer_name: "bridge-consumer-1"
+    stream_data_key: "data"
+
+target:
+  type: "redis"
+  redis:
+    address: "localhost:6379"
+    stream: "test.stream.out"
+    stream_data_key: "data"
+
+runner:
+  type: "jsonlogic"
+  jsonlogic:
+    path: "./testers/config/bridge/jsonlogic-stream-rule.json"

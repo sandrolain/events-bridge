@@ -102,3 +102,11 @@ tasks:
   run-kafka-jlo-kafka:
     cmds:
       - cat ./testers/config/concurrently/kafka-jlo-kafka.yaml | ./testers/bin/concurrently
+
+  run-redis-jlo-redis:
+    cmds:
+      - cat ./testers/config/concurrently/redis-jlo-redis.yaml | ./testers/bin/concurrently
+
+  run-redisstream-jlo-redisstream:
+    cmds:
+      - cat ./testers/config/concurrently/redis-stream-jlo-redis-stream.yaml | ./testers/bin/concurrently
