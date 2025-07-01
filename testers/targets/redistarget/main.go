@@ -115,9 +115,10 @@ func main() {
 						}
 					}
 					printMsgDetails("stream", xmsg.ID, data, meta)
-					lastID = xmsg.ID
 					if useGroup {
 						_ = client.XAck(ctx, *stream, *group, xmsg.ID).Err()
+					} else {
+						lastID = xmsg.ID
 					}
 				}
 			}

@@ -138,9 +138,10 @@ func (s *RedisStreamSource) consume() {
 			for _, xmsg := range xstream.Messages {
 				m := &RedisStreamMessage{msg: xmsg, dataKey: dataKey}
 				s.c <- m
-				s.lastID = xmsg.ID
 				if s.useConsumerGrp {
 					_ = s.client.XAck(context.Background(), s.config.Stream, s.config.ConsumerGroup, xmsg.ID).Err()
+				} else {
+					s.lastID = xmsg.ID
 				}
 			}
 		}
