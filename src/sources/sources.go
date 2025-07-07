@@ -23,11 +23,12 @@ const (
 	SourceTypeNATS   SourceType = "nats"
 	SourceTypeGRPC   SourceType = "grpc"
 	SourceTypePGSQL  SourceType = "pgsql"
+	SourceTypeGit    SourceType = "git"
 	SourceTypePlugin SourceType = "plugin"
 )
 
 type SourceConfig struct {
-	Type   SourceType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc pgsql plugin"`
+	Type   SourceType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc pgsql plugin git"`
 	Buffer int                 `yaml:"buffer" json:"buffer"`
 	HTTP   *SourceHTTPConfig   `yaml:"http" json:"http"`
 	CoAP   *SourceCoAPConfig   `yaml:"coap" json:"coap"`
@@ -38,6 +39,7 @@ type SourceConfig struct {
 	Kafka  *SourceKafkaConfig  `yaml:"kafka" json:"kafka"`
 	Redis  *SourceRedisConfig  `yaml:"redis" json:"redis"`
 	PubSub *SourcePubSubConfig `yaml:"pubsub" json:"pubsub"`
+	Git    *SourceGitConfig    `yaml:"git" json:"git"`
 }
 
 type CoAPProtocol string
@@ -112,4 +114,15 @@ type SourceRedisConfig struct {
 	ConsumerGroup string `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
 	ConsumerName  string `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
 	StreamDataKey string `yaml:"stream_data_key" json:"stream_data_key"`
+}
+
+type SourceGitConfig struct {
+	Path         string `yaml:"path" json:"path"`                                 // local repo path (optional, if empty will use temp dir)
+	RemoteURL    string `yaml:"remote_url" json:"remote_url" validate:"required"` // remote repo URL
+	Remote       string `yaml:"remote" json:"remote"`                             // remote name, default "origin"
+	Branch       string `yaml:"branch" json:"branch" validate:"required"`         // branch name
+	Username     string `yaml:"username" json:"username"`                         // optional: username for remote
+	Password     string `yaml:"password" json:"password"`                         // optional: password/token for remote
+	SubDir       string `yaml:"subdir" json:"subdir"`                             // optional: limit to subdir
+	PollInterval int    `yaml:"poll_interval" json:"poll_interval"`               // seconds, default 10
 }

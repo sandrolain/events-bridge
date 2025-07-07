@@ -55,3 +55,24 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__database__PATH=/data/gitea/gitea.db
+      - GITEA__server__ROOT_URL=http://localhost:3000/
+    restart: always
+    ports:
+      - "3000:3000" # Web UI
+      - "2222:2222" # SSH
+    volumes:
+      - gitea-data:/data
+      - gitea-config:/etc/gitea
+
+volumes:
+  gitea-data:
+  gitea-config:

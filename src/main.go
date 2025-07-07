@@ -154,6 +154,8 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 		source, err = utils.LoadPlugin[*sources.SourceRedisConfig, sources.Source]("./connectors/redis.so", sources.NewMethodName, cfg.Redis)
 	case sources.SourceTypePGSQL:
 		source, err = utils.LoadPlugin[*sources.SourcePGSQLConfig, sources.Source]("./connectors/pgsql.so", sources.NewMethodName, cfg.PgSQL)
+	case sources.SourceTypeGit:
+		source, err = utils.LoadPlugin[*sources.SourceGitConfig, sources.Source]("./connectors/git.so", sources.NewMethodName, cfg.Git)
 	case sources.SourceTypePlugin:
 		slog.Info("using Plugin source", "path", cfg.Plugin.Name)
 		plgMan, e := plugin.GetPluginManager()

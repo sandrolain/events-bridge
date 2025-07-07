@@ -1,0 +1,28 @@
+commands:
+  - name: httptarget
+    cmd: "./testers/bin/httptarget"
+    args: []
+    restart: false
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/git-wasm-http.config.yaml
+    args: []
+    restart: false
+  - name: gitsource
+    cmd: "./testers/bin/gitsource"
+    args:
+      [
+        "--remote",
+        "http://localhost:3000/testuser/testrepo.git",
+        "--branch",
+        "main",
+        "--username",
+        "testuser",
+        "--password",
+        "testpass",
+        "--interval",
+        "4s",
+      ]
+    restart: false
+killOnExit: true
