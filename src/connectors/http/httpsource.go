@@ -40,6 +40,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 	s.listener, e = net.Listen("tcp", s.config.Address)
 	if e != nil {
 		err = fmt.Errorf("failed to listen: %w", e)
+		return
 	}
 
 	go func() {
@@ -82,7 +83,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 				default:
 					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 				}
-			case <-time.After(10 * time.Second): // timeout di esempio
+			case <-time.After(5 * time.Second): // timeout di esempio
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 			}
 		})
