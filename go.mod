@@ -23,7 +23,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/lmittmann/tint v1.1.2
 	github.com/nats-io/nats.go v1.43.0
-	github.com/plgd-dev/go-coap/v3 v3.3.6
+	github.com/plgd-dev/go-coap/v3 v3.4.0
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/sashabaranov/go-openai v1.40.3
 	github.com/segmentio/kafka-go v0.4.48
