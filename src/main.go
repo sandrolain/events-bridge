@@ -114,11 +114,41 @@ func main() {
 	var r <-chan message.Message
 	if runner != nil {
 		slog.Info("runner starting to consume messages from source")
-		r, err = runner.Ingest(c)
-		if err != nil {
-			slog.Error("failed to ingest messages with runner", "error", err)
-			os.Exit(1)
+		routines := cfg.Runner.Routines
+		if routines < 1 {
+			routines = 1
 		}
+
+		outChan := make(chan message.Message, cfg.Source.Buffer)
+		errChan := make(chan error, routines)
+
+		for i := 0; i < routines; i++ {
+			go func(idx int) {
+				slog.Info("runner goroutine started", "routine", idx)
+				runnerChan, err := runner.Ingest(c)
+				if err != nil {
+					errChan <- fmt.Errorf("runner ingest failed in routine %d: %w", idx, err)
+					return
+				}
+				for msg := range runnerChan {
+					outChan <- msg
+				}
+				errChan <- nil
+			}(i)
+		}
+
+		// Goroutine to close outChan when all routines are done
+		go func() {
+			for i := 0; i < routines; i++ {
+				if err := <-errChan; err != nil {
+					slog.Error("runner routine error", "error", err)
+					os.Exit(1)
+				}
+			}
+			close(outChan)
+		}()
+
+		r = outChan
 	} else {
 		slog.Info("no runner configured, passing messages through without processing")
 		r = c

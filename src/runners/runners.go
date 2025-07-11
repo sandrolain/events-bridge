@@ -27,6 +27,7 @@ const (
 
 type RunnerConfig struct {
 	Type      RunnerType             `yaml:"type" json:"type" validate:"required,oneof=wasm es5 plugin cli gpt jsonlogic"`
+	Routines  int                    `yaml:"routines" json:"routines" validate:"omitempty,min=1"`
 	WASM      *RunnerWASMConfig      `yaml:"wasm" json:"wasm"`
 	ES5       *RunnerES5Config       `yaml:"es5" json:"es5"`
 	Plugin    *RunnerPluginConfig    `yaml:"plugin" json:"plugin"`
