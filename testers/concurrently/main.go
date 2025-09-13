@@ -16,7 +16,7 @@ import (
 )
 
 type CommandConfig struct {
-	Name    string            `yaml:"name"` // name non più required
+	Name    string            `yaml:"name"` // name no longer required
 	Cmd     string            `yaml:"cmd" validate:"required"`
 	Args    []string          `yaml:"args"`
 	Restart bool              `yaml:"restart"`
@@ -35,11 +35,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Assegna il nome se mancante usando la parte finale di Cmd
+	// Assign the name if missing using the final part of Cmd
 	for i := range cfg.Commands {
 		if cfg.Commands[i].Name == "" {
 			cmdParts := cfg.Commands[i].Cmd
-			// Estrai solo il nome del comando (dopo l'ultimo /)
+			// Extract only the command name (after the last /)
 			lastSlash := -1
 			for j := len(cmdParts) - 1; j >= 0; j-- {
 				if cmdParts[j] == '/' {

@@ -17,7 +17,7 @@ func main() {
 	method := flag.String("method", "POST", "HTTP method (POST, PUT, PATCH)")
 	path := flag.String("path", "/test", "HTTP request path")
 	payload := flag.String("payload", "{}", "Payload to send (as text)")
-	interval := flag.String("interval", "5s", "Intervallo tra le richieste (es. 2s, 500ms, 1m)")
+	interval := flag.String("interval", "5s", "Interval between requests (e.g. 2s, 500ms, 1m)")
 	mime := flag.String("mime", "application/json", "Payload MIME type (e.g. application/json, text/plain, application/xml, ...)")
 	testPayloadType := flag.String("testpayload", "", "If set, use testpayload generator: json, cbor, sentiment, sentence")
 	flag.Parse()
@@ -26,13 +26,13 @@ func main() {
 
 	dur, err := time.ParseDuration(*interval)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Errore di parsing per interval: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Parsing error for interval: %v\n", err)
 		os.Exit(1)
 	}
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
 
-	fmt.Printf("Invio richieste %s a %s ogni %s\n", *method, url, dur)
+	fmt.Printf("Sending %s requests to %s every %s\n", *method, url, dur)
 
 	sendRequest := func() {
 		var body io.Reader

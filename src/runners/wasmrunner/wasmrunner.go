@@ -27,11 +27,11 @@ type WasmRunner struct {
 	ctx       context.Context
 	mu        sync.Mutex
 	wasmBytes []byte
-	module    wazero.CompiledModule // opzionale, se vuoi tenere il modulo compilato
-	stopCh    chan struct{}         // canale di stop
+	module    wazero.CompiledModule // optional: keep the compiled module
+	stopCh    chan struct{}         // stop channel
 }
 
-// New crea una nuova istanza di WasmRunner
+// New creates a new instance of WasmRunner
 func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("wasm runner configuration cannot be nil")
@@ -58,7 +58,7 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 
 	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig())
 
-	// Istanzia WASI prima di caricare il modulo
+	// Instantiate WASI before loading the module
 	if _, err := wasi_snapshot_preview1.Instantiate(ctx, rt); err != nil {
 		return nil, fmt.Errorf("failed to instantiate WASI: %w", err)
 	}
@@ -81,7 +81,7 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 	}, nil
 }
 
-// Process gestisce la logica di un singolo messaggio, riducendo la complessità di Ingest
+// Process handles the logic for a single message
 func (w *WasmRunner) Process(msg message.Message) (message.Message, error) {
 	data, err := msg.GetData()
 	if err != nil {
@@ -136,7 +136,7 @@ func (w *WasmRunner) Close() error {
 	defer w.mu.Unlock()
 	select {
 	case <-w.stopCh:
-		// già chiuso
+		// already closed
 	default:
 		close(w.stopCh)
 	}

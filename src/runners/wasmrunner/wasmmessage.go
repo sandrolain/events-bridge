@@ -4,7 +4,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// WasmMessage implementa message.Message per i dati processati
+// WasmMessage implements message.Message for processed data
 
 type WasmMessage struct {
 	original message.Message

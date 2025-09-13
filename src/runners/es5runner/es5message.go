@@ -2,8 +2,8 @@ package main
 
 import "github.com/sandrolain/events-bridge/src/message"
 
-// ES5Message implementa message.Message per i dati processati
-// Espone metodi JS-friendly per data e metadata
+// ES5Message implements message.Message for processed data
+// Exposes JS-friendly methods for data and metadata
 
 type ES5Message struct {
 	original message.Message

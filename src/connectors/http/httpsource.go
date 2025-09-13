@@ -72,7 +72,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 
 			s.c <- msg
 
-			// Attendi Ack o Nak
+			// Wait for Ack or Nak
 			select {
 			case status := <-done:
 				switch status {
@@ -83,7 +83,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 				default:
 					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 				}
-			case <-time.After(5 * time.Second): // timeout di esempio
+			case <-time.After(5 * time.Second): // example timeout
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 			}
 		})

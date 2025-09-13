@@ -14,4 +14,4 @@ runner:
   type: "jsonlogic"
   jsonlogic:
     path: "./testers/config/bridge/jsonlogic-rule.json"
-    # puoi cambiare il path o la regola secondo necessità
+  # you can change the path or the rule as needed

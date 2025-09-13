@@ -85,7 +85,7 @@ const errUnexpected = "unexpected error: %v"
 func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
 	cfg := &targets.TargetCoAPConfig{
 		Protocol: "udp",
-		Address:  "127.0.0.1:9999", // porta non usata, nessun server
+		Address:  "127.0.0.1:9999", // unused port, no server
 		Path:     "/test",
 		Method:   "POST",
 	}
@@ -103,7 +103,7 @@ func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
 func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
 	cfg := &targets.TargetCoAPConfig{
 		Protocol: "tcp",
-		Address:  "127.0.0.1:9999", // porta non usata, nessun server
+		Address:  "127.0.0.1:9999", // unused port, no server
 		Path:     "/test",
 		Method:   "POST",
 	}
@@ -118,9 +118,9 @@ func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
 	}
 }
 
-// NOTA: Per testare un invio "successo" reale serve un server CoAP in ascolto.
-// Qui simuliamo solo che la funzione venga chiamata e gestisca errori di rete.
-// Per test di integrazione reali, usare un server CoAP di test.
+// NOTE: To test a real "success" send, a CoAP server must be listening.
+// Here we only simulate that the function is called and handles network errors.
+// For real integration tests, use a test CoAP server.
 
 type mockMessageWithError struct{}
 

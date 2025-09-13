@@ -28,11 +28,11 @@ func (m *PGSQLMessage) GetData() ([]byte, error) {
 }
 
 func (m *PGSQLMessage) Ack() error {
-	// Nessuna azione necessaria per Ack su NOTIFY
+	// No action required for Ack on NOTIFY
 	return nil
 }
 
 func (m *PGSQLMessage) Nak() error {
-	// Nessuna azione necessaria per Nak su NOTIFY
+	// No action required for Nak on NOTIFY
 	return nil
 }

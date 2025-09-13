@@ -2,39 +2,39 @@ package dbstore
 
 import "time"
 
-// Column rappresenta una colonna di una tabella PostgreSQL.
+// Column represents a column of a PostgreSQL table.
 type Column struct {
-	Name     string // Nome colonna
-	Type     string // Tipo dati
-	Nullable bool   // True se la colonna è nullable
+	Name     string // Column name
+	Type     string // Data type
+	Nullable bool   // True if the column is nullable
 }
 
-// CacheEntry memorizza i metadati delle colonne con scadenza per la cache.
+// CacheEntry stores column metadata with an expiration for caching.
 type CacheEntry struct {
-	Columns   []Column  // Lista colonne
-	ExpiresAt time.Time // Scadenza
+	Columns   []Column  // Columns list
+	ExpiresAt time.Time // Expiration
 }
 
-// Record rappresenta una riga generica come mappa nome colonna -> valore.
+// Record represents a generic row as a map column-name -> value.
 type Record map[string]interface{}
 
-// InsertRecordOnConflict definisce il comportamento ON CONFLICT per gli insert.
+// InsertRecordOnConflict defines the ON CONFLICT behavior for inserts.
 type InsertRecordOnConflict string
 
 const (
-	DoNothing InsertRecordOnConflict = "DO NOTHING" // Ignora i conflitti
-	DoUpdate  InsertRecordOnConflict = "DO UPDATE"  // Aggiorna in caso di conflitto
+	DoNothing InsertRecordOnConflict = "DO NOTHING" // Ignore conflicts
+	DoUpdate  InsertRecordOnConflict = "DO UPDATE"  // Update on conflict
 )
 
-// InsertRecordArgs contiene tutti gli argomenti per InsertRecord.
-// Usa *pgxpool.Pool come connessione.
+// InsertRecordArgs contains all arguments for InsertRecord.
+// Uses *pgxpool.Pool as the connection.
 type InsertRecordArgs struct {
-	TableName          string                 // Nome tabella
-	OtherColumn        string                 // Colonna per extra fields (JSON)
-	BatchRecords       []Record               // Record da inserire
+	TableName          string                 // Table name
+	OtherColumn        string                 // Column for extra fields (JSON)
+	BatchRecords       []Record               // Records to insert
 	OnConflict         InsertRecordOnConflict // ON CONFLICT
-	ConflictConstraint string                 // Nome constraint opzionale
-	ConflictColumns    string                 // Colonne per ON CONFLICT
+	ConflictConstraint string                 // Optional constraint name
+	ConflictColumns    string                 // Columns for ON CONFLICT
 	BatchSize          int                    // Batch size
-	CacheExpiration    int64                  // Cache metadati (secondi)
+	CacheExpiration    int64                  // Metadata cache (seconds)
 }

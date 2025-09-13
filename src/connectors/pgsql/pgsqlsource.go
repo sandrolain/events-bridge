@@ -131,7 +131,7 @@ func (s *PGSQLSource) setupTrigger(ctx context.Context, conn *pgx.Conn, tableNam
 		s.slog.Debug("function already exists", "function", funcName)
 	}
 
-	// 2. Crea il trigger se non esiste
+	// 2. Create the trigger if it does not exist
 	createTriggerQuery := fmt.Sprintf(`
 DO $$
 BEGIN

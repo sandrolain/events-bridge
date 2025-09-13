@@ -27,7 +27,7 @@ const (
 	TargetTypePlugin TargetType = "plugin"
 )
 
-// Configurazioni dei target (target)
+// Target configurations
 type TargetConfig struct {
 	Type   TargetType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc plugin"`
 	HTTP   *TargetHTTPConfig   `yaml:"http" json:"http"`
@@ -86,9 +86,9 @@ type TargetNATSConfig struct {
 }
 
 // Kafka target config
-// Brokers: lista di broker (es: ["localhost:9092"])
-// Topic: nome del topic
-// KeyFromMetadataKey: opzionale, chiave da metadati
+// Brokers: list of brokers (e.g., ["localhost:9092"])
+// Topic: topic name
+// KeyFromMetadataKey: optional, key from metadata
 type TargetKafkaConfig struct {
 	Brokers           []string `yaml:"brokers" json:"brokers" validate:"required,dive,hostname_port"`
 	Topic             string   `yaml:"topic" json:"topic" validate:"required"`

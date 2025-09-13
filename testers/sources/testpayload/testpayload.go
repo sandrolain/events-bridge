@@ -14,35 +14,35 @@ import (
 func init() {
 }
 
-// Payload rappresenta la struttura prevedibile del payload
-// faker annota i campi per la generazione automatica
+// Payload represents the predictable payload structure
+// faker annotates fields for automatic generation
 // https://github.com/go-faker/faker#supported-tags
 type Payload struct {
 	ID     string  `faker:"uuid_hyphenated" json:"id"`
 	Name   string  `faker:"name" json:"name"`
-	Value  float64 `faker:"lat" json:"value"` // usa lat come float random
+	Value  float64 `faker:"lat" json:"value"` // use lat as random float
 	Active bool    `json:"active"`
 	Time   int64   `faker:"unix_time" json:"time"`
 }
 
-// genera un'istanza di Payload con valori random realistici
+// generates an instance of Payload with realistic random values
 func generatePredictablePayload() Payload {
 	var p Payload
 	_ = faker.FakeData(&p)
 	return p
 }
 
-// GenerateRandomJSON genera una mappa JSON con struttura prevedibile e valori random
+// GenerateRandomJSON creates a JSON with predictable structure and random values
 func GenerateRandomJSON() ([]byte, error) {
 	return json.Marshal(generatePredictablePayload())
 }
 
-// GenerateRandomCBOR genera una mappa CBOR con struttura prevedibile e valori random
+// GenerateRandomCBOR creates a CBOR with predictable structure and random values
 func GenerateRandomCBOR() ([]byte, error) {
 	return cbor.Marshal(generatePredictablePayload())
 }
 
-// GenerateRandomPhrase genera una frase random per sentiment analysis
+// GenerateSentence generates a random sentence for tests
 func GenerateSentence() string {
 	return faker.Sentence()
 }
@@ -55,13 +55,13 @@ func GenerateSentimentPhrase() string {
 }
 
 func GenerateRandomTime() string {
-	// Genera un timestamp Unix random tra 1 e 10 anni fa
+	// Generate a random Unix timestamp between 1 and 10 years ago
 	timestamp := rand.Int63n(10*365*24*3600) + (time.Now().Unix() - 10*365*24*3600)
 	return time.Unix(timestamp, 0).Format(time.RFC3339Nano)
 }
 
 func GenerateNowTime() string {
-	// Genera il timestamp corrente in RFC3339
+	// Generate the current timestamp in RFC3339
 	return time.Now().Format(time.RFC3339Nano)
 }
 
@@ -114,8 +114,8 @@ const (
 	TestPayloadCBOR      TestPayloadType = "cbor"
 	TestPayloadSentiment TestPayloadType = "sentiment"
 	TestPayloadSentence  TestPayloadType = "sentence"
-	TestPayloadDateTime  TestPayloadType = "datetime" // per generare timestamp
-	TestPayloadNowTime   TestPayloadType = "nowtime"  // per generare timestamp corrente
+	TestPayloadDateTime  TestPayloadType = "datetime" // to generate a timestamp
+	TestPayloadNowTime   TestPayloadType = "nowtime"  // to generate the current timestamp
 )
 
 func (t TestPayloadType) IsValid() bool {

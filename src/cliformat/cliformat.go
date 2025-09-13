@@ -7,8 +7,8 @@ import (
 	"net/url"
 )
 
-// Encode serializza metadati e dati binari nel formato richiesto:
-// querystring(metadati) + "\n" + dati binari
+// Encode serializes metadata and binary data in the required format:
+// querystring(metadata) + "\n" + binary data
 func Encode(metadata map[string][]string, data []byte) []byte {
 	q := url.Values{}
 	for k, vals := range metadata {
@@ -23,8 +23,8 @@ func Encode(metadata map[string][]string, data []byte) []byte {
 	return buf.Bytes()
 }
 
-// Decode estrae metadati e dati binari dal formato:
-// querystring(metadati) + "\n" + dati binari
+// Decode extracts metadata and binary data from the format:
+// querystring(metadata) + "\n" + binary data
 func Decode(input []byte) (map[string][]string, []byte, error) {
 	i := bytes.IndexByte(input, '\n')
 	if i < 0 {
@@ -39,7 +39,7 @@ func Decode(input []byte) (map[string][]string, []byte, error) {
 	return m, data, nil
 }
 
-// DecodeFromReader permette di decodificare da uno stream (es. os.Stdin)
+// DecodeFromReader allows decoding from a stream (e.g., os.Stdin)
 func DecodeFromReader(r io.Reader) (map[string][]string, []byte, error) {
 	var metaBuf bytes.Buffer
 	for {
@@ -59,7 +59,7 @@ func DecodeFromReader(r io.Reader) (map[string][]string, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	// Leggi il resto come dati binari
+	// Read the rest as binary data
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, nil, err

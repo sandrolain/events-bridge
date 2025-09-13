@@ -247,7 +247,7 @@ func TestInsertRecordNullAndTypes(t *testing.T) {
 }
 
 func TestInsertRecordErrorCases(t *testing.T) {
-	// Tabella non esistente
+	// Non-existent table
 	args := connectpkg.InsertRecordArgs{
 		TableName:    "not_exists",
 		BatchRecords: []connectpkg.Record{{"foo": 1}},
@@ -255,7 +255,7 @@ func TestInsertRecordErrorCases(t *testing.T) {
 	err := connectpkg.InsertRecord(context.Background(), testDB, args)
 	require.Error(t, err)
 
-	// Batch vuoto
+	// Empty batch
 	args = connectpkg.InsertRecordArgs{
 		TableName:    "test_records",
 		BatchRecords: nil,

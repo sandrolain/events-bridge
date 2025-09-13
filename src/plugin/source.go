@@ -42,7 +42,7 @@ func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan messag
 				}
 				streamRes, e := stream.Recv()
 				if e != nil {
-					time.Sleep(100 * time.Millisecond) // Attendi un po' prima di riprovare
+					time.Sleep(100 * time.Millisecond) // Wait a bit before retrying
 					p.slog.Error("failed to receive input", "error", e)
 					continue
 				}
@@ -55,12 +55,12 @@ func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan messag
 
 	res = resChan
 	closeFn = func() {
-		// chiude stopChan solo se non è già chiuso
+		// close stopChan only if not already closed
 		select {
 		case <-stopChan:
-			// già chiuso
+			// already closed
 		default:
-			// chiusura corretta senza argomenti
+			// proper close without arguments
 			close(stopChan)
 		}
 	}

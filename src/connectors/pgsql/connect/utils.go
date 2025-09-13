@@ -43,7 +43,7 @@ func QuoteLiteral(literal string) string {
 	// determine if the string has any backslashes (\) in it.
 	// if it does, replace any backslashes (\) with two backslashes (\\)
 	// then, we need to wrap the entire string with a PostgreSQL
-	// C-style escape. Per how "PQEscapeStringInternal" handles this case, we
+	// C-style escape. As "PQEscapeStringInternal" handles this case, we
 	// also add a space before the "E"
 	if strings.Contains(literal, `\`) {
 		literal = strings.Replace(literal, `\`, `\\`, -1)

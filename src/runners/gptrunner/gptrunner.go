@@ -15,7 +15,7 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-// Assicura che GPTRunner implementi runners.Runner
+// Ensure GPTRunner implements runners.Runner
 var _ runners.Runner = &GPTRunner{}
 
 type GPTRunner struct {
@@ -110,7 +110,7 @@ func (g *GPTRunner) Process(msg message.Message) (message.Message, error) {
 	return processed, nil
 }
 
-// formatPromptItems accetta un batch di item e restituisce il prompt
+// formatPromptItems builds the prompt for a batch of items
 func (g *GPTRunner) formatPrompt(msg message.Message) (string, error) {
 	b, err := msg.GetData()
 	if err != nil {
@@ -119,7 +119,7 @@ func (g *GPTRunner) formatPrompt(msg message.Message) (string, error) {
 	return fmt.Sprintf("%s\n\n%s", g.cfg.Action, string(b)), nil
 }
 
-// TODO: implementa ProcessBatch per gestire batch di messaggi
+// TODO: implement ProcessBatch to handle batches of messages
 func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
@@ -183,7 +183,7 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 		return fmt.Errorf("failed to parse gpt response: %w", err)
 	}
 	g.slog.Debug("parsed gpt results", "results_count", len(results))
-	// Dopo aver popolato results, verifica che ogni messaggio abbia una risposta
+	// After populating results, ensure each message has a response
 	for id, msg := range idToMsg {
 		result, ok := results[id]
 		if !ok {
@@ -198,7 +198,7 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 	return nil
 }
 
-// formatPromptItems accetta un batch di item e restituisce il prompt
+// formatPromptItems builds the prompt for a batch of items
 func (g *GPTRunner) formatPromptItems(batch []inputItem) (string, error) {
 	b, err := json.Marshal(batch)
 	if err != nil {
@@ -247,7 +247,7 @@ func (g *GPTRunner) Close() error {
 	defer g.mu.Unlock()
 	select {
 	case <-g.stopCh:
-		// già chiuso
+		// already closed
 	default:
 		close(g.stopCh)
 	}

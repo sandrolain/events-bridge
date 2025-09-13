@@ -28,7 +28,7 @@ func (m *dummyMessage) GetData() ([]byte, error)                  { return m.dat
 func (m *dummyMessage) Ack() error                                { m.acked = true; return nil }
 func (m *dummyMessage) Nak() error                                { m.naked = true; return nil }
 
-// Server UDP di test che usa la logica mux come coapsource
+// UDP test server that uses mux logic like coapsource
 func startUDPServer(t *testing.T, addr string, onMsg func()) {
 	l, err := coapnet.NewListenUDP("udp", addr)
 	if err != nil {
@@ -47,7 +47,7 @@ func startUDPServer(t *testing.T, addr string, onMsg func()) {
 	time.Sleep(100 * time.Millisecond)
 }
 
-// Server TCP di test che usa la logica mux come coapsource
+// TCP test server that uses mux logic like coapsource
 func startTCPServer(t *testing.T, addr string, onMsg func()) {
 	ln, err := coapnet.NewTCPListener("tcp", addr)
 	if err != nil {
@@ -66,7 +66,7 @@ func startTCPServer(t *testing.T, addr string, onMsg func()) {
 	time.Sleep(100 * time.Millisecond)
 }
 
-// Exported only for test: SendTest è una funzione di test per invocare il metodo non esportato send
+// Exported only for tests: SendTest is a test helper to invoke the unexported send method
 func SendTest(tgt *coaptarget.CoAPTarget, msg message.Message) error {
 	return tgt.Send(msg)
 }

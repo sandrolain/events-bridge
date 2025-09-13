@@ -1,35 +1,35 @@
 # events-bridge
 
-Events Bridge è un'applicazione scritta in Go per l'integrazione di eventi tra diverse sorgenti e destinazioni (HTTP, MQTT, NATS, CoAP, ecc.).
+Events Bridge is a Go application for integrating events across different sources and targets (HTTP, MQTT, NATS, CoAP, etc.).
 
-## Funzionalità principali
+## Key Features
 
-- Bridge di eventi tra protocolli diversi
-- Configurazione tramite file YAML
-- Supporto per estensioni tramite runner (WASM, ES5)
+- Bridge events across different protocols
+- Configure via YAML files
+- Extensible via runners (WASM, ES5)
 
-## Struttura del progetto
+## Project Structure
 
-- `src/` — Codice sorgente principale
-- `localtest/` — Ambiente di test locale (docker-compose, configurazioni)
-- `testers/` — Tool di test per le varie integrazioni
-- `tmp/` — Esempi e file temporanei
+- `src/` — Main source code
+- `localtest/` — Local testing environment (docker-compose, configurations)
+- `testers/` — Testing tools for various integrations
+- `tmp/` — Examples and temporary files
 
-## Avvio rapido
+## Quick Start
 
-1. Clona il repository
-2. Modifica la configurazione in `tmp/config.yaml`
-3. Avvia l'applicazione:
+1. Clone the repository
+2. Edit the configuration in `tmp/config.yaml`
+3. Start the application:
 
    ```sh
    go run src/main.go
    ```
 
-## Requisiti
+## Requirements
 
 - Go 1.20+
-- Docker (per test locali)
+- Docker (for local tests)
 
-## Licenza
+## License
 
-Vedi file LICENSE.
+See the LICENSE file.

@@ -66,12 +66,12 @@ func (s *MQTTSource) Produce(buffer int) (<-chan message.Message, error) {
 			done: done,
 		}
 		s.c <- m
-		// Attendi Ack/Nak o timeout
+		// Wait for Ack/Nak or timeout
 		select {
 		case <-done:
-			// Ack/Nak ricevuto, non serve rispondere a MQTT
+			// Ack/Nak received, no need to respond to MQTT
 		case <-time.After(10 * time.Second):
-			// Timeout, ignora
+			// Timeout, ignore
 		}
 	}
 

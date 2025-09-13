@@ -7,7 +7,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// PubSubMessage implementa message.Message per Google Pub/Sub
+// PubSubMessage implements message.Message for Google Pub/Sub
 
 type PubSubMessage struct {
 	msg *pubsub.Message

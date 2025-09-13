@@ -1,4 +1,4 @@
-// Implementazione di un target CoAP configurabile (endpoint, path, protocol)
+// Implementation of a configurable CoAP target (endpoint, path, protocol)
 package main
 
 import (
@@ -59,7 +59,7 @@ func (t *CoAPTarget) Consume(c <-chan message.Message) error {
 	return nil
 }
 
-// Send è esportato solo per i test di integrazione
+// Send is exported only for integration tests
 func (t *CoAPTarget) Send(msg message.Message) error {
 	return t.send(msg)
 }

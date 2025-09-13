@@ -40,7 +40,7 @@ func (s *NATSSource) Produce(buffer int) (<-chan message.Message, error) {
 	}
 	s.nc = nc
 
-	// Se stream e consumer sono specificati, usa JetStream
+	// If both stream and consumer are specified, use JetStream
 	if s.config.Stream != "" && s.config.Consumer != "" {
 		js, err := nc.JetStream()
 		if err != nil {

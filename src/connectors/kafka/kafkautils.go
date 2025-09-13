@@ -18,7 +18,7 @@ func ensureKafkaTopic(s *slog.Logger, brokers []string, topic string, partitions
 
 	conn, err := kafka.Dial("tcp", brokers[0])
 	if err != nil {
-		return fmt.Errorf("errore di connessione a Kafka: %w", err)
+		return fmt.Errorf("error connecting to Kafka: %w", err)
 	}
 	defer conn.Close()
 
@@ -28,7 +28,7 @@ func ensureKafkaTopic(s *slog.Logger, brokers []string, topic string, partitions
 		ReplicationFactor: replicationFactor,
 	})
 	if err != nil {
-		return fmt.Errorf("errore nella creazione del topic: %w", err)
+		return fmt.Errorf("error creating Kafka topic: %w", err)
 	}
 	return nil
 }

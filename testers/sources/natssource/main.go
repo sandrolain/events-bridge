@@ -15,7 +15,7 @@ func main() {
 	subject := flag.String("subject", "test.subject", "NATS subject")
 	payload := flag.String("payload", "{nowtime}", "Payload to send")
 	interval := flag.String("interval", "5s", "Send interval (duration, es: 5s, 1m)")
-	stream := flag.String("stream", "", "JetStream stream name (se valorizzato, usa JetStream)")
+	stream := flag.String("stream", "", "JetStream stream name (if set, uses JetStream)")
 	testPayloadType := flag.String("testpayload", "", "If set, use testpayload generator: json, cbor, sentiment, sentence")
 	flag.Parse()
 

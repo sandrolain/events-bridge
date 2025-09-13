@@ -9,22 +9,22 @@ import (
 	"github.com/sandrolain/events-bridge/src/runners"
 )
 
-// Assicura che PluginRunner implementi runner.Runner
+// Ensure PluginRunner implements runner.Runner
 var _ runners.Runner = &PluginRunner{}
 
-// Configurazione per il runner plugin
-// Usa solo l'ID del plugin da avviare
-// Eventuali altre opzioni possono essere aggiunte in futuro
+// Configuration for the plugin runner
+// Currently uses only the plugin ID to start
+// Additional options can be added in the future
 
 type PluginRunner struct {
 	cfg    *runners.RunnerPluginConfig
 	slog   *slog.Logger
 	mgr    *plugin.PluginManager
 	plg    *plugin.Plugin
-	stopCh chan struct{} // canale di stop
+	stopCh chan struct{} // stop channel
 }
 
-// New crea una nuova istanza di PluginRunner
+// New creates a new instance of PluginRunner
 func New(mgr *plugin.PluginManager, cfg *runners.RunnerPluginConfig) (runners.Runner, error) {
 	if mgr == nil {
 		return nil, fmt.Errorf("plugin manager cannot be nil")
@@ -54,7 +54,7 @@ func (p *PluginRunner) Close() error {
 	p.slog.Info("closing plugin runner")
 	select {
 	case <-p.stopCh:
-		// già chiuso
+		// already closed
 	default:
 		close(p.stopCh)
 	}

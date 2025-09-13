@@ -14,7 +14,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/runners"
 )
 
-// Assicura che CLIRunner implementi runner.Runner
+// Ensure CLIRunner implements runner.Runner
 var _ runners.Runner = &CLIRunner{}
 
 type CLIRunner struct {
@@ -130,7 +130,7 @@ func (c *CLIRunner) Close() error {
 	defer c.mu.Unlock()
 	select {
 	case <-c.stopCh:
-		// già chiuso
+		// already closed
 	default:
 		close(c.stopCh)
 	}

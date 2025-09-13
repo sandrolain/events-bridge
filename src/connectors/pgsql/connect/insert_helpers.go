@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// buildPreparedStatement costruisce la query SQL INSERT e i parametri per un batch di record.
-// Compatibile con pgx/pgxpool.
+// buildPreparedStatement builds the SQL INSERT query and parameters for a batch of records.
+// Compatible with pgx/pgxpool.
 func buildPreparedStatement(args InsertRecordArgs, columns []Column, records []Record) (string, []interface{}, error) {
 	tableName := args.TableName
 	otherColumn := args.OtherColumn

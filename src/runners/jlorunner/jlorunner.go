@@ -14,7 +14,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/runners"
 )
 
-// Assicura che JSONLogicRunner implementi runners.Runner
+// Ensure JSONLogicRunner implements runners.Runner
 var _ runners.Runner = &JSONLogicRunner{}
 
 type JSONLogicRunner struct {
@@ -27,7 +27,7 @@ type JSONLogicRunner struct {
 	stopCh  chan struct{}
 }
 
-// New crea una nuova istanza di JSONLogicRunner
+// New creates a new instance of JSONLogicRunner
 func New(cfg *runners.RunnerJSONLogicConfig) (runners.Runner, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("jsonlogic runner configuration cannot be nil")
@@ -62,7 +62,7 @@ func New(cfg *runners.RunnerJSONLogicConfig) (runners.Runner, error) {
 	}, nil
 }
 
-// Process applica la regola JSONLogic al messaggio
+// Process applies the JSONLogic rule to the message
 func (j *JSONLogicRunner) Process(msg message.Message) (message.Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), j.timeout)
 	defer cancel()
@@ -126,7 +126,7 @@ func (j *JSONLogicRunner) Close() error {
 	defer j.mu.Unlock()
 	select {
 	case <-j.stopCh:
-		// già chiuso
+		// already closed
 	default:
 		close(j.stopCh)
 	}

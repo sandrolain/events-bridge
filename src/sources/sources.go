@@ -73,8 +73,8 @@ type SourceNATSConfig struct {
 	Address    string `yaml:"address" json:"address" validate:"required"`
 	Stream     string `yaml:"stream" json:"stream"`
 	Subject    string `yaml:"subject" json:"subject" validate:"required"`
-	Consumer   string `yaml:"consumer" json:"consumer"`     // opzionale: consumer name/id per JetStream
-	QueueGroup string `yaml:"queueGroup" json:"queueGroup"` // opzionale: queue group per NATS core
+	Consumer   string `yaml:"consumer" json:"consumer"`     // optional: consumer name/id for JetStream
+	QueueGroup string `yaml:"queueGroup" json:"queueGroup"` // optional: queue group for NATS core
 }
 
 type SourcePluginConfig struct {
@@ -102,7 +102,7 @@ type SourcePubSubConfig struct {
 	Topic             string `yaml:"topic" json:"topic"`
 	AckDeadline       int    `yaml:"ack_deadline" json:"ack_deadline"`
 	RetainAcked       bool   `yaml:"retain_acked" json:"retain_acked"`
-	RetentionDuration int    `yaml:"retention_duration" json:"retention_duration"` // secondi
+	RetentionDuration int    `yaml:"retention_duration" json:"retention_duration"` // seconds
 }
 
 type SourceRedisConfig struct {

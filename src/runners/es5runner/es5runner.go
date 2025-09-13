@@ -16,7 +16,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/runners"
 )
 
-// Assicura che ES5Runner implementi models.Runner
+// Ensure ES5Runner implements models.Runner
 var _ runners.Runner = &ES5Runner{}
 
 type ES5Runner struct {
@@ -25,10 +25,10 @@ type ES5Runner struct {
 	program *goja.Program
 	mu      sync.Mutex
 	timeout time.Duration
-	stopCh  chan struct{} // canale di stop
+	stopCh  chan struct{} // stop channel
 }
 
-// New crea una nuova istanza di ES5Runner
+// New creates a new instance of ES5Runner
 func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("es5runner configuration cannot be nil")
@@ -66,7 +66,7 @@ func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
 	}, nil
 }
 
-// processMessage gestisce la logica di un singolo messaggio
+// processMessage handles the logic for a single message
 func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
 	defer cancel()
@@ -80,7 +80,7 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 		return nil, fmt.Errorf("failed to set message: %w", err)
 	}
 
-	// Espone EncodeJSON/DecodeJSON
+	// Expose EncodeJSON/DecodeJSON
 	vm.Set("EncodeJSON", func(call goja.FunctionCall) goja.Value {
 		rt := vm
 		data := call.Argument(0).Export()
@@ -113,7 +113,7 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 		return rt.ToValue(out)
 	})
 
-	// Espone EncodeCBOR/DecodeCBOR
+	// Expose EncodeCBOR/DecodeCBOR
 	vm.Set("EncodeCBOR", func(call goja.FunctionCall) goja.Value {
 		rt := vm
 		b, err := cbor.Marshal(call.Argument(0).Export())
@@ -171,7 +171,7 @@ func (e *ES5Runner) Close() error {
 	defer e.mu.Unlock()
 	select {
 	case <-e.stopCh:
-		// già chiuso
+		// already closed
 	default:
 		close(e.stopCh)
 	}
