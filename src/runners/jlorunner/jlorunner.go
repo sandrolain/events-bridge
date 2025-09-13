@@ -62,45 +62,21 @@ func New(cfg *runners.RunnerJSONLogicConfig) (runners.Runner, error) {
 	}, nil
 }
 
-// Ingest riceve i messaggi, li processa tramite la regola JSONLogic e restituisce i messaggi processati
-func (j *JSONLogicRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	j.slog.Info("starting jsonlogic ingestion")
-	out := make(chan message.Message)
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case msg, ok := <-in:
-				if !ok {
-					return
-				}
-				if err := j.processMessage(msg, out); err != nil {
-					j.slog.Error("jsonlogic ingest error", "error", err)
-				}
-			case <-j.stopCh:
-				j.slog.Info("jsonlogic runner stopped via stopCh")
-				return
-			}
-		}
-	}()
-	return out, nil
-}
-
-// processMessage applica la regola JSONLogic al messaggio
-func (j *JSONLogicRunner) processMessage(msg message.Message, out chan<- message.Message) error {
+// Process applica la regola JSONLogic al messaggio
+func (j *JSONLogicRunner) Process(msg message.Message) (message.Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), j.timeout)
 	defer cancel()
 
 	data, err := msg.GetData()
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to get data: %w", err)
+		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
 
 	var input map[string]interface{}
 	if err := json.Unmarshal(data, &input); err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to unmarshal input data: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal input data: %w", err)
 	}
 
 	var result interface{}
@@ -116,11 +92,11 @@ func (j *JSONLogicRunner) processMessage(msg message.Message, out chan<- message
 	select {
 	case <-ctx.Done():
 		msg.Nak()
-		return fmt.Errorf("jsonlogic execution timeout")
+		return nil, fmt.Errorf("jsonlogic execution timeout")
 	case err := <-done:
 		if err != nil {
 			msg.Nak()
-			return fmt.Errorf("jsonlogic execution error: %w", err)
+			return nil, fmt.Errorf("jsonlogic execution error: %w", err)
 		}
 	}
 
@@ -133,11 +109,15 @@ func (j *JSONLogicRunner) processMessage(msg message.Message, out chan<- message
 	output, err := json.Marshal(outputStruct)
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to marshal jsonlogic result: %w", err)
+		return nil, fmt.Errorf("failed to marshal jsonlogic result: %w", err)
 	}
 
-	out <- &jsonlogicMessage{original: msg, data: output}
-	return nil
+	processed := &jsonlogicMessage{
+		original: msg,
+		data:     output,
+	}
+
+	return processed, nil
 }
 
 func (j *JSONLogicRunner) Close() error {

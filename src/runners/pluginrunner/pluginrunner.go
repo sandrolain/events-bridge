@@ -46,32 +46,8 @@ func New(mgr *plugin.PluginManager, cfg *runners.RunnerPluginConfig) (runners.Ru
 	}, nil
 }
 
-// Ingest riceve i messaggi, li processa tramite il plugin e restituisce i messaggi processati
-func (p *PluginRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	p.slog.Info("starting plugin runner ingest", "id", p.cfg.Name)
-	out := make(chan message.Message)
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case msg, ok := <-in:
-				if !ok {
-					return
-				}
-				res, err := p.plg.Runner(msg)
-				if err != nil {
-					p.slog.Error("plugin runner error", "error", err)
-					msg.Nak()
-					continue
-				}
-				out <- res
-			case <-p.stopCh:
-				p.slog.Info("plugin runner stopped via stopCh")
-				return
-			}
-		}
-	}()
-	return out, nil
+func (p *PluginRunner) Process(msg message.Message) (message.Message, error) {
+	return p.plg.Runner(msg)
 }
 
 func (p *PluginRunner) Close() error {

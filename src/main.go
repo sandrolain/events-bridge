@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/destel/rill"
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
 	pluginconn "github.com/sandrolain/events-bridge/src/connectors/plugin"
@@ -122,30 +123,22 @@ func main() {
 		outChan := make(chan message.Message, cfg.Source.Buffer)
 		errChan := make(chan error, routines)
 
-		for i := 0; i < routines; i++ {
-			go func(idx int) {
-				slog.Info("runner goroutine started", "routine", idx)
-				runnerChan, err := runner.Ingest(c)
-				if err != nil {
-					errChan <- fmt.Errorf("runner ingest failed in routine %d: %w", idx, err)
-					return
-				}
-				for msg := range runnerChan {
-					outChan <- msg
-				}
-				errChan <- nil
-			}(i)
-		}
+		rTry := rill.FromChan(r, nil)
+		out := rill.OrderedMap(rTry, routines, func(msg message.Message) (message.Message, error) {
+			return runner.Process(msg)
+		})
 
 		// Goroutine to close outChan when all routines are done
 		go func() {
-			for i := 0; i < routines; i++ {
-				if err := <-errChan; err != nil {
-					slog.Error("runner routine error", "error", err)
-					os.Exit(1)
+			for item := range out {
+				if item.Error != nil {
+					errChan <- item.Error
+					continue
 				}
+				outChan <- item.Value
 			}
 			close(outChan)
+			close(errChan)
 		}()
 
 		r = outChan
@@ -163,7 +156,6 @@ func main() {
 	}
 
 	select {}
-
 }
 
 func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {

@@ -81,43 +81,18 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 	}, nil
 }
 
-// Ingest riceve i messaggi, li processa tramite la runtime wasm e restituisce i messaggi processati
-func (w *WasmRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	w.slog.Info("starting wasm runner ingest", "timeout", w.timeout)
-
-	out := make(chan message.Message)
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case msg, ok := <-in:
-				if !ok {
-					return
-				}
-				if err := w.processMessage(msg, out); err != nil {
-					w.slog.Error("wasm ingest error", "error", err)
-				}
-			case <-w.stopCh:
-				w.slog.Info("wasm runner stopped via stopCh")
-				return
-			}
-		}
-	}()
-	return out, nil
-}
-
-// processMessage gestisce la logica di un singolo messaggio, riducendo la complessità di Ingest
-func (w *WasmRunner) processMessage(msg message.Message, out chan<- message.Message) error {
+// Process gestisce la logica di un singolo messaggio, riducendo la complessità di Ingest
+func (w *WasmRunner) Process(msg message.Message) (message.Message, error) {
 	data, err := msg.GetData()
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("error getting data from message: %w", err)
+		return nil, fmt.Errorf("error getting data from message: %w", err)
 	}
 
 	metadata, err := msg.GetMetadata()
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("error getting metadata from message: %w", err)
+		return nil, fmt.Errorf("error getting metadata from message: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
@@ -136,14 +111,14 @@ func (w *WasmRunner) processMessage(msg message.Message, out chan<- message.Mess
 		WithStderr(os.Stderr))
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to instantiate wasm module: %w", err)
+		return nil, fmt.Errorf("failed to instantiate wasm module: %w", err)
 	}
 	defer module.Close(ctx)
 
 	outMeta, outData, err := cliformat.Decode(stout.Bytes())
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("error decoding output data: %w", err)
+		return nil, fmt.Errorf("error decoding output data: %w", err)
 	}
 
 	processed := &WasmMessage{
@@ -151,8 +126,8 @@ func (w *WasmRunner) processMessage(msg message.Message, out chan<- message.Mess
 		data:     outData,
 		metadata: outMeta,
 	}
-	out <- processed
-	return nil
+
+	return processed, nil
 }
 
 func (w *WasmRunner) Close() error {

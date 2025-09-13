@@ -46,42 +46,19 @@ func New(cfg *runners.RunnerCLIConfig) (runners.Runner, error) {
 	}, nil
 }
 
-func (c *CLIRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	c.slog.Info("starting cli ingestion")
-	out := make(chan message.Message)
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case msg, ok := <-in:
-				if !ok {
-					return
-				}
-				if err := c.processMessage(msg, out); err != nil {
-					c.slog.Error("cli ingest error", "error", err)
-				}
-			case <-c.stopCh:
-				c.slog.Info("cli runner stopped via stopCh")
-				return
-			}
-		}
-	}()
-	return out, nil
-}
-
-func (c *CLIRunner) processMessage(msg message.Message, out chan<- message.Message) error {
+func (c *CLIRunner) Process(msg message.Message) (message.Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
 	meta, err := msg.GetMetadata()
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to get metadata: %w", err)
+		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
 	data, err := msg.GetData()
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to get data: %w", err)
+		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
 
 	stdin := bytes.NewReader(cliformat.Encode(meta, data))
@@ -103,17 +80,22 @@ func (c *CLIRunner) processMessage(msg message.Message, out chan<- message.Messa
 	err = cmd.Run()
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
+		return nil, fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
 	}
 
 	outMeta, outData, err := cliformat.Decode(stdout.Bytes())
 	if err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to decode cli output: %w", err)
+		return nil, fmt.Errorf("failed to decode cli output: %w", err)
 	}
 
-	out <- &cliMessage{original: msg, meta: outMeta, data: outData}
-	return nil
+	processed := &cliMessage{
+		original: msg,
+		meta:     outMeta,
+		data:     outData,
+	}
+
+	return processed, nil
 }
 
 type cliMessage struct {

@@ -66,32 +66,8 @@ func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
 	}, nil
 }
 
-// Ingest riceve i messaggi, li processa tramite la VM JS e restituisce i messaggi processati
-func (e *ES5Runner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	e.slog.Info("starting es5 ingestion")
-	out := make(chan message.Message)
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case msg, ok := <-in:
-				if !ok {
-					return
-				}
-				if err := e.processMessage(msg, out); err != nil {
-					e.slog.Error("es5 ingest error", "error", err)
-				}
-			case <-e.stopCh:
-				e.slog.Info("es5 runner stopped via stopCh")
-				return
-			}
-		}
-	}()
-	return out, nil
-}
-
 // processMessage gestisce la logica di un singolo messaggio
-func (e *ES5Runner) processMessage(msg message.Message, out chan<- message.Message) error {
+func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
 	defer cancel()
 
@@ -101,7 +77,7 @@ func (e *ES5Runner) processMessage(msg message.Message, out chan<- message.Messa
 	result := &ES5Message{original: msg}
 	if err := vm.Set("message", result); err != nil {
 		msg.Nak()
-		return fmt.Errorf("failed to set message: %w", err)
+		return nil, fmt.Errorf("failed to set message: %w", err)
 	}
 
 	// Espone EncodeJSON/DecodeJSON
@@ -178,16 +154,15 @@ func (e *ES5Runner) processMessage(msg message.Message, out chan<- message.Messa
 	select {
 	case <-ctx.Done():
 		msg.Nak()
-		return fmt.Errorf("js execution timeout")
+		return nil, fmt.Errorf("js execution timeout")
 	case err := <-done:
 		if err != nil {
 			msg.Nak()
-			return fmt.Errorf("js execution error: %w", err)
+			return nil, fmt.Errorf("js execution error: %w", err)
 		}
 	}
 
-	out <- result
-	return nil
+	return result, nil
 }
 
 func (e *ES5Runner) Close() error {

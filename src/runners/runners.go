@@ -9,7 +9,7 @@ import (
 const NewMethodName = "New"
 
 type Runner interface {
-	Ingest(<-chan message.Message) (<-chan message.Message, error)
+	Process(message.Message) (message.Message, error)
 	Close() error
 }
 

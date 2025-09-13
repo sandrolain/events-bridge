@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/utils"
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -71,41 +70,57 @@ func New(cfg *runners.RunnerGPTRunnerConfig) (runners.Runner, error) {
 	}, nil
 }
 
-func (g *GPTRunner) Ingest(in <-chan message.Message) (<-chan message.Message, error) {
-	g.slog.Info("starting gpt ingestion")
-	out := make(chan message.Message)
-	batchSize := g.cfg.BatchSize
-	if batchSize <= 0 {
-		batchSize = 5
+func (g *GPTRunner) Process(msg message.Message) (message.Message, error) {
+	prompt, err := g.formatPrompt(msg)
+	if err != nil {
+		g.slog.Error("failed to format prompt", "error", err)
+		msg.Nak()
+		return nil, fmt.Errorf("failed to format prompt: %w", err)
 	}
-	batchWait := g.cfg.BatchWait
-	if batchWait == 0 {
-		batchWait = 2 * time.Second
+	g.slog.Debug("sending prompt to openai", "prompt", prompt)
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	resp, err := g.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+		Model: g.cfg.Model,
+		Messages: []openai.ChatCompletionMessage{{
+			Role:    openai.ChatMessageRoleUser,
+			Content: prompt,
+		}},
+		MaxTokens: g.cfg.MaxTokens,
+	})
+	if err != nil {
+		g.slog.Error("openai error", "error", err)
+		msg.Nak()
+		return nil, fmt.Errorf("openai error: %w", err)
 	}
-	g.slog.Debug("batcher config", "batchSize", batchSize, "batchWait", batchWait)
-	batched := utils.Batcher(in, batchSize, batchWait)
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case msgs, ok := <-batched:
-				g.slog.Debug("received batch", "count", len(msgs), "ok", ok)
-				if !ok {
-					return
-				}
-				if err := g.processBatch(msgs, out); err != nil {
-					g.slog.Error("gpt batch error", "error", err)
-				}
-			case <-g.stopCh:
-				g.slog.Info("gpt runner stopped via stopCh")
-				return
-			}
-		}
-	}()
-	return out, nil
+	g.slog.Debug("openai response received", "choices", len(resp.Choices))
+	if len(resp.Choices) == 0 {
+		g.slog.Error("no choices from openai")
+		msg.Nak()
+		return nil, fmt.Errorf("no choices from openai")
+	}
+	result := resp.Choices[0].Message.Content
+	g.slog.Debug("openai response content", "content", result)
+
+	processed := &gptMessage{
+		original: msg,
+		data:     []byte(result),
+	}
+
+	return processed, nil
 }
 
-func (g *GPTRunner) processBatch(msgs []message.Message, out chan<- message.Message) error {
+// formatPromptItems accetta un batch di item e restituisce il prompt
+func (g *GPTRunner) formatPrompt(msg message.Message) (string, error) {
+	b, err := msg.GetData()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s\n\n%s", g.cfg.Action, string(b)), nil
+}
+
+// TODO: implementa ProcessBatch per gestire batch di messaggi
+func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
 	batch := make([]inputItem, 0, len(msgs))
@@ -159,7 +174,7 @@ func (g *GPTRunner) processBatch(msgs []message.Message, out chan<- message.Mess
 	}
 	res := resp.Choices[0].Message.Content
 	g.slog.Debug("openai response content", "content", res)
-	results, err := g.parseResponse(res)
+	results, err := g.parseBatchResponse(res)
 	if err != nil {
 		g.slog.Error("failed to parse gpt response", "error", err)
 		for _, msg := range msgs {
@@ -192,7 +207,7 @@ func (g *GPTRunner) formatPromptItems(batch []inputItem) (string, error) {
 	return fmt.Sprintf("%s\nMESSAGES: %s\nReturn a JSON array of objects with the same 'id' and a 'result' field.", g.cfg.Action, string(b)), nil
 }
 
-func (g *GPTRunner) parseResponse(resp string) (map[string][]byte, error) {
+func (g *GPTRunner) parseBatchResponse(resp string) (map[string][]byte, error) {
 	// Try to extract a JSON array from the response
 	var arr []resultItem
 	dec := json.NewDecoder(bytes.NewReader([]byte(resp)))
