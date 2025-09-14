@@ -57,11 +57,11 @@ func (s *PubSubSource) Produce(buffer int) (<-chan message.Message, error) {
 		}
 		// Create subscription via admin client
 		_, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pubsubpb.Subscription{
-			Name:                       fmt.Sprintf("projects/%s/subscriptions/%s", s.config.ProjectID, s.config.Subscription),
-			Topic:                      fmt.Sprintf("projects/%s/topics/%s", s.config.ProjectID, s.config.Topic),
-			AckDeadlineSeconds:         ackDeadline,
-			RetainAckedMessages:        s.config.RetainAcked,
-			MessageRetentionDuration:   durationpb.New(time.Duration(retention) * time.Second),
+			Name:                     fmt.Sprintf("projects/%s/subscriptions/%s", s.config.ProjectID, s.config.Subscription),
+			Topic:                    fmt.Sprintf("projects/%s/topics/%s", s.config.ProjectID, s.config.Topic),
+			AckDeadlineSeconds:       ackDeadline,
+			RetainAckedMessages:      s.config.RetainAcked,
+			MessageRetentionDuration: durationpb.New(time.Duration(retention) * time.Second),
 		})
 		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
 			return nil, fmt.Errorf("error creating subscription: %w", err)

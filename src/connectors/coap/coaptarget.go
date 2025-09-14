@@ -90,7 +90,7 @@ func (t *CoAPTarget) send(msg message.Message) error {
 			return fmt.Errorf("failed to dial coap server: %w", e)
 		}
 
-		defer func ()  {
+		defer func() {
 			err = client.Close()
 			if err != nil {
 				t.slog.Error("error closing coap client", "err", err)

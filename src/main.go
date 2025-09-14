@@ -87,7 +87,7 @@ func main() {
 		slog.Error("failed to create source", "error", err)
 		os.Exit(1)
 	}
-	defer func () {
+	defer func() {
 		if err := source.Close(); err != nil {
 			slog.Error("failed to close source", "error", err)
 		}
@@ -98,7 +98,7 @@ func main() {
 		slog.Error("failed to create target", "error", err)
 		os.Exit(1)
 	}
-	defer func () {
+	defer func() {
 		if err := target.Close(); err != nil {
 			slog.Error("failed to close target", "error", err)
 		}
@@ -111,7 +111,7 @@ func main() {
 	}
 
 	if runner != nil {
-		defer func () {
+		defer func() {
 			if err := runner.Close(); err != nil {
 				slog.Error("failed to close runner", "error", err)
 			}

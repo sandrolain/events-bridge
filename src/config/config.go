@@ -38,7 +38,7 @@ func LoadConfigFile[T any](path string) (cfg *T, err error) {
 		err = fmt.Errorf("error opening config file: %w", err)
 		return
 	}
-	defer func ()  {
+	defer func() {
 		err = file.Close()
 		if err != nil {
 			slog.Error("error closing config file", "path", absPath, "err", err)

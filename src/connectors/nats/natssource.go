@@ -95,22 +95,22 @@ func (s *NATSSource) consumeJetStream() (err error) {
 	}
 	go func() {
 		for {
-		msgs, err := sub.Fetch(1, nats.MaxWait(5*time.Second))
-		if err != nil {
-			if err == nats.ErrTimeout {
-				s.slog.Warn("JetStream fetch timeout")
-				continue
+			msgs, err := sub.Fetch(1, nats.MaxWait(5*time.Second))
+			if err != nil {
+				if err == nats.ErrTimeout {
+					s.slog.Warn("JetStream fetch timeout")
+					continue
+				}
+				s.slog.Error("error fetching from JetStream", "err", err)
+				break
 			}
-			s.slog.Error("error fetching from JetStream", "err", err)
-			break
-		}
-		for _, msg := range msgs {
-			m := &NATSMessage{
-				msg: msg,
+			for _, msg := range msgs {
+				m := &NATSMessage{
+					msg: msg,
+				}
+				s.c <- m
 			}
-			s.c <- m
 		}
-	}
 	}()
 	return
 }

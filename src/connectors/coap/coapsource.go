@@ -27,11 +27,11 @@ func NewSource(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
 }
 
 type CoAPSource struct {
-	config   *sources.SourceCoAPConfig
-	slog     *slog.Logger
-	c        chan msg.Message
-	started  bool
-	conn     *coapnet.UDPConn
+	config  *sources.SourceCoAPConfig
+	slog    *slog.Logger
+	c       chan msg.Message
+	started bool
+	conn    *coapnet.UDPConn
 }
 
 func (s *CoAPSource) Produce(buffer int) (<-chan msg.Message, error) {

@@ -85,7 +85,7 @@ func TestHTTPSourceProduceMethodNotAllowed(t *testing.T) {
 	}
 	time.Sleep(10 * time.Millisecond)
 	_ = ch // just to keep channel in scope
-	
+
 	if err = httpSrc.Close(); err != nil {
 		t.Fatalf("unexpected error on close: %v", err)
 	}

@@ -46,7 +46,7 @@ func main() {
 			err := json.Unmarshal(ctx.Request.Body(), &obj)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to unmarshal JSON: %v\n", err)
-			}	
+			}
 			f := colorjson.NewFormatter()
 			f.Indent = 2
 			s, err := f.Marshal(obj)

@@ -123,7 +123,7 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 		data, err := msg.GetData()
 		if err != nil {
 			g.slog.Debug("GetData failed", "index", i, "error", err)
-			if e := msg.Nak()	; e != nil {
+			if e := msg.Nak(); e != nil {
 				g.slog.Error("error naking message", "err", e)
 			}
 			continue

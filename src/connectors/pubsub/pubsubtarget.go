@@ -24,11 +24,11 @@ func NewTarget(cfg *targets.TargetPubSubConfig) (targets.Target, error) {
 }
 
 type PubSubTarget struct {
-	slog    *slog.Logger
-	config  *targets.TargetPubSubConfig
-	stopped bool
-	stopCh  chan struct{}
-	client  *pubsub.Client
+	slog      *slog.Logger
+	config    *targets.TargetPubSubConfig
+	stopped   bool
+	stopCh    chan struct{}
+	client    *pubsub.Client
 	publisher *pubsub.Publisher
 }
 
