@@ -64,10 +64,14 @@ func (t *PluginTarget) Consume(c <-chan message.Message) error {
 				ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
 				err := t.plg.Target(ctx, msg)
 				if err != nil {
-					msg.Nak()
-					t.slog.Error("plugin target error", "err", err)
+					t.slog.Error("error publishing message", "err", err)
+					if err := msg.Nak(); err != nil {
+						t.slog.Error("error naking message", "err", err)
+					}
 				} else {
-					msg.Ack()
+					if err := msg.Ack(); err != nil {
+						t.slog.Error("error acking message", "err", err)
+					}
 				}
 				cancel()
 			}

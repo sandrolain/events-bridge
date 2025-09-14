@@ -73,8 +73,6 @@ func New(cfg *runners.RunnerGPTRunnerConfig) (runners.Runner, error) {
 func (g *GPTRunner) Process(msg message.Message) (message.Message, error) {
 	prompt, err := g.formatPrompt(msg)
 	if err != nil {
-		g.slog.Error("failed to format prompt", "error", err)
-		msg.Nak()
 		return nil, fmt.Errorf("failed to format prompt: %w", err)
 	}
 	g.slog.Debug("sending prompt to openai", "prompt", prompt)
@@ -89,14 +87,10 @@ func (g *GPTRunner) Process(msg message.Message) (message.Message, error) {
 		MaxTokens: g.cfg.MaxTokens,
 	})
 	if err != nil {
-		g.slog.Error("openai error", "error", err)
-		msg.Nak()
 		return nil, fmt.Errorf("openai error: %w", err)
 	}
 	g.slog.Debug("openai response received", "choices", len(resp.Choices))
 	if len(resp.Choices) == 0 {
-		g.slog.Error("no choices from openai")
-		msg.Nak()
 		return nil, fmt.Errorf("no choices from openai")
 	}
 	result := resp.Choices[0].Message.Content
@@ -129,7 +123,9 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 		data, err := msg.GetData()
 		if err != nil {
 			g.slog.Debug("GetData failed", "index", i, "error", err)
-			msg.Nak()
+			if e := msg.Nak()	; e != nil {
+				g.slog.Error("error naking message", "err", e)
+			}
 			continue
 		}
 		id := uuid.NewString()
@@ -144,7 +140,9 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 	if err != nil {
 		g.slog.Error("failed to format prompt", "error", err)
 		for _, msg := range msgs {
-			msg.Nak()
+			if e := msg.Nak(); e != nil {
+				g.slog.Error("error naking message", "err", e)
+			}
 		}
 		return fmt.Errorf("failed to format prompt: %w", err)
 	}
@@ -160,7 +158,9 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 	if err != nil {
 		g.slog.Error("openai error", "error", err)
 		for _, msg := range msgs {
-			msg.Nak()
+			if e := msg.Nak(); e != nil {
+				g.slog.Error("error naking message", "err", e)
+			}
 		}
 		return fmt.Errorf("openai error: %w", err)
 	}
@@ -168,7 +168,9 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 	if len(resp.Choices) == 0 {
 		g.slog.Error("no choices from openai")
 		for _, msg := range msgs {
-			msg.Nak()
+			if e := msg.Nak(); e != nil {
+				g.slog.Error("error naking message", "err", e)
+			}
 		}
 		return fmt.Errorf("no choices from openai")
 	}
@@ -178,7 +180,9 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 	if err != nil {
 		g.slog.Error("failed to parse gpt response", "error", err)
 		for _, msg := range msgs {
-			msg.Nak()
+			if e := msg.Nak(); e != nil {
+				g.slog.Error("error naking message", "err", e)
+			}
 		}
 		return fmt.Errorf("failed to parse gpt response: %w", err)
 	}
@@ -188,7 +192,9 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 		result, ok := results[id]
 		if !ok {
 			g.slog.Debug("no result for id", "id", id)
-			msg.Nak()
+			if e := msg.Nak(); e != nil {
+				g.slog.Error("error naking message", "err", e)
+			}
 			continue
 		}
 		g.slog.Debug("sending out message", "id", id)

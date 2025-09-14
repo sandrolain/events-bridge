@@ -65,7 +65,11 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 
 	cmod, err := rt.CompileModule(ctx, wasmBytes)
 	if err != nil {
-		rt.Close(ctx)
+		defer func() {
+			if err := rt.Close(ctx); err != nil {
+				log.Error("failed to close wasm runtime", "err", err)
+			}
+		}()
 		return nil, fmt.Errorf("failed to compile wasm module: %w", err)
 	}
 
@@ -85,13 +89,11 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 func (w *WasmRunner) Process(msg message.Message) (message.Message, error) {
 	data, err := msg.GetData()
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("error getting data from message: %w", err)
 	}
 
 	metadata, err := msg.GetMetadata()
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("error getting metadata from message: %w", err)
 	}
 
@@ -110,14 +112,16 @@ func (w *WasmRunner) Process(msg message.Message) (message.Message, error) {
 		WithStdout(stout).
 		WithStderr(os.Stderr))
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to instantiate wasm module: %w", err)
 	}
-	defer module.Close(ctx)
+	defer func() {
+		if err := module.Close(ctx); err != nil {
+			w.slog.Error("failed to close wasm module", "err", err)
+		}
+	}()
 
 	outMeta, outData, err := cliformat.Decode(stout.Bytes())
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("error decoding output data: %w", err)
 	}
 

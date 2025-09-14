@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -28,20 +30,23 @@ func main() {
 		blue("Request:\n")
 		white("  %s %s\n", ctx.Method(), ctx.RequestURI())
 		blue("Query:\n")
-		ctx.QueryArgs().VisitAll(func(key, value []byte) {
+		for key, value := range ctx.QueryArgs().All() {
 			white("  %s: %s\n", key, value)
-		})
+		}
 		blue("Remote address:\n")
 		white("  %s\n", ctx.RemoteAddr().String())
 		blue("Headers:\n")
-		ctx.Request.Header.VisitAll(func(key, value []byte) {
+		for key, value := range ctx.Request.Header.All() {
 			white("  %s: %s\n", key, value)
-		})
+		}
 		blue("Body:\n")
 
 		if strings.Contains(string(ctx.Request.Header.ContentType()), "application/json") {
 			var obj interface{}
-			json.Unmarshal(ctx.Request.Body(), &obj)
+			err := json.Unmarshal(ctx.Request.Body(), &obj)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to unmarshal JSON: %v\n", err)
+			}	
 			f := colorjson.NewFormatter()
 			f.Indent = 2
 			s, err := f.Marshal(obj)

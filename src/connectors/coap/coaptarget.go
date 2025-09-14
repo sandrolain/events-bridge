@@ -48,10 +48,14 @@ func (t *CoAPTarget) Consume(c <-chan message.Message) error {
 			case msg := <-c:
 				err := t.send(msg)
 				if err != nil {
-					msg.Nak()
-					t.slog.Error("error sending coap message", "err", err)
+					t.slog.Error("error publishing message", "err", err)
+					if err := msg.Nak(); err != nil {
+						t.slog.Error("error naking message", "err", err)
+					}
 				} else {
-					msg.Ack()
+					if err := msg.Ack(); err != nil {
+						t.slog.Error("error acking message", "err", err)
+					}
 				}
 			}
 		}
@@ -86,7 +90,12 @@ func (t *CoAPTarget) send(msg message.Message) error {
 			return fmt.Errorf("failed to dial coap server: %w", e)
 		}
 
-		defer client.Close()
+		defer func ()  {
+			err = client.Close()
+			if err != nil {
+				t.slog.Error("error closing coap client", "err", err)
+			}
+		}()
 		switch method {
 		case "POST":
 			_, err = client.Post(ctx, path, coapmessage.AppCBOR, strings.NewReader(string(data)))
@@ -103,7 +112,12 @@ func (t *CoAPTarget) send(msg message.Message) error {
 			return fmt.Errorf("failed to dial coap server: %w", e)
 		}
 
-		defer client.Close()
+		defer func() {
+			err = client.Close()
+			if err != nil {
+				t.slog.Error("error closing coap client", "err", err)
+			}
+		}()
 		switch method {
 		case "POST":
 			_, err = client.Post(ctx, path, coapmessage.AppCBOR, strings.NewReader(string(data)))

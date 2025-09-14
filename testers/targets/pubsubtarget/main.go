@@ -23,7 +23,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Pub/Sub client error: %v\n", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close Pub/Sub client: %v\n", err)
+		}
+	}()
 
 	sub := client.Subscription(*subscriptionID)
 

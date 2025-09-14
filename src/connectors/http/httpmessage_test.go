@@ -6,8 +6,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type dummyResponseStatus int
-
 func newHTTPMessageWithCtx(ctx *fasthttp.RequestCtx) *HTTPMessage {
 	return &HTTPMessage{
 		httpCtx: ctx,

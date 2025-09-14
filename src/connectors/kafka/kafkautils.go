@@ -20,7 +20,11 @@ func ensureKafkaTopic(s *slog.Logger, brokers []string, topic string, partitions
 	if err != nil {
 		return fmt.Errorf("error connecting to Kafka: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			s.Error("error closing Kafka connection", "err", err)
+		}
+	}()
 
 	err = conn.CreateTopics(kafka.TopicConfig{
 		Topic:             topic,

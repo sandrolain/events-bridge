@@ -21,7 +21,6 @@ type JSONLogicRunner struct {
 	cfg     *runners.RunnerJSONLogicConfig
 	slog    *slog.Logger
 	logic   map[string]interface{}
-	params  map[string]interface{}
 	mu      sync.Mutex
 	timeout time.Duration
 	stopCh  chan struct{}
@@ -69,13 +68,11 @@ func (j *JSONLogicRunner) Process(msg message.Message) (message.Message, error) 
 
 	data, err := msg.GetData()
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
 
 	var input map[string]interface{}
 	if err := json.Unmarshal(data, &input); err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to unmarshal input data: %w", err)
 	}
 
@@ -91,11 +88,9 @@ func (j *JSONLogicRunner) Process(msg message.Message) (message.Message, error) 
 
 	select {
 	case <-ctx.Done():
-		msg.Nak()
 		return nil, fmt.Errorf("jsonlogic execution timeout")
 	case err := <-done:
 		if err != nil {
-			msg.Nak()
 			return nil, fmt.Errorf("jsonlogic execution error: %w", err)
 		}
 	}
@@ -108,7 +103,6 @@ func (j *JSONLogicRunner) Process(msg message.Message) (message.Message, error) 
 
 	output, err := json.Marshal(outputStruct)
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to marshal jsonlogic result: %w", err)
 	}
 

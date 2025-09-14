@@ -31,7 +31,11 @@ func main() {
 		Brokers: []string{*brokers},
 		Topic:   *topic,
 	})
-	defer writer.Close()
+	defer func() {
+		if err := writer.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close Kafka writer: %v\n", err)
+		}
+	}()
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
@@ -53,7 +57,7 @@ func main() {
 			case "sentence":
 				return []byte(testpayload.GenerateSentence()), nil
 			default:
-				return nil, fmt.Errorf("Unknown testpayload type: %s", *testPayloadType)
+				return nil, fmt.Errorf("unknown test payload type: %s", *testPayloadType)
 			}
 		} else {
 			return testpayload.Interpolate(*payload)

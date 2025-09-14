@@ -76,10 +76,14 @@ func (s *RedisSource) Close() error {
 		close(s.c)
 	}
 	if s.pubsub != nil {
-		s.pubsub.Close()
+		if err := s.pubsub.Close(); err != nil {
+			return fmt.Errorf("error closing Redis pubsub: %w", err)
+		}
 	}
 	if s.client != nil {
-		s.client.Close()
+		if err := s.client.Close(); err != nil {
+			return fmt.Errorf("error closing Redis client: %w", err)
+		}
 	}
 	return nil
 }
@@ -153,7 +157,9 @@ func (s *RedisStreamSource) Close() error {
 		close(s.c)
 	}
 	if s.client != nil {
-		s.client.Close()
+		if err := s.client.Close(); err != nil {
+			return fmt.Errorf("error closing Redis client: %w", err)
+		}
 	}
 	return nil
 }

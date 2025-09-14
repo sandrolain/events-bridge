@@ -16,6 +16,7 @@ type NATSSource struct {
 	c       chan message.Message
 	nc      *nats.Conn
 	js      nats.JetStreamContext
+	sub     *nats.Subscription
 	started bool
 }
 
@@ -48,44 +49,56 @@ func (s *NATSSource) Produce(buffer int) (<-chan message.Message, error) {
 		}
 		s.js = js
 		s.slog.Info("using JetStream", "stream", s.config.Stream, "consumer", s.config.Consumer)
-		go s.consumeJetStream()
+
+		if err := s.consumeJetStream(); err != nil {
+			return nil, fmt.Errorf("failed to start JetStream consumer: %w", err)
+		}
 	} else {
 		// NATS core (o JetStream senza consumer)
 		queue := s.config.QueueGroup
-		go s.consumeCore(queue)
+		if err := s.consumeCore(queue); err != nil {
+			return nil, fmt.Errorf("failed to start NATS core consumer: %w", err)
+		}
 	}
 
 	s.started = true
 	return s.c, nil
 }
 
-func (s *NATSSource) consumeCore(queue string) {
+func (s *NATSSource) consumeCore(queue string) (err error) {
 	handler := func(msg *nats.Msg) {
 		m := &NATSMessage{
 			msg: msg,
 		}
 		s.c <- m
 	}
+	var e error
 	if queue != "" {
-		s.nc.QueueSubscribe(s.config.Subject, queue, handler)
+		s.sub, e = s.nc.QueueSubscribe(s.config.Subject, queue, handler)
 	} else {
-		s.nc.Subscribe(s.config.Subject, handler)
+		s.sub, e = s.nc.Subscribe(s.config.Subject, handler)
 	}
+	if e != nil {
+		err = fmt.Errorf("failed to subscribe to subject: %w", e)
+	}
+	return
 }
 
-func (s *NATSSource) consumeJetStream() {
+func (s *NATSSource) consumeJetStream() (err error) {
 	js := s.js
 	stream := s.config.Stream
 	consumer := s.config.Consumer
-	sub, err := js.PullSubscribe(s.config.Subject, consumer, nats.Bind(stream, consumer))
-	if err != nil {
-		s.slog.Error("failed to subscribe to JetStream", "err", err)
+	sub, e := js.PullSubscribe(s.config.Subject, consumer, nats.Bind(stream, consumer))
+	if e != nil {
+		err = fmt.Errorf("failed to create JetStream pull subscription: %w", e)
 		return
 	}
-	for {
+	go func() {
+		for {
 		msgs, err := sub.Fetch(1, nats.MaxWait(5*time.Second))
 		if err != nil {
 			if err == nats.ErrTimeout {
+				s.slog.Warn("JetStream fetch timeout")
 				continue
 			}
 			s.slog.Error("error fetching from JetStream", "err", err)
@@ -98,6 +111,8 @@ func (s *NATSSource) consumeJetStream() {
 			s.c <- m
 		}
 	}
+	}()
+	return
 }
 
 func (s *NATSSource) Close() error {

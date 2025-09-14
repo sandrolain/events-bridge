@@ -20,5 +20,7 @@ func main() {
 
 	// Write to stdout
 	out := cliformat.Encode(meta, newData)
-	os.Stdout.Write(out)
+	if _, err := os.Stdout.Write(out); err != nil {
+		log.Fatalf("write error: %v", err)
+	}
 }

@@ -91,7 +91,11 @@ func (p *Plugin) Start() (err error) {
 			scanner := bufio.NewScanner(stdout)
 			for !p.stopped && scanner.Scan() {
 				m := scanner.Text()
-				os.Stdout.WriteString(fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m))
+				s := fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m)
+				_, err := os.Stdout.WriteString(s)
+				if err != nil {
+					p.slog.Error("Error writing to stdout", "name", cfg.Name, "err", err)
+				}
 			}
 		}()
 
@@ -106,7 +110,11 @@ func (p *Plugin) Start() (err error) {
 			scanner := bufio.NewScanner(stderr)
 			for !p.stopped && scanner.Scan() {
 				m := scanner.Text()
-				os.Stderr.WriteString(fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m))
+				s := fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m)
+				_, err := os.Stderr.WriteString(s)
+				if err != nil {
+					p.slog.Error("Error writing to stderr", "name", cfg.Name, "err", err)
+				}
 			}
 		}()
 	}
@@ -137,7 +145,7 @@ func (p *Plugin) connect() (err error) {
 
 	err = r.Run(func() (err error) {
 		p.slog.Debug("Connecting to plugin", "name", cfg.Name, "addr", p.Address)
-		p.conn, err = grpc.Dial(p.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		p.conn, err = grpc.NewClient(p.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			p.slog.Error("Error connecting to plugin", "name", cfg.Name, "err", err)
 			return

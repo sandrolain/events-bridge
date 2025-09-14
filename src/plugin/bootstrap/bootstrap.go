@@ -38,7 +38,6 @@ var cfg Config
 var lis net.Listener
 var pluginStatus proto.Status = proto.Status_STATUS_STARTUP
 var err error
-var grpcConn *grpc.ClientConn
 
 func Start(opts StartOptions) {
 	e := runStart(opts)
@@ -152,7 +151,9 @@ func Shutdown(delay *string) *proto.ShutdownRes {
 	go func() {
 		time.Sleep(dl)
 		if lis != nil {
-			lis.Close()
+			if err := lis.Close(); err != nil {
+				slog.Error("failed to close listener", "error", err)
+			}
 		}
 		os.Exit(0)
 	}()

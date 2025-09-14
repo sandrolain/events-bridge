@@ -51,7 +51,11 @@ func main() {
 	defer cancel()
 
 	client := redis.NewClient(&redis.Options{Addr: *address})
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close Redis client: %v\n", err)
+		}
+	}()
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)

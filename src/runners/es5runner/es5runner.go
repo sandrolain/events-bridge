@@ -76,12 +76,13 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 
 	result := &ES5Message{original: msg}
 	if err := vm.Set("message", result); err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to set message: %w", err)
 	}
 
+	// TODO: define ES5 context functions
+
 	// Expose EncodeJSON/DecodeJSON
-	vm.Set("EncodeJSON", func(call goja.FunctionCall) goja.Value {
+	err := vm.Set("EncodeJSON", func(call goja.FunctionCall) goja.Value {
 		rt := vm
 		data := call.Argument(0).Export()
 		fmt.Printf("data: %v\n", data)
@@ -91,7 +92,11 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 		}
 		return rt.ToValue(b)
 	})
-	vm.Set("DecodeJSON", func(call goja.FunctionCall) goja.Value {
+	if err != nil {
+		return nil, fmt.Errorf("failed to set EncodeJSON: %w", err)
+	}
+
+	err = vm.Set("DecodeJSON", func(call goja.FunctionCall) goja.Value {
 		rt := vm
 		arg := call.Argument(0).Export()
 		var data []byte
@@ -112,9 +117,12 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 		}
 		return rt.ToValue(out)
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set DecodeJSON: %w", err)
+	}
 
 	// Expose EncodeCBOR/DecodeCBOR
-	vm.Set("EncodeCBOR", func(call goja.FunctionCall) goja.Value {
+	err = vm.Set("EncodeCBOR", func(call goja.FunctionCall) goja.Value {
 		rt := vm
 		b, err := cbor.Marshal(call.Argument(0).Export())
 		if err != nil {
@@ -122,7 +130,11 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 		}
 		return rt.ToValue(b)
 	})
-	vm.Set("DecodeCBOR", func(call goja.FunctionCall) goja.Value {
+	if err != nil {
+		return nil, fmt.Errorf("failed to set EncodeCBOR: %w", err)
+	}
+
+	err = vm.Set("DecodeCBOR", func(call goja.FunctionCall) goja.Value {
 		rt := vm
 		arg := call.Argument(0).Export()
 		var data []byte
@@ -144,6 +156,9 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 		}
 		return rt.ToValue(out)
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to set DecodeCBOR: %w", err)
+	}
 
 	done := make(chan error, 1)
 	go func() {
@@ -153,11 +168,9 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 
 	select {
 	case <-ctx.Done():
-		msg.Nak()
 		return nil, fmt.Errorf("js execution timeout")
 	case err := <-done:
 		if err != nil {
-			msg.Nak()
 			return nil, fmt.Errorf("js execution error: %w", err)
 		}
 	}

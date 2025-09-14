@@ -22,7 +22,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "DB open error: %v\n", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close DB connection: %v\n", err)
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

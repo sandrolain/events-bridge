@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
 )
@@ -29,7 +29,7 @@ type PubSubTarget struct {
 	stopped bool
 	stopCh  chan struct{}
 	client  *pubsub.Client
-	topic   *pubsub.Topic
+	publisher *pubsub.Publisher
 }
 
 func (t *PubSubTarget) Consume(c <-chan message.Message) error {
@@ -39,30 +39,39 @@ func (t *PubSubTarget) Consume(c <-chan message.Message) error {
 		return fmt.Errorf("error creating PubSub client: %w", err)
 	}
 	t.client = client
-	t.topic = client.Topic(t.config.Topic)
+	t.publisher = client.Publisher(t.config.Topic)
 
 	t.slog.Info("PubSub target connected", "projectID", t.config.ProjectID, "topic", t.config.Topic)
 
-	go func() {
-		for {
-			select {
-			case <-t.stopCh:
-				return
-			case msg, ok := <-c:
-				if !ok {
-					return
-				}
-				err := t.publish(msg)
-				if err != nil {
-					msg.Nak()
-					t.slog.Error("error publishing PubSub message", "err", err)
-				} else {
-					msg.Ack()
-				}
-			}
-		}
-	}()
+	go t.startConsumer(ctx, c)
 	return nil
+}
+
+func (t *PubSubTarget) startConsumer(ctx context.Context, c <-chan message.Message) {
+	for {
+		select {
+		case <-t.stopCh:
+			return
+		case msg, ok := <-c:
+			if !ok {
+				return
+			}
+			t.handleMessage(msg)
+		}
+	}
+}
+
+func (t *PubSubTarget) handleMessage(msg message.Message) {
+	if err := t.publish(msg); err != nil {
+		t.slog.Error("error publishing message", "err", err)
+		if nackErr := msg.Nak(); nackErr != nil {
+			t.slog.Error("error naking message", "err", nackErr)
+		}
+		return
+	}
+	if ackErr := msg.Ack(); ackErr != nil {
+		t.slog.Error("error acking message", "err", ackErr)
+	}
 }
 
 func (t *PubSubTarget) publish(msg message.Message) error {
@@ -84,7 +93,7 @@ func (t *PubSubTarget) publish(msg message.Message) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result := t.topic.Publish(ctx, &pubsub.Message{
+	result := t.publisher.Publish(ctx, &pubsub.Message{
 		Data:       data,
 		Attributes: attributes,
 	})
@@ -100,6 +109,9 @@ func (t *PubSubTarget) Close() error {
 	t.stopped = true
 	if t.stopCh != nil {
 		close(t.stopCh)
+	}
+	if t.publisher != nil {
+		t.publisher.Stop()
 	}
 	if t.client != nil {
 		return t.client.Close()

@@ -9,7 +9,6 @@ import (
 	"github.com/plgd-dev/go-coap/v3"
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapcodes "github.com/plgd-dev/go-coap/v3/message/codes"
-	"github.com/plgd-dev/go-coap/v3/mux"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 	coapnet "github.com/plgd-dev/go-coap/v3/net"
 
@@ -32,7 +31,6 @@ type CoAPSource struct {
 	slog     *slog.Logger
 	c        chan msg.Message
 	started  bool
-	shutdown func()
 	conn     *coapnet.UDPConn
 }
 
@@ -43,7 +41,11 @@ func (s *CoAPSource) Produce(buffer int) (<-chan msg.Message, error) {
 
 	router := coapmux.NewRouter()
 	router.Use(loggingMiddleware)
-	router.Handle(s.config.Path, coapmux.HandlerFunc(s.handleCoAP))
+	e := router.Handle(s.config.Path, coapmux.HandlerFunc(s.handleCoAP))
+	if e != nil {
+		err := fmt.Errorf("failed to handle CoAP path %q: %w", s.config.Path, e)
+		return nil, err
+	}
 
 	go func() {
 		err := coap.ListenAndServe(string(s.config.Protocol), s.config.Address, router)
@@ -56,6 +58,8 @@ func (s *CoAPSource) Produce(buffer int) (<-chan msg.Message, error) {
 	return s.c, nil
 }
 
+const failResponseError = "failed to send CoAP response"
+
 func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) {
 	method := req.Code().String()
 	path, _ := req.Options().Path()
@@ -63,13 +67,21 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 	s.slog.Debug("received CoAP request", "method", method, "path", path)
 
 	if s.config.Method != "" && method != s.config.Method {
-		w.SetResponse(coapcodes.MethodNotAllowed, coapmessage.TextPlain, nil)
+		err := w.SetResponse(coapcodes.MethodNotAllowed, coapmessage.TextPlain, nil)
+		if err != nil {
+			s.slog.Error(failResponseError, "err", err)
+		}
 		return
 	}
+
 	if path != s.config.Path {
-		w.SetResponse(coapcodes.NotFound, coapmessage.TextPlain, nil)
+		err := w.SetResponse(coapcodes.NotFound, coapmessage.TextPlain, nil)
+		if err != nil {
+			s.slog.Error(failResponseError, "err", err)
+		}
 		return
 	}
+
 	done := make(chan responseStatus)
 	msg := &CoAPMessage{
 		req:  req,
@@ -79,18 +91,22 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 
 	s.c <- msg
 
+	var err error
 	select {
 	case status := <-done:
 		switch status {
 		case statusAck:
-			w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
+			err = w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
 		case statusNak:
-			w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
+			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 		default:
-			w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
+			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 		}
-	case <-time.After(10 * time.Second):
-		w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)
+	case <-time.After(10 * time.Second): // TODO: duration from config
+		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)
+	}
+	if err != nil {
+		s.slog.Error("failed to set CoAP response", "err", err)
 	}
 }
 
@@ -112,8 +128,8 @@ const (
 )
 
 // Middleware function, which will be called for each request.
-func loggingMiddleware(next mux.Handler) mux.Handler {
-	return mux.HandlerFunc(func(w mux.ResponseWriter, r *mux.Message) {
+func loggingMiddleware(next coapmux.Handler) coapmux.Handler {
+	return coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {
 		log.Printf("ClientAddress %v, %v\n", w.Conn().RemoteAddr(), r.String())
 		next.ServeCOAP(w, r)
 	})

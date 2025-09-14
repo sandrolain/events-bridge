@@ -12,7 +12,7 @@ import (
 )
 
 func NewTarget(cfg *targets.TargetKafkaConfig) (targets.Target, error) {
-	if cfg.Brokers == nil || len(cfg.Brokers) == 0 || cfg.Topic == "" {
+	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka target")
 	}
 
@@ -56,10 +56,14 @@ func (t *KafkaTarget) Consume(c <-chan message.Message) error {
 				}
 				err := t.publish(msg)
 				if err != nil {
-					msg.Nak()
-					t.slog.Error("error publishing Kafka message", "err", err)
+					t.slog.Error("error publishing message", "err", err)
+					if err := msg.Nak(); err != nil {
+						t.slog.Error("error naking message", "err", err)
+					}
 				} else {
-					msg.Ack()
+					if err := msg.Ack(); err != nil {
+						t.slog.Error("error acking message", "err", err)
+					}
 				}
 			}
 		}
@@ -97,7 +101,9 @@ func (t *KafkaTarget) Close() error {
 		close(t.stopCh)
 	}
 	if t.writer != nil {
-		t.writer.Close()
+		if err := t.writer.Close(); err != nil {
+			t.slog.Error("error closing Kafka writer", "err", err)
+		}
 	}
 	return nil
 }

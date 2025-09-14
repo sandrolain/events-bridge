@@ -59,10 +59,16 @@ func (s *HTTPTarget) Consume(c <-chan message.Message) (err error) {
 				}
 				err := s.send(res)
 				if err != nil {
-					res.Nak()
 					s.slog.Error("error sending data", "err", err)
+					err := res.Nak()
+					if err != nil {
+						s.slog.Error("error naking message", "err", err)
+					}
 				} else {
-					res.Ack()
+					err := res.Ack()
+					if err != nil {
+						s.slog.Error("error acking message", "err", err)
+					}
 				}
 			}
 		}

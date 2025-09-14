@@ -33,7 +33,11 @@ func main() {
 	}
 	rdb := redis.NewClient(opt)
 	ctx := context.Background()
-	defer rdb.Close()
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close Redis client: %v\n", err)
+		}
+	}()
 
 	getPayload := func() ([]byte, error) {
 		if *testPayloadType != "" {
@@ -47,7 +51,7 @@ func main() {
 			case "sentence":
 				return []byte(testpayload.GenerateSentence()), nil
 			default:
-				return nil, fmt.Errorf("Unknown testpayload type: %s", *testPayloadType)
+				return nil, fmt.Errorf("unknown test payload type: %s", *testPayloadType)
 			}
 		} else {
 			return testpayload.Interpolate(*payload)

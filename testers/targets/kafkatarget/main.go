@@ -24,7 +24,11 @@ func main() {
 		MinBytes: 1,
 		MaxBytes: 10e6,
 	})
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close Kafka reader: %v\n", err)
+		}
+	}()
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)

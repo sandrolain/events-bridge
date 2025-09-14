@@ -71,7 +71,9 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errMsg, err)
 	}
-	httpTgt.Close()
+	if err := httpTgt.Close(); err != nil {
+		t.Fatalf("unexpected error on close: %v", err)
+	}
 }
 
 func TestHTTPTargetSendErrorMetadata(t *testing.T) {

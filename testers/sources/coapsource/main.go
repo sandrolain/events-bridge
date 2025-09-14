@@ -47,7 +47,11 @@ func main() {
 		logger.Error("Failed to dial CoAP server", "error", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			logger.Error("Failed to close CoAP client", "error", err)
+		}
+	}()
 
 	logger.Info("Sending POST request", "path", *path, "payload_size", len(cborPayload))
 	resp, err := client.Post(ctx, *path, coapmessage.AppCBOR, bytes.NewReader(cborPayload))

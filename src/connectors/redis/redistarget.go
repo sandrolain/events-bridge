@@ -53,10 +53,14 @@ func (t *RedisTarget) Consume(c <-chan message.Message) error {
 				}
 				err := t.publish(msg)
 				if err != nil {
-					msg.Nak()
-					t.slog.Error("error publishing Redis message", "err", err)
+					t.slog.Error("error publishing message", "err", err)
+					if err := msg.Nak(); err != nil {
+						t.slog.Error("error naking message", "err", err)
+					}
 				} else {
-					msg.Ack()
+					if err := msg.Ack(); err != nil {
+						t.slog.Error("error acking message", "err", err)
+					}
 				}
 			}
 		}
@@ -93,7 +97,9 @@ func (t *RedisTarget) Close() error {
 		close(t.stopCh)
 	}
 	if t.client != nil {
-		t.client.Close()
+		if err := t.client.Close(); err != nil {
+			return fmt.Errorf("error closing Redis client: %w", err)
+		}
 	}
 	return nil
 }
@@ -123,10 +129,14 @@ func (t *RedisStreamTarget) Consume(c <-chan message.Message) error {
 				}
 				err := t.publish(msg)
 				if err != nil {
-					msg.Nak()
-					t.slog.Error("error publishing Redis stream message", "err", err)
+					t.slog.Error("error publishing message", "err", err)
+					if err := msg.Nak(); err != nil {
+						t.slog.Error("error naking message", "err", err)
+					}
 				} else {
-					msg.Ack()
+					if err := msg.Ack(); err != nil {
+						t.slog.Error("error acking message", "err", err)
+					}
 				}
 			}
 		}
@@ -168,7 +178,9 @@ func (t *RedisStreamTarget) Close() error {
 		close(t.stopCh)
 	}
 	if t.client != nil {
-		t.client.Close()
+		if err := t.client.Close(); err != nil {
+			return fmt.Errorf("error closing Redis client: %w", err)
+		}
 	}
 	return nil
 }

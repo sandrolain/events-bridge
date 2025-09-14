@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 

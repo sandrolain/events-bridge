@@ -87,14 +87,22 @@ func main() {
 		slog.Error("failed to create source", "error", err)
 		os.Exit(1)
 	}
-	defer source.Close()
+	defer func () {
+		if err := source.Close(); err != nil {
+			slog.Error("failed to close source", "error", err)
+		}
+	}()
 
 	target, err = createTarget(cfg.Target)
 	if err != nil {
 		slog.Error("failed to create target", "error", err)
 		os.Exit(1)
 	}
-	defer target.Close()
+	defer func () {
+		if err := target.Close(); err != nil {
+			slog.Error("failed to close target", "error", err)
+		}
+	}()
 
 	runner, err = createRunner(cfg.Runner)
 	if err != nil {
@@ -103,7 +111,11 @@ func main() {
 	}
 
 	if runner != nil {
-		defer runner.Close()
+		defer func () {
+			if err := runner.Close(); err != nil {
+				slog.Error("failed to close runner", "error", err)
+			}
+		}()
 	}
 
 	c, err := source.Produce(cfg.Source.Buffer)
@@ -125,7 +137,13 @@ func main() {
 
 		rTry := rill.FromChan(r, nil)
 		out := rill.OrderedMap(rTry, routines, func(msg message.Message) (message.Message, error) {
-			return runner.Process(msg)
+			res, err := runner.Process(msg)
+			if err != nil {
+				if e := msg.Nak(); e != nil {
+					slog.Error("failed to nack message", "error", e)
+				}
+			}
+			return res, err
 		})
 
 		// Goroutine to close outChan when all routines are done

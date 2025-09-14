@@ -52,12 +52,10 @@ func (c *CLIRunner) Process(msg message.Message) (message.Message, error) {
 
 	meta, err := msg.GetMetadata()
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
 	data, err := msg.GetData()
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
 
@@ -79,13 +77,11 @@ func (c *CLIRunner) Process(msg message.Message) (message.Message, error) {
 
 	err = cmd.Run()
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
 	}
 
 	outMeta, outData, err := cliformat.Decode(stdout.Bytes())
 	if err != nil {
-		msg.Nak()
 		return nil, fmt.Errorf("failed to decode cli output: %w", err)
 	}
 

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"log/slog"
 	"os"
 
 	"path/filepath"
@@ -33,9 +35,15 @@ func LoadConfigFile[T any](path string) (cfg *T, err error) {
 
 	file, err := os.Open(absPath)
 	if err != nil {
+		err = fmt.Errorf("error opening config file: %w", err)
 		return
 	}
-	defer file.Close()
+	defer func ()  {
+		err = file.Close()
+		if err != nil {
+			slog.Error("error closing config file", "path", absPath, "err", err)
+		}
+	}()
 
 	ext := strings.ToLower(filepath.Ext(absPath))
 	cfg = new(T)
@@ -52,6 +60,7 @@ func LoadConfigFile[T any](path string) (cfg *T, err error) {
 	}
 
 	if err != nil {
+		err = fmt.Errorf("error decoding config file: %w", err)
 		return
 	}
 

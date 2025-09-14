@@ -17,7 +17,11 @@ import (
 func main() {
 	opts := parseFlags()
 	tmpDir := createTempDir()
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to remove temp dir: %v\n", err)
+		}
+	}()
 
 	repo := prepareRepo(tmpDir, opts)
 
@@ -170,7 +174,11 @@ func doCommit(repo *git.Repository, repoPath, branch, filename, message, usernam
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close file: %v\n", err)
+		}
+	}()
 	if _, err := f.WriteString(content); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}

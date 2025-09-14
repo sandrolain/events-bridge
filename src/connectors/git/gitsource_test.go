@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -15,22 +14,32 @@ import (
 )
 
 func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
-	remoteDir, err := ioutil.TempDir("", "gitsource-remote-")
+	remoteDir, err := os.MkdirTemp("", "gitsource-remote-")
 	if err != nil {
 		t.Fatalf("failed to create remote dir: %v", err)
 	}
-	defer os.RemoveAll(remoteDir)
+	defer func() {
+		err := os.RemoveAll(remoteDir)
+		if err != nil {
+			t.Errorf("failed to remove remote dir: %v", err)
+		}
+	}()
 	cmd := exec.Command("git", "init", "--bare")
 	cmd.Dir = remoteDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to init bare repo: %v", err)
 	}
 
-	localDir, err := ioutil.TempDir("", "gitsource-local-")
+	localDir, err := os.MkdirTemp("", "gitsource-local-")
 	if err != nil {
 		t.Fatalf("failed to create local dir: %v", err)
 	}
-	defer os.RemoveAll(localDir)
+	defer func() {
+		err := os.RemoveAll(localDir)
+		if err != nil {
+			t.Errorf("failed to remove local dir: %v", err)
+		}
+	}()
 	cmd = exec.Command("git", "clone", remoteDir, localDir)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to clone: %v", err)
@@ -79,11 +88,15 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 }
 
 func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "gitsource-test-repo-")
+	tmpDir, err := os.MkdirTemp("", "gitsource-test-repo-")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Errorf("failed to remove temp dir: %v", err)
+		}
+	}()
 	cmd := exec.Command("git", "init")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
@@ -129,11 +142,15 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 
 func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 	// Create a temporary directory for the git repo
-	tmpDir, err := ioutil.TempDir("", "gitsource-test-repo-")
+	tmpDir, err := os.MkdirTemp("", "gitsource-test-repo-")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Errorf("failed to remove temp dir: %v", err)
+		}
+	}()
 
 	// Initialize a new git repository
 	cmd := exec.Command("git", "init")
@@ -242,8 +259,15 @@ func TestGitSourceCheckForChangesSameHash(t *testing.T) {
 func TestGitSourceCheckForChangesTempDirError(t *testing.T) {
 	// Simulate error creating temp dir by setting an invalid TMPDIR
 	oldTmp := os.Getenv("TMPDIR")
-	os.Setenv("TMPDIR", "/dev/null/doesnotexist")
-	defer os.Setenv("TMPDIR", oldTmp)
+	err := os.Setenv("TMPDIR", "/dev/null/doesnotexist")
+	if err != nil {
+		t.Fatalf("failed to set TMPDIR: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("TMPDIR", oldTmp); err != nil {
+			t.Errorf("failed to restore TMPDIR: %v", err)
+		}
+	}()
 
 	cfg := &sources.SourceGitConfig{
 		RemoteURL: "dummy",

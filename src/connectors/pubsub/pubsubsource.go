@@ -7,9 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type PubSubSource struct {
@@ -17,7 +19,7 @@ type PubSubSource struct {
 	slog    *slog.Logger
 	c       chan message.Message
 	client  *pubsub.Client
-	sub     *pubsub.Subscription
+	sub     *pubsub.Subscriber
 	started bool
 }
 
@@ -44,27 +46,28 @@ func (s *PubSubSource) Produce(buffer int) (<-chan message.Message, error) {
 		if s.config.Topic == "" {
 			return nil, fmt.Errorf("topic is required to automatically create the subscription")
 		}
-		topic := client.Topic(s.config.Topic)
 		// Optional parameters
-		ackDeadline := 10
+		ackDeadline := int32(10)
 		if s.config.AckDeadline > 0 {
-			ackDeadline = s.config.AckDeadline
+			ackDeadline = int32(s.config.AckDeadline)
 		}
-		retention := 24 * 3600
+		retention := int64(24 * 3600)
 		if s.config.RetentionDuration > 0 {
-			retention = s.config.RetentionDuration
+			retention = int64(s.config.RetentionDuration)
 		}
-		_, err := client.CreateSubscription(ctx, s.config.Subscription, pubsub.SubscriptionConfig{
-			Topic:               topic,
-			AckDeadline:         time.Duration(ackDeadline) * time.Second,
-			RetainAckedMessages: s.config.RetainAcked,
-			RetentionDuration:   time.Duration(retention) * time.Second,
+		// Create subscription via admin client
+		_, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pubsubpb.Subscription{
+			Name:                       fmt.Sprintf("projects/%s/subscriptions/%s", s.config.ProjectID, s.config.Subscription),
+			Topic:                      fmt.Sprintf("projects/%s/topics/%s", s.config.ProjectID, s.config.Topic),
+			AckDeadlineSeconds:         ackDeadline,
+			RetainAckedMessages:        s.config.RetainAcked,
+			MessageRetentionDuration:   durationpb.New(time.Duration(retention) * time.Second),
 		})
 		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
 			return nil, fmt.Errorf("error creating subscription: %w", err)
 		}
 	}
-	s.sub = client.Subscription(s.config.Subscription)
+	s.sub = client.Subscriber(s.config.Subscription)
 
 	s.c = make(chan message.Message, buffer)
 
@@ -72,8 +75,7 @@ func (s *PubSubSource) Produce(buffer int) (<-chan message.Message, error) {
 
 	go func() {
 		err := s.sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
-			msg := &PubSubMessage{msg: m}
-			s.c <- msg
+			s.c <- &PubSubMessage{msg: m}
 		})
 		if err != nil {
 			s.slog.Error("error receiving from PubSub", "err", err)

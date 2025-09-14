@@ -19,7 +19,7 @@ type KafkaSource struct {
 }
 
 func NewSource(cfg *sources.SourceKafkaConfig) (sources.Source, error) {
-	if cfg.Brokers == nil || len(cfg.Brokers) == 0 || cfg.Topic == "" {
+	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka source")
 	}
 	return &KafkaSource{
@@ -73,7 +73,10 @@ func (s *KafkaSource) Close() error {
 		close(s.c)
 	}
 	if s.reader != nil {
-		s.reader.Close()
+		err := s.reader.Close()
+		if err != nil {
+			return fmt.Errorf("error closing Kafka reader: %w", err)
+		}
 	}
 	return nil
 }

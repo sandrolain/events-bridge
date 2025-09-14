@@ -44,7 +44,7 @@ func main() {
 			case "sentence":
 				return []byte(testpayload.GenerateSentence()), nil
 			default:
-				return nil, fmt.Errorf("Unknown testpayload type: %s", *testPayloadType)
+				return nil, fmt.Errorf("unknown test payload type: %s", *testPayloadType)
 			}
 		} else {
 			return testpayload.Interpolate(*payload)

@@ -35,10 +35,16 @@ func startUDPServer(t *testing.T, addr string, onMsg func()) {
 		t.Fatalf("failed to listen udp: %v", err)
 	}
 	router := coapmux.NewRouter()
-	router.Handle("/test", coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {
+	err = router.Handle("/test", coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {
 		onMsg()
-		w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
+		err := w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
+		if err != nil {
+			t.Fatalf("failed to set response: %v", err)
+		}
 	}))
+	if err != nil {
+		t.Fatalf("failed to handle /test: %v", err)
+	}
 	s := coapudp.NewServer(coapoptions.WithMux(router))
 	go func() {
 		_ = s.Serve(l)
@@ -54,10 +60,16 @@ func startTCPServer(t *testing.T, addr string, onMsg func()) {
 		t.Fatalf("failed to listen tcp: %v", err)
 	}
 	router := coapmux.NewRouter()
-	router.Handle("/test", coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {
+	err = router.Handle("/test", coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {
 		onMsg()
-		w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
+		err := w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
+		if err != nil {
+			t.Fatalf("failed to set response: %v", err)
+		}
 	}))
+	if err != nil {
+		t.Fatalf("failed to handle /test: %v", err)
+	}
 	s := coaptcp.NewServer(coapoptions.WithMux(router))
 	go func() {
 		_ = s.Serve(ln)
@@ -71,7 +83,7 @@ func SendTest(tgt *coaptarget.CoAPTarget, msg message.Message) error {
 	return tgt.Send(msg)
 }
 
-func TestIntegration_SendUDP(t *testing.T) {
+func TestIntegrationSendUDP(t *testing.T) {
 	addr := "127.0.0.1:56831"
 	var received bool
 	startUDPServer(t, addr, func() { received = true })
@@ -95,7 +107,7 @@ func TestIntegration_SendUDP(t *testing.T) {
 	}
 }
 
-func TestIntegration_SendTCP(t *testing.T) {
+func TestIntegrationSendTCP(t *testing.T) {
 	addr := "127.0.0.1:56832"
 	var received bool
 	startTCPServer(t, addr, func() { received = true })

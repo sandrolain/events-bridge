@@ -8,14 +8,6 @@ import (
 	"github.com/sandrolain/events-bridge/src/sources"
 )
 
-type dummyLogger struct{}
-
-// Info is a no-op for dummyLogger (used for testing only)
-func (d *dummyLogger) Info(msg string, args ...any) {}
-
-// Debug is a no-op for dummyLogger (used for testing only)
-func (d *dummyLogger) Debug(msg string, args ...any) {}
-
 func TestNewSource(t *testing.T) {
 	cfg := &sources.SourceHTTPConfig{Address: "127.0.0.1:0", Method: "POST", Path: "/test"}
 	src, err := NewSource(cfg)
@@ -81,11 +73,22 @@ func TestHTTPSourceProduceMethodNotAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf(dialMsg, err)
 	}
-	defer conn.Close()
-	conn.Write([]byte("GET /test HTTP/1.1\r\nHost: localhost\r\n\r\n"))
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			t.Errorf("error closing connection: %v", err)
+		}
+	}()
+	_, err = conn.Write([]byte("GET /test HTTP/1.1\r\nHost: localhost\r\n\r\n"))
+	if err != nil {
+		t.Fatalf("failed to write to connection: %v", err)
+	}
 	time.Sleep(10 * time.Millisecond)
 	_ = ch // just to keep channel in scope
-	httpSrc.Close()
+	
+	if err = httpSrc.Close(); err != nil {
+		t.Fatalf("unexpected error on close: %v", err)
+	}
 }
 
 func TestHTTPSourceProducePathNotFound(t *testing.T) {
@@ -104,11 +107,20 @@ func TestHTTPSourceProducePathNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf(dialMsg, err)
 	}
-	defer conn.Close()
-	conn.Write([]byte("POST /wrong HTTP/1.1\r\nHost: localhost\r\n\r\n"))
+	defer func() {
+		if err = conn.Close(); err != nil {
+			t.Errorf("error closing connection: %v", err)
+		}
+	}()
+	_, err = conn.Write([]byte("POST /wrong HTTP/1.1\r\nHost: localhost\r\n\r\n"))
+	if err != nil {
+		t.Fatalf("failed to write to connection: %v", err)
+	}
 	time.Sleep(10 * time.Millisecond)
 	_ = ch
-	httpSrc.Close()
+	if err := httpSrc.Close(); err != nil {
+		t.Fatalf("unexpected error on close: %v", err)
+	}
 }
 
 func TestHTTPSourceProduceTimeout(t *testing.T) {
@@ -127,9 +139,18 @@ func TestHTTPSourceProduceTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf(dialMsg, err)
 	}
-	defer conn.Close()
-	conn.Write([]byte("POST /test HTTP/1.1\r\nHost: localhost\r\n\r\n"))
+	defer func() {
+		if err = conn.Close(); err != nil {
+			t.Errorf("error closing connection: %v", err)
+		}
+	}()
+	_, err = conn.Write([]byte("POST /test HTTP/1.1\r\nHost: localhost\r\n\r\n"))
+	if err != nil {
+		t.Fatalf("failed to write to connection: %v", err)
+	}
 	time.Sleep(8 * time.Second) // let the timeout branch trigger
 	_ = ch
-	httpSrc.Close()
+	if err := httpSrc.Close(); err != nil {
+		t.Fatalf("unexpected error on close: %v", err)
+	}
 }

@@ -78,7 +78,10 @@ func main() {
 			return
 		}
 		fmt.Printf("Response: %d\n", resp.StatusCode)
-		resp.Body.Close()
+		err = resp.Body.Close()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to close response body: %v\n", err)
+		}
 	}
 
 	for range ticker.C {

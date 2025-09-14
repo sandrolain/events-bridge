@@ -64,7 +64,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error subscribing to subject: %v", err)
 	}
-	defer sub.Unsubscribe()
+	defer func() {
+		if err := sub.Unsubscribe(); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to unsubscribe from subject: %v\n", err)
+		}
+	}()
 
 	log.Printf("Listening for messages. Press Ctrl+C to exit.")
 	select {}

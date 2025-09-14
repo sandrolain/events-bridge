@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	coap "github.com/plgd-dev/go-coap/v3"
@@ -39,7 +40,10 @@ func printRequestDetails(proto, remote string, req *coapmux.Message) {
 	fmt.Println("  Payload:")
 	if req.Body() != nil {
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(req.Body())
+		_, err := buf.ReadFrom(req.Body())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to read request body: %v\n", err)
+		}
 		fmt.Printf("    %s\n", buf.String())
 	} else {
 		fmt.Println("    <empty>")
@@ -54,10 +58,16 @@ func main() {
 	log.Printf("Starting coapdbg in %s mode on %s", *mode, *addr)
 
 	router := coapmux.NewRouter()
-	router.Handle("/", coapmux.HandlerFunc(func(w coapmux.ResponseWriter, req *coapmux.Message) {
+	err := router.Handle("/", coapmux.HandlerFunc(func(w coapmux.ResponseWriter, req *coapmux.Message) {
 		printRequestDetails(*mode, w.Conn().RemoteAddr().String(), req)
-		w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader([]byte("OK")))
+		err := w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader([]byte("OK")))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to set response: %v\n", err)
+		}
 	}))
+	if err != nil {
+		log.Fatalf("Handle error: %v", err)
+	}
 
 	switch *mode {
 	case "udp", "tcp":
