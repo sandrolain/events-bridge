@@ -11,9 +11,6 @@ import (
 	"github.com/go-faker/faker/v4"
 )
 
-func init() {
-}
-
 // Payload represents the predictable payload structure
 // faker annotates fields for automatic generation
 // https://github.com/go-faker/faker#supported-tags

@@ -9,7 +9,7 @@ import (
 	"context"
 
 	"github.com/go-redis/redis/v8"
-	testpayload "github.com/sandrolain/events-bridge/testers/sources/testpayload"
+	testpayload "github.com/sandrolain/events-bridge/testers/tools/testpayload"
 )
 
 func main() {

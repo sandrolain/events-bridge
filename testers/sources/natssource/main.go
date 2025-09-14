@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	testpayload "github.com/sandrolain/events-bridge/testers/sources/testpayload"
+	testpayload "github.com/sandrolain/events-bridge/testers/tools/testpayload"
 )
 
 func main() {

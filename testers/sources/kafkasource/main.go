@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	testpayload "github.com/sandrolain/events-bridge/testers/sources/testpayload"
+	testpayload "github.com/sandrolain/events-bridge/testers/tools/testpayload"
 	"github.com/segmentio/kafka-go"
 )
 
