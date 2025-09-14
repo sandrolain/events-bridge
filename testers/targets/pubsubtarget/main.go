@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 		}
 	}()
 
-	sub := client.Subscription(*subscriptionID)
+	sub := client.Subscriber(*subscriptionID)
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)

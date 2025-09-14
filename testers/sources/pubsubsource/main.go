@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/pubsub/v2"
 	testpayload "github.com/sandrolain/events-bridge/testers/sources/testpayload"
 )
 
@@ -38,8 +38,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed to close Pub/Sub client: %v\n", err)
 		}
 	}()
-	topic := client.Topic(*topicID)
-	defer topic.Stop()
+	publisher := client.Publisher(*topicID)
+	defer publisher.Stop()
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
@@ -77,7 +77,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Payload error: %v\n", err)
 			continue
 		}
-		result := topic.Publish(ctx, &pubsub.Message{Data: b})
+		result := publisher.Publish(ctx, &pubsub.Message{Data: b})
 		id, err := result.Get(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error sending message: %v\n", err)
