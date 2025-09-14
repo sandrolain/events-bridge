@@ -24,6 +24,12 @@ tasks:
       - brew install gosec
       - brew install aquasecurity/trivy/trivy
 
+  fmt-check:
+    desc: Format Go code with simplification
+    cmds:
+      - echo "Running gofmt..."
+      - gofmt -d -e -l -s .
+
   fmt:
     desc: Format Go code with simplification
     cmds:
