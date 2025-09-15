@@ -1,25 +1,14 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/TylerBrock/colorjson"
-	"github.com/fatih/color"
+	toolutil "github.com/sandrolain/events-bridge/testers/tools/toolutil"
 	"github.com/spf13/cobra"
 	"github.com/valyala/fasthttp"
-
-	testpayload "github.com/sandrolain/events-bridge/testers/tools/testpayload"
-)
-
-const (
-	ctJSON = "application/json"
-	ctCBOR = "application/cbor"
-	ctText = "text/plain"
 )
 
 func main() {
@@ -55,39 +44,10 @@ func main() {
 			fmt.Printf("Sending %s requests to %s every %s\n", sendMethod, url, dur)
 
 			sendRequest := func() {
-				var reqBody []byte
-				var contentType string
-
-				if sendTestPayload != "" {
-					typ := testpayload.TestPayloadType(sendTestPayload)
-					if !typ.IsValid() {
-						fmt.Fprintf(os.Stderr, "Unknown testpayload type: %s\n", sendTestPayload)
-						return
-					}
-					b, err := testpayload.Generate(typ)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to generate test payload: %v\n", err)
-						return
-					}
-					reqBody = b
-					// TODO: use a testpayload package function for content-type
-					switch typ {
-					case testpayload.TestPayloadJSON:
-						contentType = ctJSON
-					case testpayload.TestPayloadCBOR:
-						contentType = ctCBOR
-					default:
-						contentType = ctText
-					}
-				} else if sendPayload != "" {
-					// Allow placeholder interpolation within provided payload string
-					b, err := testpayload.Interpolate(sendPayload)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to interpolate payload: %v\n", err)
-						return
-					}
-					reqBody = b
-					contentType = sendMIME
+				reqBody, contentType, err := toolutil.BuildPayload(sendTestPayload, sendPayload, sendMIME)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					return
 				}
 
 				r := fasthttp.AcquireRequest()
@@ -122,12 +82,10 @@ func main() {
 		},
 	}
 	sendCmd.Flags().StringVar(&sendAddress, "address", "http://localhost:8080", "HTTP server base address, e.g. http://localhost:8080")
-	sendCmd.Flags().StringVar(&sendMethod, "method", "POST", "HTTP method (POST, PUT, PATCH)")
-	sendCmd.Flags().StringVar(&sendPath, "path", "/test", "HTTP request path")
-	sendCmd.Flags().StringVar(&sendPayload, "payload", "{}", "Payload to send (supports placeholders: {json},{cbor},{sentiment},{sentence},{datetime},{nowtime})")
-	sendCmd.Flags().StringVar(&sendInterval, "interval", "5s", "Interval between requests, e.g. 2s, 500ms, 1m")
-	sendCmd.Flags().StringVar(&sendMIME, "mime", "application/json", "Payload MIME type (application/json, text/plain, application/xml, ...)")
-	sendCmd.Flags().StringVar(&sendTestPayload, "testpayload", "", "Test payload generator: json, cbor, sentiment, sentence, datetime, nowtime")
+	toolutil.AddMethodFlag(sendCmd, &sendMethod, "POST", "HTTP method (POST, PUT, PATCH)")
+	toolutil.AddPathFlag(sendCmd, &sendPath, "/test", "HTTP request path")
+	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{}", &sendMIME, toolutil.CTJSON, &sendTestPayload)
+	toolutil.AddIntervalFlag(sendCmd, &sendInterval, "5s")
 
 	// SERVE command (server)
 	var serveAddr string
@@ -137,42 +95,24 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			slog.Info("Starting httpdbg", "addr", serveAddr)
 
-			black := color.New(color.FgBlack).Add(color.ResetUnderline).PrintfFunc()
-			blue := color.New(color.FgHiBlue).Add(color.Underline).PrintfFunc()
-			white := color.New(color.FgWhite).Add(color.ResetUnderline).PrintfFunc()
-
 			handler := func(ctx *fasthttp.RequestCtx) {
-				black("\n----------------------------------------\n")
-				black(time.Now().Format(time.RFC3339) + "\n")
-				blue("Request:\n")
-				white("  %s %s\n", ctx.Method(), ctx.RequestURI())
-				blue("Query:\n")
+				// Build sections
+				var queryItems []toolutil.KV
 				for key, value := range ctx.QueryArgs().All() {
-					white("  %s: %s\n", key, value)
+					queryItems = append(queryItems, toolutil.KV{Key: string(key), Value: string(value)})
 				}
-				blue("Remote address:\n")
-				white("  %s\n", ctx.RemoteAddr().String())
-				blue("Headers:\n")
+				var headerItems []toolutil.KV
 				for key, value := range ctx.Request.Header.All() {
-					white("  %s: %s\n", key, value)
+					headerItems = append(headerItems, toolutil.KV{Key: string(key), Value: string(value)})
 				}
-				blue("Body:\n")
-
-				if strings.Contains(string(ctx.Request.Header.ContentType()), ctJSON) {
-					var obj interface{}
-					if err := json.Unmarshal(ctx.Request.Body(), &obj); err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to unmarshal JSON: %v\n", err)
-					}
-					f := colorjson.NewFormatter()
-					f.Indent = 2
-					s, err := f.Marshal(obj)
-					if err != nil {
-						s = ctx.Request.Body()
-					}
-					white("%s\n\n", s)
-				} else {
-					white("%s\n\n", ctx.Request.Body())
+				sections := []toolutil.MessageSection{
+					{Title: "Request", Items: []toolutil.KV{{Key: "Method", Value: string(ctx.Method())}, {Key: "URI", Value: string(ctx.RequestURI())}}},
+					{Title: "Query", Items: queryItems},
+					{Title: "Remote", Items: []toolutil.KV{{Key: "Addr", Value: ctx.RemoteAddr().String()}}},
+					{Title: "Headers", Items: headerItems},
 				}
+				ct := string(ctx.Request.Header.ContentType())
+				toolutil.PrintColoredMessage("HTTP", sections, ctx.Request.Body(), ct)
 			}
 
 			if err := fasthttp.ListenAndServe(serveAddr, handler); err != nil {

@@ -51,33 +51,15 @@ func GenerateSentimentPhrase() string {
 	return starts[rand.Intn(len(starts))] + " " + adjectives[rand.Intn(len(adjectives))] + " " + objects[rand.Intn(len(objects))]
 }
 
-func GenerateRandomTime() string {
+func GenerateRandomDateTime() string {
 	// Generate a random Unix timestamp between 1 and 10 years ago
 	timestamp := rand.Int63n(10*365*24*3600) + (time.Now().Unix() - 10*365*24*3600)
 	return time.Unix(timestamp, 0).Format(time.RFC3339Nano)
 }
 
-func GenerateNowTime() string {
+func GenerateNowDateTime() string {
 	// Generate the current timestamp in RFC3339
 	return time.Now().Format(time.RFC3339Nano)
-}
-
-func Generate(typ TestPayloadType) ([]byte, error) {
-	switch typ {
-	case TestPayloadJSON:
-		return GenerateRandomJSON()
-	case TestPayloadCBOR:
-		return GenerateRandomCBOR()
-	case TestPayloadSentiment:
-		return []byte(GenerateSentimentPhrase()), nil
-	case TestPayloadSentence:
-		return []byte(GenerateSentence()), nil
-	case TestPayloadDateTime:
-		return []byte(GenerateRandomTime()), nil
-	case TestPayloadNowTime:
-		return []byte(GenerateNowTime()), nil
-	}
-	return nil, fmt.Errorf("unsupported test payload type: %s", typ)
 }
 
 func Interpolate(str string) ([]byte, error) {
@@ -94,7 +76,7 @@ func Interpolate(str string) ([]byte, error) {
 	for key, typ := range placeholders {
 		ph := "{" + key + "}"
 		if strings.Contains(result, ph) {
-			val, err := Generate(typ)
+			val, err := typ.Generate()
 			if err != nil {
 				return nil, err
 			}
@@ -115,10 +97,44 @@ const (
 	TestPayloadNowTime   TestPayloadType = "nowtime"  // to generate the current timestamp
 )
 
+func NewTestPayloadType(s string) TestPayloadType {
+	return TestPayloadType(strings.ToLower(s))
+}
+
 func (t TestPayloadType) IsValid() bool {
 	switch t {
 	case TestPayloadJSON, TestPayloadCBOR, TestPayloadSentiment, TestPayloadSentence, TestPayloadDateTime, TestPayloadNowTime:
 		return true
 	}
 	return false
+}
+
+func (t TestPayloadType) GetContentType() string {
+	switch t {
+	case TestPayloadJSON:
+		return "application/json"
+	case TestPayloadCBOR:
+		return "application/cbor"
+	case TestPayloadSentiment, TestPayloadSentence, TestPayloadDateTime, TestPayloadNowTime:
+		return "text/plain"
+	}
+	return "application/octet-stream"
+}
+
+func (t TestPayloadType) Generate() ([]byte, error) {
+	switch t {
+	case TestPayloadJSON:
+		return GenerateRandomJSON()
+	case TestPayloadCBOR:
+		return GenerateRandomCBOR()
+	case TestPayloadSentiment:
+		return []byte(GenerateSentimentPhrase()), nil
+	case TestPayloadSentence:
+		return []byte(GenerateSentence()), nil
+	case TestPayloadDateTime:
+		return []byte(GenerateRandomDateTime()), nil
+	case TestPayloadNowTime:
+		return []byte(GenerateNowDateTime()), nil
+	}
+	return nil, fmt.Errorf("unsupported test payload type: %s", t)
 }
