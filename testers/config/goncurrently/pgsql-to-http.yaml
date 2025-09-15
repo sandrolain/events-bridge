@@ -1,0 +1,16 @@
+commands:
+  - name: http-target
+    cmd: "./testers/bin/httptool"
+    args: ["serve"]
+    restartTries: 0
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/pgsql-to-http.config.yaml
+    args: []
+    restartTries: 0
+  - name: pgsql-source
+    cmd: "./testers/bin/pgsqltool"
+    args: ["send"]
+    restartTries: 0
+killOthers: true

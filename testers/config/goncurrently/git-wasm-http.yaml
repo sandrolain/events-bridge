@@ -1,18 +1,19 @@
 commands:
-  - name: httptarget
-    cmd: "./testers/bin/httptarget"
-    args: []
-    restart: false
+  - name: http-target
+    cmd: "./testers/bin/httptool"
+    args: ["serve"]
+    restartTries: 0
   - name: task
     cmd: "./bin/events-bridge"
     env:
       CONFIG_FILE_PATH: ./testers/config/bridge/git-wasm-http.config.yaml
     args: []
-    restart: false
-  - name: gitsource
-    cmd: "./testers/bin/gitsource"
+    restartTries: 0
+  - name: git-source
+    cmd: "./testers/bin/gittool"
     args:
       [
+        "send",
         "--remote",
         "http://localhost:3000/testuser/testrepo.git",
         "--branch",
@@ -24,5 +25,5 @@ commands:
         "--interval",
         "4s",
       ]
-    restart: false
-killOnExit: true
+    restartTries: 0
+killOthers: true

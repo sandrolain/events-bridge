@@ -18,11 +18,12 @@ tasks:
       - task: test
 
   install-tools-mac:
-    desc: Install all required Go tools and Trivy on macOS
+    desc: Install all required Go tools on macOS
     cmds:
       - brew install golangci-lint
       - brew install gosec
       - brew install aquasecurity/trivy/trivy
+      - brew install tinygo
 
   fmt-check:
     desc: Format Go code with simplification
@@ -139,21 +140,15 @@ tasks:
     dir: ./testers
     cmds:
       - mkdir -p ./bin
-      - go build -o ./bin/concurrently ./concurrently && du -h ./bin/concurrently
-      - go build -o ./bin/natssource ./sources/natssource && du -h ./bin/natssource
-      - go build -o ./bin/coapsource ./sources/coapsource && du -h ./bin/coapsource
-      - go build -o ./bin/pgsqlsource ./sources/pgsqlsource && du -h ./bin/pgsqlsource
-      - go build -o ./bin/mqttsource ./sources/mqttsource && du -h ./bin/mqttsource
-      - go build -o ./bin/httpsource ./sources/httpsource && du -h ./bin/httpsource
-      - go build -o ./bin/kafkasource ./sources/kafkasource && du -h ./bin/kafkasource
-      - go build -o ./bin/redissource ./sources/redissource && du -h ./bin/redissource
-      - go build -o ./bin/gitsource ./sources/gitsource && du -h ./bin/gitsource
-      - go build -o ./bin/mqtttarget ./targets/mqtttarget && du -h ./bin/mqtttarget
-      - go build -o ./bin/kafkatarget ./targets/kafkatarget && du -h ./bin/kafkatarget
-      - go build -o ./bin/coaptarget ./targets/coaptarget && du -h ./bin/coaptarget
-      - go build -o ./bin/httptarget ./targets/httptarget && du -h ./bin/httptarget
-      - go build -o ./bin/natstarget ./targets/natstarget && du -h ./bin/natstarget
-      - go build -o ./bin/redistarget ./targets/redistarget && du -h ./bin/redistarget
+      - go build -o ./bin/goncurrently ./goncurrently && du -h ./bin/goncurrently
+      - go build -o ./bin/natstool ./tools/natstool && du -h ./bin/natstool
+      - go build -o ./bin/coaptool ./tools/coaptool && du -h ./bin/coaptool
+      - go build -o ./bin/pgsqltool ./tools/pgsqltool && du -h ./bin/pgsqltool
+      - go build -o ./bin/mqtttool ./tools/mqtttool && du -h ./bin/mqtttool
+      - go build -o ./bin/httptool ./tools/httptool && du -h ./bin/httptool
+      - go build -o ./bin/kafkatool ./tools/kafkatool && du -h ./bin/kafkatool
+      - go build -o ./bin/redistool ./tools/redistool && du -h ./bin/redistool
+      - go build -o ./bin/gittool ./tools/gittool && du -h ./bin/gittool
       - go build -o ./bin/plugin ./plugins/plugin && du -h ./bin/plugin
       - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
 
@@ -177,40 +172,40 @@ tasks:
 
   run-mqtt-to-http:
     cmds:
-      - cat ./testers/config/concurrently/mqtt-to-http.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/mqtt-to-http.yaml | ./testers/bin/goncurrently
 
   run-pgsql-to-http:
     cmds:
-      - cat ./testers/config/concurrently/pgsql-to-http.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/pgsql-to-http.yaml | ./testers/bin/goncurrently
 
   run-nats-wasm-http:
     cmds:
-      - cat ./testers/config/concurrently/nats-wasm-http.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/nats-wasm-http.yaml | ./testers/bin/goncurrently
 
   run-nats-jlo-http:
     cmds:
-      - cat ./testers/config/concurrently/nats-jlo-http.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/nats-jlo-http.yaml | ./testers/bin/goncurrently
 
   run-nats-jlo-nats:
     cmds:
-      - cat ./testers/config/concurrently/nats-jlo-nats.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/nats-jlo-nats.yaml | ./testers/bin/goncurrently
 
   run-gptrunner-config:
     cmds:
-      - cat ./testers/config/concurrently/gptrunner.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/gptrunner.yaml | ./testers/bin/goncurrently
 
   run-kafka-jlo-kafka:
     cmds:
-      - cat ./testers/config/concurrently/kafka-jlo-kafka.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/kafka-jlo-kafka.yaml | ./testers/bin/goncurrently
 
   run-redis-jlo-redis:
     cmds:
-      - cat ./testers/config/concurrently/redis-jlo-redis.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/redis-jlo-redis.yaml | ./testers/bin/goncurrently
 
   run-redisstream-jlo-redisstream:
     cmds:
-      - cat ./testers/config/concurrently/redis-stream-jlo-redis-stream.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/redis-stream-jlo-redis-stream.yaml | ./testers/bin/goncurrently
 
   run-git-wasm-http:
     cmds:
-      - cat ./testers/config/concurrently/git-wasm-http.yaml | ./testers/bin/concurrently
+      - cat ./testers/config/goncurrently/git-wasm-http.yaml | ./testers/bin/goncurrently

@@ -1,18 +1,20 @@
 commands:
-  - name: redistarget
-    cmd: "./testers/bin/redistarget"
-    args: ["--address", "localhost:6379", "--channel", "test.channel.out"]
-    restart: false
+  - name: redis-target
+    cmd: "./testers/bin/redistool"
+    args:
+      ["serve", "--address", "localhost:6379", "--channel", "test.channel.out"]
+    restartTries: 0
   - name: task
     cmd: "./bin/events-bridge"
     env:
       CONFIG_FILE_PATH: ./testers/config/bridge/redis-jlo-redis.config.yaml
     args: []
-    restart: false
-  - name: redissource
-    cmd: "./testers/bin/redissource"
+    restartTries: 0
+  - name: redis-source
+    cmd: "./testers/bin/redistool"
     args:
       [
+        "send",
         "--address",
         "localhost:6379",
         "--channel",
@@ -22,5 +24,5 @@ commands:
         "--payload",
         '{"a":10, "b":20, "date": "{nowtime}"}',
       ]
-    restart: false
-killOnExit: true
+    restartTries: 0
+killOthers: true

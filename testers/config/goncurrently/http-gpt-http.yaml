@@ -1,0 +1,22 @@
+commands:
+  - cmd: "./testers/bin/httptool"
+    args: ["serve", "--address", "0.0.0.0:8081"]
+    restartTries: 0
+  - cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/gptrunner.config.yaml
+    args: []
+    restartTries: 0
+  - cmd: "./testers/bin/httptool"
+    args:
+      [
+        "send",
+        "--path",
+        "/event",
+        "--testpayload",
+        "sentiment",
+        "--interval",
+        "1s",
+      ]
+    restartTries: 0
+killOthers: true

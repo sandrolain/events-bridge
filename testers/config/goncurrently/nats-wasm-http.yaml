@@ -1,0 +1,16 @@
+commands:
+  - name: http-target
+    cmd: "./testers/bin/httptool"
+    args: ["serve"]
+    restartTries: 0
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/nats-wasm-http.config.yaml
+    args: []
+    restartTries: 0
+  - name: nats-source
+    cmd: "./testers/bin/natstool"
+    args: ["send", "--interval", "50ms", "--stream", "test-stream"]
+    restartTries: 0
+killOthers: true

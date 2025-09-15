@@ -1,18 +1,19 @@
 commands:
-  - name: kafkatarget
-    cmd: "./testers/bin/kafkatarget"
-    args: ["--brokers", "localhost:9092", "--topic", "test.topic.out"]
-    restart: false
+  - name: kafka-target
+    cmd: "./testers/bin/kafkatool"
+    args: ["serve", "--brokers", "localhost:9092", "--topic", "test.topic.out"]
+    restartTries: 0
   - name: task
     cmd: "./bin/events-bridge"
     env:
       CONFIG_FILE_PATH: ./testers/config/bridge/kafka-jlo-kafka.config.yaml
     args: []
-    restart: false
-  - name: kafkasource
-    cmd: "./testers/bin/kafkasource"
+    restartTries: 0
+  - name: kafka-source
+    cmd: "./testers/bin/kafkatool"
     args:
       [
+        "send",
         "--brokers",
         "localhost:9092",
         "--topic",
@@ -22,5 +23,5 @@ commands:
         "--payload",
         '{"a":10, "b":20, "date": "{nowtime}"}',
       ]
-    restart: false
-killOnExit: true
+    restartTries: 0
+killOthers: true
