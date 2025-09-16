@@ -3,13 +3,14 @@ package main
 import (
 	"testing"
 
+	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
 
 func newHTTPMessageWithCtx(ctx *fasthttp.RequestCtx) *HTTPMessage {
 	return &HTTPMessage{
 		httpCtx: ctx,
-		done:    make(chan responseStatus, 1),
+		done:    make(chan message.ResponseStatus, 1),
 	}
 }
 
@@ -70,7 +71,7 @@ func TestHTTPMessageAckNak(t *testing.T) {
 			t.Errorf("Ack error: %v", err)
 		}
 	}()
-	if <-msg.done != statusAck {
+	if <-msg.done != message.ResponseStatusAck {
 		t.Error("expected statusAck")
 	}
 	go func() {
@@ -78,7 +79,7 @@ func TestHTTPMessageAckNak(t *testing.T) {
 			t.Errorf("Nak error: %v", err)
 		}
 	}()
-	if <-msg.done != statusNak {
+	if <-msg.done != message.ResponseStatusNak {
 		t.Error("expected statusNak")
 	}
 }

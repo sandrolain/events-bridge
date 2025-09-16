@@ -16,6 +16,7 @@ type Target interface {
 type TargetType string
 
 const (
+	TargetTypeNone   TargetType = "none"
 	TargetTypeHTTP   TargetType = "http"
 	TargetTypeCoAP   TargetType = "coap"
 	TargetTypeFile   TargetType = "file"

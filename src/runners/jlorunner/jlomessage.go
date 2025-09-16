@@ -2,6 +2,8 @@ package main
 
 import "github.com/sandrolain/events-bridge/src/message"
 
+var _ message.Message = &jsonlogicMessage{}
+
 type jsonlogicMessage struct {
 	original message.Message
 	data     []byte
@@ -25,4 +27,8 @@ func (m *jsonlogicMessage) Ack() error {
 
 func (m *jsonlogicMessage) Nak() error {
 	return m.original.Nak()
+}
+
+func (m *jsonlogicMessage) Reply(data []byte, metadata map[string][]string) error {
+	return m.original.Reply(data, metadata)
 }

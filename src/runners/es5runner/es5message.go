@@ -2,8 +2,7 @@ package main
 
 import "github.com/sandrolain/events-bridge/src/message"
 
-// ES5Message implements message.Message for processed data
-// Exposes JS-friendly methods for data and metadata
+var _ message.Message = &ES5Message{}
 
 type ES5Message struct {
 	original message.Message
@@ -65,4 +64,8 @@ func (m *ES5Message) Ack() error {
 
 func (m *ES5Message) Nak() error {
 	return m.original.Nak()
+}
+
+func (m *ES5Message) Reply(data []byte, metadata map[string][]string) error {
+	return m.original.Reply(data, metadata)
 }

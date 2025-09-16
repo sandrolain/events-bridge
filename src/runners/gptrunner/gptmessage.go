@@ -2,6 +2,8 @@ package main
 
 import "github.com/sandrolain/events-bridge/src/message"
 
+var _ message.Message = &gptMessage{}
+
 type gptMessage struct {
 	original message.Message
 	data     []byte
@@ -25,4 +27,8 @@ func (m *gptMessage) Ack() error {
 
 func (m *gptMessage) Nak() error {
 	return m.original.Nak()
+}
+
+func (m *gptMessage) Reply(data []byte, metadata map[string][]string) error {
+	return m.original.Reply(data, metadata)
 }

@@ -7,12 +7,12 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+var _ message.Message = &RedisStreamMessage{}
+
 type RedisStreamMessage struct {
 	msg     redis.XMessage
 	dataKey string
 }
-
-var _ message.Message = &RedisStreamMessage{}
 
 func (m *RedisStreamMessage) GetID() []byte {
 	return []byte(m.msg.ID)
@@ -47,5 +47,9 @@ func (m *RedisStreamMessage) Ack() error {
 }
 
 func (m *RedisStreamMessage) Nak() error {
+	return nil
+}
+
+func (m *RedisStreamMessage) Reply(data []byte, metadata map[string][]string) error {
 	return nil
 }

@@ -6,7 +6,6 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// PGSQLMessage implements message.Message
 var _ message.Message = &PGSQLMessage{}
 
 type PGSQLMessage struct {
@@ -28,11 +27,13 @@ func (m *PGSQLMessage) GetData() ([]byte, error) {
 }
 
 func (m *PGSQLMessage) Ack() error {
-	// No action required for Ack on NOTIFY
 	return nil
 }
 
 func (m *PGSQLMessage) Nak() error {
-	// No action required for Nak on NOTIFY
+	return nil
+}
+
+func (m *PGSQLMessage) Reply(data []byte, metadata map[string][]string) error {
 	return nil
 }

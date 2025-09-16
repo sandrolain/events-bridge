@@ -60,7 +60,7 @@ func (s *MQTTSource) Produce(buffer int) (<-chan message.Message, error) {
 	qos := byte(0)
 
 	handler := func(client mqtt.Client, msg mqtt.Message) {
-		done := make(chan responseStatus)
+		done := make(chan message.ResponseStatus)
 		m := &MQTTMessage{
 			orig: msg,
 			done: done,

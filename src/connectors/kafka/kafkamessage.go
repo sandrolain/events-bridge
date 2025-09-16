@@ -8,12 +8,12 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+var _ message.Message = &KafkaMessage{}
+
 type KafkaMessage struct {
 	msg    *kafka.Message
 	reader *kafka.Reader
 }
-
-var _ message.Message = &KafkaMessage{}
 
 func (m *KafkaMessage) GetID() []byte {
 	return m.msg.Key
@@ -40,5 +40,9 @@ func (m *KafkaMessage) Ack() error {
 }
 
 func (m *KafkaMessage) Nak() error {
+	return nil
+}
+
+func (m *KafkaMessage) Reply(data []byte, metadata map[string][]string) error {
 	return nil
 }

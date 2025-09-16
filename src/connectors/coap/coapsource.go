@@ -12,6 +12,7 @@ import (
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 	coapnet "github.com/plgd-dev/go-coap/v3/net"
 
+	"github.com/sandrolain/events-bridge/src/message"
 	msg "github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
 )
@@ -82,7 +83,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 		return
 	}
 
-	done := make(chan responseStatus)
+	done := make(chan message.ResponseStatus)
 	msg := &CoAPMessage{
 		req:  req,
 		w:    w,
@@ -95,10 +96,12 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 	select {
 	case status := <-done:
 		switch status {
-		case statusAck:
+		case message.ResponseStatusAck:
 			err = w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
-		case statusNak:
+		case message.ResponseStatusNak:
 			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
+		case message.ResponseStatusReply:
+			// Reply already sent in Reply method
 		default:
 			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 		}

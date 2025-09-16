@@ -9,7 +9,7 @@ var _ message.Message = &HTTPMessage{}
 
 type HTTPMessage struct {
 	httpCtx *fasthttp.RequestCtx
-	done    chan responseStatus
+	done    chan message.ResponseStatus
 }
 
 func (m *HTTPMessage) GetID() []byte {
@@ -36,19 +36,25 @@ func (m HTTPMessage) GetData() ([]byte, error) {
 	return m.httpCtx.Request.Body(), nil
 }
 
-type responseStatus int
-
-const (
-	statusAck responseStatus = iota
-	statusNak
-)
-
 func (m *HTTPMessage) Ack() error {
-	m.done <- statusAck
+	m.done <- message.ResponseStatusAck
 	return nil
 }
 
 func (m *HTTPMessage) Nak() error {
-	m.done <- statusNak
+	m.done <- message.ResponseStatusNak
+	return nil
+}
+
+func (m *HTTPMessage) Reply(data []byte, metadata map[string][]string) error {
+	for k, v := range metadata {
+		for _, val := range v {
+			m.httpCtx.Response.Header.Add(k, val)
+		}
+	}
+	m.httpCtx.SetStatusCode(fasthttp.StatusOK)
+	m.httpCtx.SetBody(data)
+	m.Ack()
+	m.done <- message.ResponseStatusReply
 	return nil
 }

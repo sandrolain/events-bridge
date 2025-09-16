@@ -34,11 +34,12 @@ type mockMessage struct {
 	nak      bool
 }
 
-func (m *mockMessage) GetID() []byte                             { return []byte("id") }
-func (m *mockMessage) GetMetadata() (map[string][]string, error) { return m.metadata, nil }
-func (m *mockMessage) GetData() ([]byte, error)                  { return m.data, nil }
-func (m *mockMessage) Ack() error                                { m.ack = true; return nil }
-func (m *mockMessage) Nak() error                                { m.nak = true; return nil }
+func (m *mockMessage) GetID() []byte                                         { return []byte("id") }
+func (m *mockMessage) GetMetadata() (map[string][]string, error)             { return m.metadata, nil }
+func (m *mockMessage) GetData() ([]byte, error)                              { return m.data, nil }
+func (m *mockMessage) Ack() error                                            { m.ack = true; return nil }
+func (m *mockMessage) Nak() error                                            { m.nak = true; return nil }
+func (m *mockMessage) Reply(data []byte, metadata map[string][]string) error { return nil }
 
 func TestNewTargetDefaultTimeout(t *testing.T) {
 	const errMsg = "unexpected error: %v"

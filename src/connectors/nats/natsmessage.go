@@ -7,11 +7,11 @@ import (
 
 const NatsMessageIdHeader = "Nats-Msg-Id"
 
+var _ message.Message = &NATSMessage{}
+
 type NATSMessage struct {
 	msg *nats.Msg
 }
-
-var _ message.Message = &NATSMessage{}
 
 func (m *NATSMessage) GetID() []byte {
 	return []byte(m.msg.Header.Get(NatsMessageIdHeader))
@@ -31,4 +31,11 @@ func (m *NATSMessage) Ack() error {
 
 func (m *NATSMessage) Nak() error {
 	return m.msg.Nak()
+}
+
+func (m *NATSMessage) Reply(data []byte, metadata map[string][]string) error {
+	if m.msg.Reply == "" {
+		return nil
+	}
+	return m.msg.Respond(data)
 }

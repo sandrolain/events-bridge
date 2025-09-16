@@ -13,11 +13,12 @@ type mockMessage struct {
 	ack, nak bool
 }
 
-func (m *mockMessage) GetID() []byte                             { return []byte("mock-id") }
-func (m *mockMessage) GetMetadata() (map[string][]string, error) { return nil, nil }
-func (m *mockMessage) GetData() ([]byte, error)                  { return m.data, nil }
-func (m *mockMessage) Ack() error                                { m.ack = true; return nil }
-func (m *mockMessage) Nak() error                                { m.nak = true; return nil }
+func (m *mockMessage) GetID() []byte                                         { return []byte("mock-id") }
+func (m *mockMessage) GetMetadata() (map[string][]string, error)             { return nil, nil }
+func (m *mockMessage) GetData() ([]byte, error)                              { return m.data, nil }
+func (m *mockMessage) Ack() error                                            { m.ack = true; return nil }
+func (m *mockMessage) Nak() error                                            { m.nak = true; return nil }
+func (m *mockMessage) Reply(data []byte, metadata map[string][]string) error { return nil }
 
 // Dummy client to avoid real network calls
 // You can expand this with a build tag for integration tests
@@ -124,8 +125,9 @@ func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
 
 type mockMessageWithError struct{}
 
-func (m *mockMessageWithError) GetID() []byte                             { return []byte("mock-id-error") }
-func (m *mockMessageWithError) GetMetadata() (map[string][]string, error) { return nil, nil }
-func (m *mockMessageWithError) GetData() ([]byte, error)                  { return nil, errors.New("fail") }
-func (m *mockMessageWithError) Ack() error                                { return nil }
-func (m *mockMessageWithError) Nak() error                                { return nil }
+func (m *mockMessageWithError) GetID() []byte                                         { return []byte("mock-id-error") }
+func (m *mockMessageWithError) GetMetadata() (map[string][]string, error)             { return nil, nil }
+func (m *mockMessageWithError) GetData() ([]byte, error)                              { return nil, errors.New("fail") }
+func (m *mockMessageWithError) Ack() error                                            { return nil }
+func (m *mockMessageWithError) Nak() error                                            { return nil }
+func (m *mockMessageWithError) Reply(data []byte, metadata map[string][]string) error { return nil }

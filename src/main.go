@@ -34,8 +34,7 @@ func main() {
 	envCfg, err := config.LoadEnvConfigFile[config.EnvConfig]()
 
 	if err != nil {
-		slog.Error("failed to load environment configuration", "error", err)
-		os.Exit(1)
+		fatal(err, "failed to load environment configuration")
 	}
 
 	// This is the main entry point for the application.
@@ -47,8 +46,7 @@ func main() {
 
 	cfg, err := config.LoadConfigFile[config.Config](envCfg.ConfigFilePath)
 	if err != nil {
-		slog.Error("failed to load configuration file", "error", err)
-		os.Exit(1)
+		fatal(err, "failed to load configuration file")
 	}
 
 	var source sources.Source
@@ -58,8 +56,7 @@ func main() {
 	// Plugin manager initialization
 	plgMan, err := plugin.GetPluginManager()
 	if err != nil {
-		slog.Error("failed to get plugin manager", "error", err)
-		os.Exit(1)
+		fatal(err, "failed to get plugin manager")
 	}
 
 	if cfg.Plugins != nil {
@@ -68,13 +65,12 @@ func main() {
 			slog.Info("loading plugin", "id", p.Name, "exec", p.Exec)
 			plg, err := plgMan.CreatePlugin(p)
 			if err != nil {
-				slog.Error("failed to load plugin", "id", p.Name, "error", err)
-				os.Exit(1)
+				fatal(err, "failed to load plugin")
 			}
 
 			err = plg.Start()
 			if err != nil {
-				slog.Error("failed to start plugin", "id", p.Name, "error", err)
+				fatal(err, "failed to start plugin")
 				os.Exit(1)
 			}
 		}
@@ -84,8 +80,7 @@ func main() {
 
 	source, err = createSource(cfg.Source)
 	if err != nil {
-		slog.Error("failed to create source", "error", err)
-		os.Exit(1)
+		fatal(err, "failed to create source")
 	}
 	defer func() {
 		if err := source.Close(); err != nil {
@@ -95,22 +90,23 @@ func main() {
 
 	target, err = createTarget(cfg.Target)
 	if err != nil {
-		slog.Error("failed to create target", "error", err)
-		os.Exit(1)
+		fatal(err, "failed to create target")
 	}
-	defer func() {
-		if err := target.Close(); err != nil {
-			slog.Error("failed to close target", "error", err)
-		}
-	}()
+	if target != nil {
+		slog.Info("target created, deferring close")
+		defer func() {
+			if err := target.Close(); err != nil {
+				slog.Error("failed to close target", "error", err)
+			}
+		}()
+	}
 
 	runner, err = createRunner(cfg.Runner)
 	if err != nil {
-		slog.Error("failed to create runner", "error", err)
-		os.Exit(1)
+		fatal(err, "failed to create runner")
 	}
-
 	if runner != nil {
+		slog.Info("runner created, deferring close")
 		defer func() {
 			if err := runner.Close(); err != nil {
 				slog.Error("failed to close runner", "error", err)
@@ -120,8 +116,7 @@ func main() {
 
 	c, err := source.Produce(cfg.Source.Buffer)
 	if err != nil {
-		slog.Error("failed to produce messages from source", "error", err)
-		os.Exit(1)
+		fatal(err, "failed to produce messages from source")
 	}
 
 	var r <-chan message.Message
@@ -165,12 +160,22 @@ func main() {
 		r = c
 	}
 
-	slog.Info("target starting to consume messages from source")
+	if target != nil {
+		slog.Info("target starting to consume messages from source")
 
-	err = target.Consume(r)
-	if err != nil {
-		slog.Error("failed to consume messages from target", "error", err)
-		os.Exit(1)
+		err = target.Consume(r)
+		if err != nil {
+			fatal(err, "failed to consume messages from target")
+		}
+	} else {
+		go func() {
+			for msg := range r {
+
+				if err := msg.Ack(); err != nil {
+					slog.Error("failed to ack message", "error", err)
+				}
+			}
+		}()
 	}
 
 	select {}
@@ -233,6 +238,9 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 			return
 		}
 		target, err = pluginconn.NewTarget(plgMan, cfg.Plugin)
+	case targets.TargetTypeNone:
+		slog.Info("no target configured, messages will be replyed to source if supported")
+		target = nil
 	default:
 		err = fmt.Errorf("unsupported target type: %s", cfg.Type)
 	}
@@ -260,8 +268,16 @@ func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 			return
 		}
 		runner, err = pluginrunner.New(plgMan, cfg.Plugin)
+	case runners.RunnerTypeNone:
+		slog.Info("no runner configured, messages will be passed through without processing")
+		runner = nil
 	default:
 		err = fmt.Errorf("unsupported runner type: %s", cfg.Type)
 	}
 	return
+}
+
+func fatal(err error, log string) {
+	slog.Error(log, "error", err)
+	os.Exit(1)
 }

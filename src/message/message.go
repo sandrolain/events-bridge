@@ -6,4 +6,13 @@ type Message interface {
 	GetData() ([]byte, error)
 	Ack() error
 	Nak() error
+	Reply(data []byte, metadata map[string][]string) error
 }
+
+type ResponseStatus int
+
+const (
+	ResponseStatusAck ResponseStatus = iota
+	ResponseStatusNak
+	ResponseStatusReply
+)

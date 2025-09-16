@@ -64,7 +64,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 				return
 			}
 
-			done := make(chan responseStatus)
+			done := make(chan message.ResponseStatus)
 			msg := &HTTPMessage{
 				httpCtx: ctx,
 				done:    done,
@@ -76,14 +76,16 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 			select {
 			case status := <-done:
 				switch status {
-				case statusAck:
+				case message.ResponseStatusAck:
 					ctx.SetStatusCode(fasthttp.StatusAccepted)
-				case statusNak:
+				case message.ResponseStatusNak:
 					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+				case message.ResponseStatusReply:
+					// Reply already sent in Reply method
 				default:
 					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 				}
-			case <-time.After(5 * time.Second): // example timeout
+			case <-time.After(5 * time.Second): // TODO: timeout configurable?
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 			}
 		})

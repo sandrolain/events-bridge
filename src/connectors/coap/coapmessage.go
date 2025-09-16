@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/plgd-dev/go-coap/v3/message"
+	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
+	"github.com/sandrolain/events-bridge/src/message"
 	msg "github.com/sandrolain/events-bridge/src/message"
 )
+
+var _ msg.Message = &CoAPMessage{}
 
 type CoAPMessage struct {
 	req  *coapmux.Message
 	w    coapmux.ResponseWriter
-	done chan responseStatus
+	done chan msg.ResponseStatus
 }
-
-var _ msg.Message = &CoAPMessage{}
 
 func (m *CoAPMessage) GetID() []byte {
 	if m.req == nil {
@@ -29,9 +30,9 @@ func (m *CoAPMessage) GetMetadata() (map[string][]string, error) {
 	for _, opt := range m.req.Options() {
 		key := opt.ID.String()
 		var val string
-		if opt.ID == message.ContentFormat && len(opt.Value) == 1 {
+		if opt.ID == coapmessage.ContentFormat && len(opt.Value) == 1 {
 			b := opt.Value[0]
-			val = message.MediaType(b).String()
+			val = coapmessage.MediaType(b).String()
 		} else {
 			val = string(opt.Value)
 		}
@@ -54,11 +55,15 @@ func (m *CoAPMessage) GetData() ([]byte, error) {
 }
 
 func (m *CoAPMessage) Ack() error {
-	m.done <- statusAck
+	m.done <- message.ResponseStatusAck
 	return nil
 }
 
 func (m *CoAPMessage) Nak() error {
-	m.done <- statusNak
+	m.done <- message.ResponseStatusNak
+	return nil
+}
+
+func (m *CoAPMessage) Reply(data []byte, metadata map[string][]string) error {
 	return nil
 }

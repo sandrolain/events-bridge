@@ -5,11 +5,11 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+var _ message.Message = &RedisMessage{}
+
 type RedisMessage struct {
 	msg *redis.Message
 }
-
-var _ message.Message = &RedisMessage{}
 
 func (m *RedisMessage) GetID() []byte {
 	return []byte(m.msg.Channel)
@@ -28,5 +28,9 @@ func (m *RedisMessage) Ack() error {
 }
 
 func (m *RedisMessage) Nak() error {
+	return nil
+}
+
+func (m *RedisMessage) Reply(data []byte, metadata map[string][]string) error {
 	return nil
 }

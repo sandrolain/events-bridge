@@ -4,7 +4,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// WasmMessage implements message.Message for processed data
+var _ message.Message = &WasmMessage{}
 
 type WasmMessage struct {
 	original message.Message
@@ -30,4 +30,8 @@ func (m *WasmMessage) Ack() error {
 
 func (m *WasmMessage) Nak() error {
 	return m.original.Nak()
+}
+
+func (m *WasmMessage) Reply(data []byte, metadata map[string][]string) error {
+	return m.original.Reply(data, metadata)
 }

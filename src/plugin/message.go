@@ -10,7 +10,8 @@ import (
 var _ message.Message = &PluginMessage{}
 
 type PluginMessage struct {
-	res *proto.PluginMessage
+	original message.Message
+	res      *proto.PluginMessage
 }
 
 func (m *PluginMessage) GetID() []byte {
@@ -36,11 +37,13 @@ func (m *PluginMessage) GetData() ([]byte, error) {
 }
 
 func (m *PluginMessage) Ack() error {
-	// TODO: Implement Ack logic if needed
-	return nil
+	return m.original.Ack()
 }
 
 func (m *PluginMessage) Nak() error {
-	// TODO: Implement Nak logic if needed
-	return nil
+	return m.original.Nak()
+}
+
+func (m *PluginMessage) Reply(data []byte, metadata map[string][]string) error {
+	return m.original.Reply(data, metadata)
 }

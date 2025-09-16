@@ -7,13 +7,11 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// PubSubMessage implements message.Message for Google Pub/Sub
+var _ message.Message = &PubSubMessage{}
 
 type PubSubMessage struct {
 	msg *pubsub.Message
 }
-
-var _ message.Message = &PubSubMessage{}
 
 func (m *PubSubMessage) GetID() []byte {
 	return []byte(m.msg.ID)
@@ -34,5 +32,9 @@ func (m *PubSubMessage) Ack() error {
 
 func (m *PubSubMessage) Nak() error {
 	m.msg.Nack()
+	return nil
+}
+
+func (m *PubSubMessage) Reply(data []byte, metadata map[string][]string) error {
 	return nil
 }

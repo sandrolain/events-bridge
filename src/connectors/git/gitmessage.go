@@ -5,11 +5,11 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+var _ message.Message = &GitMessage{}
+
 type GitMessage struct {
 	changes []map[string]interface{}
 }
-
-var _ message.Message = &GitMessage{}
 
 func (m *GitMessage) GetID() []byte {
 	if len(m.changes) > 0 {
@@ -30,5 +30,14 @@ func (m *GitMessage) GetData() ([]byte, error) {
 	return b, nil
 }
 
-func (m *GitMessage) Ack() error { return nil }
-func (m *GitMessage) Nak() error { return nil }
+func (m *GitMessage) Ack() error {
+	return nil
+}
+
+func (m *GitMessage) Nak() error {
+	return nil
+}
+
+func (m *GitMessage) Reply(data []byte, metadata map[string][]string) error {
+	return nil
+}

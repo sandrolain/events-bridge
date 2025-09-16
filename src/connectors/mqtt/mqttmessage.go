@@ -5,19 +5,12 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-type MQTTMessage struct {
-	orig mqtt.Message
-	done chan responseStatus
-}
-
 var _ message.Message = &MQTTMessage{}
 
-type responseStatus int
-
-const (
-	statusAck responseStatus = iota
-	statusNak
-)
+type MQTTMessage struct {
+	orig mqtt.Message
+	done chan message.ResponseStatus
+}
 
 func (m *MQTTMessage) GetID() []byte {
 	id := m.orig.MessageID()
@@ -33,11 +26,15 @@ func (m *MQTTMessage) GetData() ([]byte, error) {
 }
 
 func (m *MQTTMessage) Ack() error {
-	m.done <- statusAck
+	m.done <- message.ResponseStatusAck
 	return nil
 }
 
 func (m *MQTTMessage) Nak() error {
-	m.done <- statusNak
+	m.done <- message.ResponseStatusNak
+	return nil
+}
+
+func (m *MQTTMessage) Reply(data []byte, metadata map[string][]string) error {
 	return nil
 }
