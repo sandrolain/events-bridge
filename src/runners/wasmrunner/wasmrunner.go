@@ -100,7 +100,10 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	inData := cliformat.Encode(metadata, data)
+	inData, err := cliformat.Encode(metadata, data)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding input data: %w", err)
+	}
 
 	w.slog.Debug("processing message", "timeout", w.timeout)
 

@@ -58,7 +58,12 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
 
-	stdin := bytes.NewReader(cliformat.Encode(meta, data))
+	d, err := cliformat.Encode(meta, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode input data: %w", err)
+	}
+
+	stdin := bytes.NewReader(d)
 	cmd := exec.CommandContext(ctx, c.cfg.Command, c.cfg.Args...)
 	cmd.Stdin = stdin
 	if len(c.cfg.Envs) > 0 {

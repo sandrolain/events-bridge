@@ -25,8 +25,8 @@ func (m *CoAPMessage) GetID() []byte {
 	return m.req.Token()
 }
 
-func (m *CoAPMessage) GetMetadata() (map[string][]string, error) {
-	res := make(map[string][]string)
+func (m *CoAPMessage) GetMetadata() (message.MessageMetadata, error) {
+	res := make(message.MessageMetadata)
 	for _, opt := range m.req.Options() {
 		key := opt.ID.String()
 		var val string
@@ -36,7 +36,7 @@ func (m *CoAPMessage) GetMetadata() (map[string][]string, error) {
 		} else {
 			val = string(opt.Value)
 		}
-		res[key] = append(res[key], val)
+		res[key] = val
 	}
 	return res, nil
 }

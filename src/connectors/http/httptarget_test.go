@@ -12,7 +12,7 @@ import (
 // metaErrorMock returns an error from GetMetadata
 type metaErrorMock struct{ mockMessage }
 
-func (m *metaErrorMock) GetMetadata() (map[string][]string, error) {
+func (m *metaErrorMock) GetMetadata() (message.MessageMetadata, error) {
 	return nil, errors.New("fail meta")
 }
 
@@ -22,24 +22,24 @@ type dataErrorMock struct{ mockMessage }
 func (m *dataErrorMock) GetData() ([]byte, error) {
 	return nil, errors.New("fail data")
 }
-func (m *dataErrorMock) GetMetadata() (map[string][]string, error) {
-	return map[string][]string{}, nil
+func (m *dataErrorMock) GetMetadata() (message.MessageMetadata, error) {
+	return message.MessageMetadata{}, nil
 }
 
 // mockMessage implements message.Message for testing
 type mockMessage struct {
-	metadata map[string][]string
+	metadata message.MessageMetadata
 	data     []byte
 	ack      bool
 	nak      bool
 }
 
-func (m *mockMessage) GetID() []byte                             { return []byte("id") }
-func (m *mockMessage) GetMetadata() (map[string][]string, error) { return m.metadata, nil }
-func (m *mockMessage) GetData() ([]byte, error)                  { return m.data, nil }
-func (m *mockMessage) Ack() error                                { m.ack = true; return nil }
-func (m *mockMessage) Nak() error                                { m.nak = true; return nil }
-func (m *mockMessage) Reply(data *message.ReplyData) error       { return nil }
+func (m *mockMessage) GetID() []byte                                 { return []byte("id") }
+func (m *mockMessage) GetMetadata() (message.MessageMetadata, error) { return m.metadata, nil }
+func (m *mockMessage) GetData() ([]byte, error)                      { return m.data, nil }
+func (m *mockMessage) Ack() error                                    { m.ack = true; return nil }
+func (m *mockMessage) Nak() error                                    { m.nak = true; return nil }
+func (m *mockMessage) Reply(data *message.ReplyData) error           { return nil }
 
 func TestNewTargetDefaultTimeout(t *testing.T) {
 	const errMsg = "unexpected error: %v"
@@ -64,7 +64,7 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *HTTPTarget type")
 	}
-	m := &mockMessage{metadata: map[string][]string{"X-Test": {"v"}}, data: []byte("payload")}
+	m := &mockMessage{metadata: message.MessageMetadata{"X-Test": "v"}, data: []byte("payload")}
 	msg := message.NewRunnerMessage(m)
 	err = httpTgt.Consume(msg)
 	if err != nil {

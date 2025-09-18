@@ -107,6 +107,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 		}
 	case r := <-reply:
+
 		// TODO: type from metadata
 		err = w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader(r.Data))
 	case <-time.After(10 * time.Second): // TODO: duration from config
@@ -140,4 +141,32 @@ func loggingMiddleware(next coapmux.Handler) coapmux.Handler {
 		log.Printf("ClientAddress %v, %v\n", w.Conn().RemoteAddr(), r.String())
 		next.ServeCOAP(w, r)
 	})
+}
+
+func coapTypeFromContentType(ct string) coapmessage.MediaType {
+	b := []byte(ct)
+	b = bytes.ToLower(bytes.TrimSpace(b))
+	if len(b) == 0 {
+		return coapmessage.TextPlain
+	}
+	if i := bytes.IndexByte(b, ';'); i >= 0 {
+		b = bytes.TrimSpace(b[:i])
+	}
+
+	switch string(b) {
+	case "text/plain":
+		return coapmessage.TextPlain
+	case "application/json", "text/json", "application/ld+json", "application/problem+json", "application/senml+json":
+		return coapmessage.AppJSON
+	case "application/cbor", "application/senml+cbor":
+		return coapmessage.AppCBOR
+	case "application/xml", "text/xml":
+		return coapmessage.AppXML
+	case "application/link-format":
+		return coapmessage.AppLinkFormat
+	case "application/octet-stream":
+		return coapmessage.AppOctets
+	default:
+		return coapmessage.TextPlain
+	}
 }

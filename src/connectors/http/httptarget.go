@@ -75,9 +75,7 @@ func (s *HTTPTarget) Consume(result *message.RunnerMessage) (err error) {
 	req.SetBody(data)
 
 	for k, v := range metadata {
-		for _, vv := range v {
-			req.Header.Add(k, vv)
-		}
+		req.Header.Add(k, v)
 	}
 
 	res := fasthttp.AcquireResponse()

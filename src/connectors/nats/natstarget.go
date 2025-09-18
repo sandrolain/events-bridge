@@ -50,7 +50,7 @@ func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {
 	if t.config.SubjectFromMetadataKey != "" {
 		metadata, _ := msg.GetTargetMetadata()
 		if v, ok := metadata[t.config.SubjectFromMetadataKey]; ok && len(v) > 0 {
-			subject = v[0]
+			subject = v
 		}
 	}
 

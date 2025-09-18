@@ -20,10 +20,10 @@ func (m *PluginMessage) GetID() []byte {
 	return []byte(m.res.Uuid)
 }
 
-func (m *PluginMessage) GetMetadata() (map[string][]string, error) {
-	metadata := make(map[string][]string)
+func (m *PluginMessage) GetMetadata() (message.MessageMetadata, error) {
+	metadata := make(message.MessageMetadata)
 	for _, md := range m.res.Metadata {
-		metadata[md.Name] = append(metadata[md.Name], md.Value)
+		metadata[md.Name] = md.Value
 	}
 	return metadata, nil
 }

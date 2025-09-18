@@ -22,12 +22,12 @@ type dummyMessage struct {
 	acked, naked bool
 }
 
-func (m *dummyMessage) GetID() []byte                             { return []byte("dummy-id") }
-func (m *dummyMessage) GetMetadata() (map[string][]string, error) { return nil, nil }
-func (m *dummyMessage) GetData() ([]byte, error)                  { return m.data, nil }
-func (m *dummyMessage) Ack() error                                { m.acked = true; return nil }
-func (m *dummyMessage) Nak() error                                { m.naked = true; return nil }
-func (m *dummyMessage) Reply(data *message.ReplyData) error       { return nil }
+func (m *dummyMessage) GetID() []byte                                 { return []byte("dummy-id") }
+func (m *dummyMessage) GetMetadata() (message.MessageMetadata, error) { return nil, nil }
+func (m *dummyMessage) GetData() ([]byte, error)                      { return m.data, nil }
+func (m *dummyMessage) Ack() error                                    { m.acked = true; return nil }
+func (m *dummyMessage) Nak() error                                    { m.naked = true; return nil }
+func (m *dummyMessage) Reply(data *message.ReplyData) error           { return nil }
 
 // UDP test server that uses mux logic like coapsource
 func startUDPServer(t *testing.T, addr string, onMsg func()) {

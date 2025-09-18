@@ -88,9 +88,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 				}
 			case r := <-reply:
 				for k, v := range r.Metadata {
-					for _, vv := range v {
-						ctx.Response.Header.Add(k, vv)
-					}
+					ctx.Response.Header.Add(k, v)
 				}
 				ctx.SetStatusCode(fasthttp.StatusOK)
 				ctx.SetBody(r.Data)

@@ -40,7 +40,7 @@ func (t *RedisStreamTarget) Consume(msg *message.RunnerMessage) error {
 	if t.config.StreamFromMetadataKey != "" {
 		metadata, _ := msg.GetTargetMetadata()
 		if v, ok := metadata[t.config.StreamFromMetadataKey]; ok && len(v) > 0 {
-			stream = v[0]
+			stream = v
 		}
 	}
 	dataKey := t.config.StreamDataKey

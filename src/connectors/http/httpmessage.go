@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
@@ -17,8 +19,8 @@ func (m *HTTPMessage) GetID() []byte {
 	return m.httpCtx.Request.Header.Peek("X-Request-ID")
 }
 
-func (m HTTPMessage) GetMetadata() (res map[string][]string, err error) {
-	res = make(map[string][]string)
+func (m HTTPMessage) GetMetadata() (res message.MessageMetadata, err error) {
+	res = make(message.MessageMetadata)
 	header := &m.httpCtx.Request.Header
 	keys := header.PeekKeys()
 	for _, k := range keys {
@@ -28,7 +30,7 @@ func (m HTTPMessage) GetMetadata() (res map[string][]string, err error) {
 		for i, val := range v {
 			values[i] = string(val)
 		}
-		res[key] = values
+		res[key] = strings.Join(values, ",")
 	}
 	return
 }

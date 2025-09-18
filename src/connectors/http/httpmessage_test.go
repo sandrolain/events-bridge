@@ -38,10 +38,10 @@ func TestHTTPMessageGetMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(meta["Foo"]) != 2 || meta["Foo"][0] != "bar" || meta["Foo"][1] != "baz" {
+	if len(meta["Foo"]) != 2 || meta["Foo"] != "bar" || meta["Foo"] != "baz" {
 		t.Errorf("unexpected Foo values: %v", meta["Foo"])
 	}
-	if len(meta["Bar"]) != 1 || meta["Bar"][0] != "qux" {
+	if len(meta["Bar"]) != 1 || meta["Bar"] != "qux" {
 		t.Errorf("unexpected Bar values: %v", meta["Bar"])
 	}
 }

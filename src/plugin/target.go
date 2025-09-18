@@ -26,12 +26,10 @@ func (p *Plugin) Target(ctx context.Context, msg *message.RunnerMessage) (err er
 
 	md := make([]*proto.Metadata, 0)
 	for k, v := range metadata {
-		for _, vv := range v {
-			md = append(md, &proto.Metadata{
-				Name:  k,
-				Value: vv,
-			})
-		}
+		md = append(md, &proto.Metadata{
+			Name:  k,
+			Value: v,
+		})
 	}
 
 	_, err = p.client.Target(ctx, &proto.PluginMessage{

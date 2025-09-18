@@ -50,7 +50,7 @@ func (t *RedisTarget) Consume(msg *message.RunnerMessage) error {
 	if t.config.ChannelFromMetadataKey != "" {
 		metadata, _ := msg.GetTargetMetadata()
 		if v, ok := metadata[t.config.ChannelFromMetadataKey]; ok && len(v) > 0 {
-			channel = v[0]
+			channel = v
 		}
 	}
 	t.slog.Debug("publishing Redis message", "channel", channel, "bodysize", len(data))

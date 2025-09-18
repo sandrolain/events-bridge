@@ -1,8 +1,10 @@
 package message
 
+type MessageMetadata = map[string]string
+
 type SourceMessage interface {
 	GetID() []byte
-	GetMetadata() (map[string][]string, error)
+	GetMetadata() (MessageMetadata, error)
 	GetData() ([]byte, error)
 	Ack() error
 	Nak() error
@@ -18,16 +20,16 @@ func NewRunnerMessage(original SourceMessage) *RunnerMessage {
 type RunnerMessage struct {
 	original SourceMessage
 	data     []byte
-	metadata map[string][]string
+	metadata MessageMetadata
 }
 
 func (m *RunnerMessage) GetID() []byte {
 	return m.original.GetID()
 }
 
-func (m *RunnerMessage) MergeMetadata(mapdata map[string][]string) {
+func (m *RunnerMessage) MergeMetadata(mapdata MessageMetadata) {
 	if m.metadata == nil {
-		m.metadata = make(map[string][]string)
+		m.metadata = make(MessageMetadata)
 	}
 	for k, v := range mapdata {
 		m.metadata[k] = v
@@ -37,27 +39,27 @@ func (m *RunnerMessage) MergeMetadata(mapdata map[string][]string) {
 // TODO: metadata as simplier key-value with single value ?
 func (m *RunnerMessage) SetMetadata(key string, value string) {
 	if m.metadata == nil {
-		m.metadata = make(map[string][]string)
+		m.metadata = make(MessageMetadata)
 	}
-	m.metadata[key] = []string{value}
+	m.metadata[key] = value
 }
 
 func (m *RunnerMessage) AddMetadata(key string, value string) {
 	if m.metadata == nil {
-		m.metadata = make(map[string][]string)
+		m.metadata = make(MessageMetadata)
 	}
-	m.metadata[key] = append(m.metadata[key], value)
+	m.metadata[key] = value
 }
 
 func (m *RunnerMessage) SetData(data []byte) {
 	m.data = data
 }
 
-func (m *RunnerMessage) GetSourceMetadata() (map[string][]string, error) {
+func (m *RunnerMessage) GetSourceMetadata() (MessageMetadata, error) {
 	return m.original.GetMetadata()
 }
 
-func (m *RunnerMessage) GetTargetMetadata() (map[string][]string, error) {
+func (m *RunnerMessage) GetTargetMetadata() (MessageMetadata, error) {
 	if m.metadata != nil {
 		return m.metadata, nil
 	}
@@ -75,7 +77,7 @@ func (m *RunnerMessage) GetTargetData() ([]byte, error) {
 	return m.original.GetData()
 }
 
-func (m *RunnerMessage) GetMetadata() map[string][]string {
+func (m *RunnerMessage) GetMetadata() MessageMetadata {
 	return m.metadata
 }
 
@@ -107,5 +109,5 @@ const (
 
 type ReplyData struct {
 	Data     []byte
-	Metadata map[string][]string
+	Metadata MessageMetadata
 }

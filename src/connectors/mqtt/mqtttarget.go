@@ -59,7 +59,7 @@ func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
 	if t.config.TopicFromMetadataKey != "" {
 		metadata, _ := msg.GetTargetMetadata()
 		if v, ok := metadata[t.config.TopicFromMetadataKey]; ok && len(v) > 0 {
-			topic = v[0]
+			topic = v
 		}
 	}
 

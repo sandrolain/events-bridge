@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/pubsub/v2"
@@ -56,7 +55,7 @@ func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
 	if meta, err := msg.GetTargetMetadata(); err == nil {
 		for k, v := range meta {
 			if len(v) > 0 {
-				attributes[k] = strings.Join(v, ";")
+				attributes[k] = v
 			}
 		}
 	}

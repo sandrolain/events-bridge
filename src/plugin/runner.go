@@ -26,13 +26,11 @@ func (p *Plugin) Runner(msg *message.RunnerMessage) (res *message.RunnerMessage,
 	}
 	if meta != nil {
 		metadata = make([]*proto.Metadata, 0, len(meta))
-		for k, m := range meta {
-			for _, v := range m {
-				metadata = append(metadata, &proto.Metadata{
-					Name:  k,
-					Value: v,
-				})
-			}
+		for k, v := range meta {
+			metadata = append(metadata, &proto.Metadata{
+				Name:  k,
+				Value: v,
+			})
 		}
 	}
 

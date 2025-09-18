@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/sandrolain/events-bridge/src/message"
 	plugin "github.com/sandrolain/events-bridge/src/plugin/bootstrap"
 	proto "github.com/sandrolain/events-bridge/src/plugin/proto"
 )
@@ -52,8 +53,8 @@ var source plugin.SourceFn = func(req *proto.SourceReq, stream proto.PluginServi
 				continue
 			}
 
-			res := plugin.ResponseMessage(map[string][]string{
-				"time": {time.Now().String()},
+			res := plugin.ResponseMessage(message.MessageMetadata{
+				"time": time.Now().String(),
 			}, data)
 
 			// Send the Hardware stats on the stream
@@ -90,9 +91,9 @@ var runner plugin.RunnerFn = func(ctx context.Context, req *proto.PluginMessage)
 	}
 
 	return plugin.ResponseMessage(
-		map[string][]string{
-			"content-type": {"application/json"},
-			"uuid":         {req.GetUuid()},
+		message.MessageMetadata{
+			"content-type": "application/json",
+			"uuid":         req.GetUuid(),
 		},
 		jsonBytes,
 	), nil

@@ -11,6 +11,7 @@ import (
 	"github.com/caarlos0/env/v11"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -160,17 +161,15 @@ func Shutdown(delay *string) *proto.ShutdownRes {
 	return &proto.ShutdownRes{}
 }
 
-func ResponseMessage(meta map[string][]string, data []byte) *proto.PluginMessage {
+func ResponseMessage(meta message.MessageMetadata, data []byte) *proto.PluginMessage {
 	uid := uuid.New().String()
 
 	var metadata []*proto.Metadata
 	for k, v := range meta {
-		for _, val := range v {
-			metadata = append(metadata, &proto.Metadata{
-				Name:  k,
-				Value: val,
-			})
-		}
+		metadata = append(metadata, &proto.Metadata{
+			Name:  k,
+			Value: v,
+		})
 	}
 
 	return &proto.PluginMessage{
