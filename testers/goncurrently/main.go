@@ -24,6 +24,7 @@ type CommandConfig struct {
 	RestartTries int               `yaml:"restartTries"` // How many times to restart after death; negative = forever
 	RestartAfter int               `yaml:"restartAfter"` // Delay before restarting, in milliseconds
 	Env          map[string]string `yaml:"env"`
+	StartAfter   int               `yaml:"startAfter"` // Delay before starting, in milliseconds
 }
 
 type Config struct {
@@ -117,6 +118,10 @@ func main() {
 		prefix := fmt.Sprintf("[%s] ", c.Name)
 		col := colors[i%len(colors)]
 		triesLeft := c.RestartTries
+		// Optional delay before the very first start
+		if c.StartAfter > 0 {
+			time.Sleep(time.Duration(c.StartAfter) * time.Millisecond)
+		}
 	SetupLoop:
 		for {
 			cmd := exec.Command(c.Cmd, c.Args...)
@@ -172,6 +177,14 @@ func main() {
 			prefix := fmt.Sprintf("[%s] ", cc.Name)
 			col := colors[idx%len(colors)]
 			triesLeft := cc.RestartTries
+			// Optional delay before the very first start (cancellable)
+			if cc.StartAfter > 0 {
+				select {
+				case <-stop:
+					return
+				case <-time.After(time.Duration(cc.StartAfter) * time.Millisecond):
+				}
+			}
 			for {
 				cmd := exec.Command(cc.Cmd, cc.Args...)
 				if cc.Env != nil {
