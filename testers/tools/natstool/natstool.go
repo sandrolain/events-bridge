@@ -21,12 +21,11 @@ func main() {
 
 	// SEND
 	var (
-		sendAddr        string
-		sendSubject     string
-		sendPayload     string
-		sendInterval    string
-		sendTestPayload string
-		sendStream      string
+		sendAddr     string
+		sendSubject  string
+		sendPayload  string
+		sendInterval string
+		sendStream   string
 	)
 	sendCmd := &cobra.Command{
 		Use:   "send",
@@ -56,7 +55,7 @@ func main() {
 			defer ticker.Stop()
 
 			for range ticker.C {
-				body, _, err := toolutil.BuildPayload(sendTestPayload, sendPayload, toolutil.CTText)
+				body, _, err := toolutil.BuildPayload(sendPayload, toolutil.CTText)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					continue
@@ -81,7 +80,7 @@ func main() {
 	}
 	sendCmd.Flags().StringVar(&sendAddr, "address", nats.DefaultURL, "NATS server URL")
 	sendCmd.Flags().StringVar(&sendSubject, "subject", "test.subject", "NATS subject")
-	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{nowtime}", new(string), "", &sendTestPayload)
+	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{nowtime}", new(string), "")
 	toolutil.AddIntervalFlag(sendCmd, &sendInterval, "5s")
 	sendCmd.Flags().StringVar(&sendStream, "stream", "", "JetStream stream name (if set, uses JetStream)")
 

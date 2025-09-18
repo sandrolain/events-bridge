@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/TylerBrock/colorjson"
@@ -73,26 +74,12 @@ func EncodeCBORFromJSON(jsonStr string) ([]byte, error) {
 
 // BuildPayload builds request payload bytes and content-type from either a testpayload type or a raw payload with MIME.
 // Priority: if testType is provided, it's used; otherwise raw payload with MIME is used; returns (nil, "") if neither provided.
-func BuildPayload(testType string, rawPayload string, mime string) ([]byte, string, error) {
-	if testType != "" {
-		typ := testpayload.NewTestPayloadType(testType)
-		if !typ.IsValid() {
-			return nil, "", fmt.Errorf("unknown testpayload type: %s", testType)
-		}
-		b, err := typ.Generate()
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to generate test payload: %w", err)
-		}
-		return b, typ.GetContentType(), nil
+func BuildPayload(rawPayload string, mime string) ([]byte, string, error) {
+	b, err := testpayload.Interpolate(rawPayload)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to interpolate payload: %w", err)
 	}
-	if rawPayload != "" {
-		b, err := testpayload.Interpolate(rawPayload)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to interpolate payload: %w", err)
-		}
-		return b, mime, nil
-	}
-	return nil, "", nil
+	return b, mime, nil
 }
 
 // GuessMIME tries to guess a content type from raw body.
@@ -129,6 +116,16 @@ type MessageSection struct {
 	Items []KV
 }
 
+var printCounter int = 0
+var printCountMutex = sync.Mutex{}
+
+func getNextPrintCount() int {
+	printCountMutex.Lock()
+	defer printCountMutex.Unlock()
+	printCounter++
+	return printCounter
+}
+
 // PrintColoredMessage prints a colored, consistently formatted message with sections and body.
 // Title and section titles are highlighted; items are aligned as key: value; body is pretty-printed by MIME.
 func PrintColoredMessage(title string, sections []MessageSection, body []byte, mime string) {
@@ -136,7 +133,8 @@ func PrintColoredMessage(title string, sections []MessageSection, body []byte, m
 	blue := color.New(color.FgHiBlue).Add(color.Underline).PrintfFunc()
 	white := color.New(color.FgWhite).Add(color.ResetUnderline).PrintfFunc()
 
-	black("\n----------------------------------------\n")
+	count := getNextPrintCount()
+	black("\n-------- Message %d --------\n", count)
 	black(time.Now().Format(time.RFC3339) + "\n")
 	if title != "" {
 		blue("%s:\n", title)
@@ -172,7 +170,7 @@ func AddMethodFlag(cmd *cobra.Command, method *string, def string, usage string)
 // AddPathFlag adds a common path/resource flag.
 func AddPathFlag(cmd *cobra.Command, path *string, def string, usage string) {
 	if def == "" {
-		def = "/test"
+		def = "/event"
 	}
 	if usage == "" {
 		usage = "Request path/resource"
@@ -181,7 +179,7 @@ func AddPathFlag(cmd *cobra.Command, path *string, def string, usage string) {
 }
 
 // AddPayloadFlags adds payload, mime and testpayload flags.
-func AddPayloadFlags(cmd *cobra.Command, payload *string, payloadDef string, mime *string, mimeDef string, testPayload *string) {
+func AddPayloadFlags(cmd *cobra.Command, payload *string, payloadDef string, mime *string, mimeDef string) {
 	if payloadDef == "" {
 		payloadDef = "{}"
 	}
@@ -190,7 +188,6 @@ func AddPayloadFlags(cmd *cobra.Command, payload *string, payloadDef string, mim
 	}
 	cmd.Flags().StringVar(payload, "payload", payloadDef, "Payload to send (supports placeholders: {json},{cbor},{sentiment},{sentence},{datetime},{nowtime})")
 	cmd.Flags().StringVar(mime, "mime", mimeDef, "Payload MIME type (application/json, application/cbor, text/plain)")
-	cmd.Flags().StringVar(testPayload, "testpayload", "", "Test payload generator: json, cbor, sentiment, sentence, datetime, nowtime")
 }
 
 // AddIntervalFlag adds a common interval flag for periodic actions.

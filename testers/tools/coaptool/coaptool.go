@@ -31,13 +31,12 @@ func main() {
 
 	// SEND command
 	var (
-		sendAddress     string
-		sendPath        string
-		sendPayload     string
-		sendInterval    string
-		sendProto       string
-		sendMIME        string
-		sendTestPayload string
+		sendAddress  string
+		sendPath     string
+		sendPayload  string
+		sendInterval string
+		sendProto    string
+		sendMIME     string
 	)
 
 	sendCmd := &cobra.Command{
@@ -58,28 +57,13 @@ func main() {
 				var body []byte
 				var ct string
 
-				if sendTestPayload != "" {
-					typ := testpayload.NewTestPayloadType(sendTestPayload)
-					if !typ.IsValid() {
-						fmt.Fprintf(os.Stderr, "Unknown testpayload type: %s\n", sendTestPayload)
-						return
-					}
-					b, err := typ.Generate()
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to generate test payload: %v\n", err)
-						return
-					}
-					body = b
-					ct = typ.GetContentType()
-				} else if sendPayload != "" {
-					b, err := testpayload.Interpolate(sendPayload)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Failed to interpolate payload: %v\n", err)
-						return
-					}
-					body = b
-					ct = sendMIME
+				b, err := testpayload.Interpolate(sendPayload)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to interpolate payload: %v\n", err)
+					return
 				}
+				body = b
+				ct = sendMIME
 
 				if ct == "" {
 					ct = toolutil.CTJSON
@@ -147,8 +131,8 @@ func main() {
 	}
 
 	sendCmd.Flags().StringVar(&sendAddress, "address", "localhost:5683", "CoAP server address:port")
-	toolutil.AddPathFlag(sendCmd, &sendPath, "/test", "CoAP resource path")
-	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{}", &sendMIME, toolutil.CTJSON, &sendTestPayload)
+	toolutil.AddPathFlag(sendCmd, &sendPath, "/event", "CoAP resource path")
+	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{}", &sendMIME, toolutil.CTJSON)
 	toolutil.AddIntervalFlag(sendCmd, &sendInterval, "5s")
 	sendCmd.Flags().StringVar(&sendProto, "proto", "udp", "CoAP transport protocol: udp or tcp")
 

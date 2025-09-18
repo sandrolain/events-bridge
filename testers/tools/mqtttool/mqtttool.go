@@ -25,14 +25,13 @@ func main() {
 
 	// SEND command
 	var (
-		sendBroker      string
-		sendTopic       string
-		sendPayload     string
-		sendInterval    string
-		sendTestPayload string
-		sendQoS         int
-		sendRetain      bool
-		sendClientID    string
+		sendBroker   string
+		sendTopic    string
+		sendPayload  string
+		sendInterval string
+		sendQoS      int
+		sendRetain   bool
+		sendClientID string
 	)
 	sendCmd := &cobra.Command{
 		Use:   "send",
@@ -62,7 +61,7 @@ func main() {
 			fmt.Printf("Connected to %s, topic: %s\n", sendBroker, sendTopic)
 
 			publish := func() {
-				body, _, err := toolutil.BuildPayload(sendTestPayload, sendPayload, toolutil.CTText)
+				body, _, err := toolutil.BuildPayload(sendPayload, toolutil.CTText)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					return
@@ -87,7 +86,7 @@ func main() {
 	sendCmd.Flags().IntVar(&sendQoS, "qos", 0, "MQTT QoS level (0,1,2)")
 	sendCmd.Flags().BoolVar(&sendRetain, "retain", false, "Retain messages")
 	sendCmd.Flags().StringVar(&sendClientID, "clientid", "", "Client ID (auto if empty)")
-	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "hello", new(string), "", &sendTestPayload)
+	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{nowtime}", new(string), "")
 	toolutil.AddIntervalFlag(sendCmd, &sendInterval, "5s")
 
 	// SERVE command

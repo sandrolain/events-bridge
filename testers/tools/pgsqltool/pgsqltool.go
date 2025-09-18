@@ -20,11 +20,10 @@ func main() {
 	}
 
 	var (
-		connStr     string
-		table       string
-		interval    string
-		payload     string
-		testPayload string
+		connStr  string
+		table    string
+		interval string
+		payload  string
 	)
 
 	sendCmd := &cobra.Command{
@@ -63,7 +62,7 @@ func main() {
 			defer ticker.Stop()
 			fmt.Printf("Inserting into %s every %s\n", table, dur)
 			for range ticker.C {
-				b, _, err := toolutil.BuildPayload(testPayload, payload, toolutil.CTText)
+				b, _, err := toolutil.BuildPayload(payload, toolutil.CTText)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					continue
@@ -81,7 +80,7 @@ func main() {
 
 	sendCmd.Flags().StringVar(&connStr, "conn", "postgres://user:pass@localhost:5432/postgres?sslmode=disable", "PostgreSQL connection string")
 	sendCmd.Flags().StringVar(&table, "table", "test_table", "Table name")
-	toolutil.AddPayloadFlags(sendCmd, &payload, "{nowtime}", new(string), "", &testPayload)
+	toolutil.AddPayloadFlags(sendCmd, &payload, "{nowtime}", new(string), "")
 	toolutil.AddIntervalFlag(sendCmd, &interval, "5s")
 
 	root.AddCommand(sendCmd)

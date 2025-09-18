@@ -20,13 +20,12 @@ func main() {
 
 	// SEND command (client)
 	var (
-		sendAddress     string
-		sendMethod      string
-		sendPath        string
-		sendPayload     string
-		sendInterval    string
-		sendMIME        string
-		sendTestPayload string
+		sendAddress  string
+		sendMethod   string
+		sendPath     string
+		sendPayload  string
+		sendInterval string
+		sendMIME     string
 	)
 	sendCmd := &cobra.Command{
 		Use:   "send",
@@ -44,7 +43,7 @@ func main() {
 			fmt.Printf("Sending %s requests to %s every %s\n", sendMethod, url, dur)
 
 			sendRequest := func() {
-				reqBody, contentType, err := toolutil.BuildPayload(sendTestPayload, sendPayload, sendMIME)
+				reqBody, contentType, err := toolutil.BuildPayload(sendPayload, sendMIME)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					return
@@ -83,8 +82,8 @@ func main() {
 	}
 	sendCmd.Flags().StringVar(&sendAddress, "address", "http://localhost:8080", "HTTP server base address, e.g. http://localhost:8080")
 	toolutil.AddMethodFlag(sendCmd, &sendMethod, "POST", "HTTP method (POST, PUT, PATCH)")
-	toolutil.AddPathFlag(sendCmd, &sendPath, "/test", "HTTP request path")
-	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{}", &sendMIME, toolutil.CTJSON, &sendTestPayload)
+	toolutil.AddPathFlag(sendCmd, &sendPath, "/event", "HTTP request path")
+	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "{}", &sendMIME, toolutil.CTJSON)
 	toolutil.AddIntervalFlag(sendCmd, &sendInterval, "5s")
 
 	// SERVE command (server)
@@ -122,7 +121,7 @@ func main() {
 			return nil
 		},
 	}
-	serveCmd.Flags().StringVar(&serveAddr, "address", "0.0.0.0:8080", "HTTP listen address")
+	serveCmd.Flags().StringVar(&serveAddr, "address", "0.0.0.0:9090", "HTTP listen address")
 
 	root.AddCommand(sendCmd, serveCmd)
 

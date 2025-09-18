@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -62,6 +63,16 @@ func GenerateNowDateTime() string {
 	return time.Now().Format(time.RFC3339Nano)
 }
 
+var counter int = 0
+var counterMutex = sync.Mutex{}
+
+func GenerateCounter() int {
+	counterMutex.Lock()
+	defer counterMutex.Unlock()
+	counter++
+	return counter
+}
+
 func Interpolate(str string) ([]byte, error) {
 	placeholders := map[string]TestPayloadType{
 		"json":      TestPayloadJSON,
@@ -70,11 +81,18 @@ func Interpolate(str string) ([]byte, error) {
 		"sentence":  TestPayloadSentence,
 		"datetime":  TestPayloadDateTime,
 		"nowtime":   TestPayloadNowTime,
+		"counter":   TestPayloadCounter,
 	}
 
 	result := str
 	for key, typ := range placeholders {
 		ph := "{" + key + "}"
+
+		if str == ph {
+			// If the entire string is just the placeholder, return the generated value directly
+			return typ.Generate()
+		}
+
 		if strings.Contains(result, ph) {
 			val, err := typ.Generate()
 			if err != nil {
@@ -95,11 +113,8 @@ const (
 	TestPayloadSentence  TestPayloadType = "sentence"
 	TestPayloadDateTime  TestPayloadType = "datetime" // to generate a timestamp
 	TestPayloadNowTime   TestPayloadType = "nowtime"  // to generate the current timestamp
+	TestPayloadCounter   TestPayloadType = "counter"  // to generate an incrementing counter (not implemented yet
 )
-
-func NewTestPayloadType(s string) TestPayloadType {
-	return TestPayloadType(strings.ToLower(s))
-}
 
 func (t TestPayloadType) IsValid() bool {
 	switch t {
@@ -135,6 +150,8 @@ func (t TestPayloadType) Generate() ([]byte, error) {
 		return []byte(GenerateRandomDateTime()), nil
 	case TestPayloadNowTime:
 		return []byte(GenerateNowDateTime()), nil
+	case TestPayloadCounter:
+		return []byte(fmt.Sprintf("%d", GenerateCounter())), nil
 	}
 	return nil, fmt.Errorf("unsupported test payload type: %s", t)
 }

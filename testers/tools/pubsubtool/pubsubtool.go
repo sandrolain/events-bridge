@@ -22,11 +22,10 @@ func main() {
 
 	// SEND
 	var (
-		sendProject     string
-		sendTopic       string
-		sendPayload     string
-		sendInterval    string
-		sendTestPayload string
+		sendProject  string
+		sendTopic    string
+		sendPayload  string
+		sendInterval string
 	)
 	sendCmd := &cobra.Command{
 		Use:   "send",
@@ -55,7 +54,7 @@ func main() {
 
 			fmt.Printf("Publishing to project %s, topic %s every %s\n", sendProject, sendTopic, dur)
 			for range ticker.C {
-				body, _, err := toolutil.BuildPayload(sendTestPayload, sendPayload, toolutil.CTText)
+				body, _, err := toolutil.BuildPayload(sendPayload, toolutil.CTText)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)
 					continue
@@ -73,7 +72,7 @@ func main() {
 	}
 	sendCmd.Flags().StringVar(&sendProject, "project", "test-project", "Google Cloud Project ID")
 	sendCmd.Flags().StringVar(&sendTopic, "topic", "test-topic", "Pub/Sub topic ID")
-	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "Hello, PubSub!", new(string), "", &sendTestPayload)
+	toolutil.AddPayloadFlags(sendCmd, &sendPayload, "Hello, PubSub!", new(string), "")
 	toolutil.AddIntervalFlag(sendCmd, &sendInterval, "5s")
 
 	// SERVE
