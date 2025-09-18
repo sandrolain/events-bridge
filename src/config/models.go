@@ -13,7 +13,7 @@ type EnvConfig struct {
 
 type Config struct {
 	Source  sources.SourceConfig  `yaml:"source" json:"source" validate:"required"`
-	Runner  runners.RunnerConfig  `yaml:"runner" json:"runner" validate:"required"`
-	Target  targets.TargetConfig  `yaml:"target" json:"target" validate:"required"`
+	Runner  runners.RunnerConfig  `yaml:"runner" json:"runner"`
+	Target  targets.TargetConfig  `yaml:"target" json:"target"`
 	Plugins []plugin.PluginConfig `yaml:"plugins" json:"plugins" validate:"dive"`
 }

@@ -30,8 +30,8 @@ const (
 
 // Target configurations
 type TargetConfig struct {
-	Routines int                 `yaml:"routines" json:"routines" validate:"omitempty,min=1"`
 	Type     TargetType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc plugin"`
+	Routines int                 `yaml:"routines" json:"routines" validate:"omitempty,min=1"`
 	HTTP     *TargetHTTPConfig   `yaml:"http" json:"http"`
 	CoAP     *TargetCoAPConfig   `yaml:"coap" json:"coap"`
 	MQTT     *TargetMQTTConfig   `yaml:"mqtt" json:"mqtt"`

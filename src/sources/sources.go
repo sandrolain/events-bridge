@@ -30,16 +30,16 @@ const (
 type SourceConfig struct {
 	Type   SourceType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc pgsql plugin git"`
 	Buffer int                 `yaml:"buffer" json:"buffer"`
-	HTTP   *SourceHTTPConfig   `yaml:"http" json:"http"`
-	CoAP   *SourceCoAPConfig   `yaml:"coap" json:"coap"`
-	NATS   *SourceNATSConfig   `yaml:"nats" json:"nats"`
-	MQTT   *SourceMQTTConfig   `yaml:"mqtt" json:"mqtt"`
-	PgSQL  *SourcePGSQLConfig  `yaml:"pgsql" json:"pgsql"`
-	Plugin *SourcePluginConfig `yaml:"plugin" json:"plugin"`
-	Kafka  *SourceKafkaConfig  `yaml:"kafka" json:"kafka"`
-	Redis  *SourceRedisConfig  `yaml:"redis" json:"redis"`
-	PubSub *SourcePubSubConfig `yaml:"pubsub" json:"pubsub"`
-	Git    *SourceGitConfig    `yaml:"git" json:"git"`
+	HTTP   *SourceHTTPConfig   `yaml:"http" json:"http" validate:"omitempty,required_if=Type http"`
+	CoAP   *SourceCoAPConfig   `yaml:"coap" json:"coap" validate:"omitempty,required_if=Type coap"`
+	NATS   *SourceNATSConfig   `yaml:"nats" json:"nats" validate:"omitempty,required_if=Type nats"`
+	MQTT   *SourceMQTTConfig   `yaml:"mqtt" json:"mqtt" validate:"omitempty,required_if=Type mqtt"`
+	PgSQL  *SourcePGSQLConfig  `yaml:"pgsql" json:"pgsql" validate:"omitempty,required_if=Type pgsql"`
+	Plugin *SourcePluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty,required_if=Type plugin"`
+	Kafka  *SourceKafkaConfig  `yaml:"kafka" json:"kafka" validate:"omitempty,required_if=Type kafka"`
+	Redis  *SourceRedisConfig  `yaml:"redis" json:"redis" validate:"omitempty,required_if=Type redis"`
+	PubSub *SourcePubSubConfig `yaml:"pubsub" json:"pubsub" validate:"omitempty,required_if=Type pubsub"`
+	Git    *SourceGitConfig    `yaml:"git" json:"git" validate:"omitempty,required_if=Type git"`
 }
 
 type CoAPProtocol string
