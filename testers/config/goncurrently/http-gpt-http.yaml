@@ -13,8 +13,8 @@ commands:
         "send",
         "--path",
         "/event",
-        "--testpayload",
-        "sentiment",
+        "--payload",
+        "{sentiment}",
         "--interval",
         "1s",
       ]

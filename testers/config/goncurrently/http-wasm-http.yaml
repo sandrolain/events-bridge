@@ -1,0 +1,16 @@
+commands:
+  - name: http-target
+    cmd: "./testers/bin/httptool"
+    args: ["serve"]
+    restartTries: 0
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      CONFIG_FILE_PATH: ./testers/config/bridge/http-wasm-http.config.yaml
+    args: []
+    restartTries: 0
+  - name: http-source
+    cmd: "./testers/bin/httptool"
+    args: ["send", "--interval", "1000us", "--payload", "{counter} - {nowtime}"]
+    startAfter: 5000
+killOthers: true

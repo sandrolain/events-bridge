@@ -1,0 +1,19 @@
+source:
+  type: "http"
+  http:
+    address: "localhost:8080"
+    method: "POST"
+    path: "/event"
+
+target:
+  type: "http"
+  http:
+    method: "POST"
+    url: "http://localhost:9090/api/data"
+  routines: 8
+
+runner:
+  type: "none"
+  wasm:
+    path: "./testers/bin/wasmrunner.wasm"
+  routines: 8

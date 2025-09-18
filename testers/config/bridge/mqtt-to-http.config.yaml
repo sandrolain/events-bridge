@@ -11,8 +11,10 @@ target:
   http:
     method: "POST"
     url: "http://localhost:8080/api/data"
+  routines: 8
 
 runner:
   type: "wasm"
   wasm:
     path: "./testers/bin/wasmrunner.wasm"
+  routines: 8

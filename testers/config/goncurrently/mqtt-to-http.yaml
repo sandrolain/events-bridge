@@ -11,6 +11,6 @@ commands:
     restartTries: 0
   - name: mqtt-source
     cmd: "./testers/bin/mqtttool"
-    args: ["send"]
-    restartTries: 0
+    args: ["send", "--interval", "500us", "--payload", "{counter} - {nowtime}"]
+    startAfter: 2000
 killOthers: true

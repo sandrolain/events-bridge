@@ -152,60 +152,9 @@ tasks:
       - go build -o ./bin/plugin ./plugins/plugin && du -h ./bin/plugin
       - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
 
-  run-plugin-config:
-    env:
-      CONFIG_FILE_PATH: ./testers/config/plugin.config.yaml
+  run:*:
+    desc: Run a specified task (e.g., run-mqtt-to-http)
+    vars:
+      CONFIG_NAME: "{{index .MATCH 0}}"
     cmds:
-      - go run ./src
-
-  run-phpcli-config:
-    env:
-      CONFIG_FILE_PATH: ./testers/config/phpcli.config.yaml
-    cmds:
-      - ./bin/events-bridge
-
-  run-wasmrunner-config:
-    env:
-      CONFIG_FILE_PATH: ./testers/config/wasmrunner.config.yaml
-    cmds:
-      - ./bin/events-bridge
-
-  run-mqtt-to-http:
-    cmds:
-      - cat ./testers/config/goncurrently/mqtt-to-http.yaml | ./testers/bin/goncurrently
-
-  run-pgsql-to-http:
-    cmds:
-      - cat ./testers/config/goncurrently/pgsql-to-http.yaml | ./testers/bin/goncurrently
-
-  run-nats-wasm-http:
-    cmds:
-      - cat ./testers/config/goncurrently/nats-wasm-http.yaml | ./testers/bin/goncurrently
-
-  run-nats-jlo-http:
-    cmds:
-      - cat ./testers/config/goncurrently/nats-jlo-http.yaml | ./testers/bin/goncurrently
-
-  run-nats-jlo-nats:
-    cmds:
-      - cat ./testers/config/goncurrently/nats-jlo-nats.yaml | ./testers/bin/goncurrently
-
-  run-gptrunner-config:
-    cmds:
-      - cat ./testers/config/goncurrently/gptrunner.yaml | ./testers/bin/goncurrently
-
-  run-kafka-jlo-kafka:
-    cmds:
-      - cat ./testers/config/goncurrently/kafka-jlo-kafka.yaml | ./testers/bin/goncurrently
-
-  run-redis-jlo-redis:
-    cmds:
-      - cat ./testers/config/goncurrently/redis-jlo-redis.yaml | ./testers/bin/goncurrently
-
-  run-redisstream-jlo-redisstream:
-    cmds:
-      - cat ./testers/config/goncurrently/redis-stream-jlo-redis-stream.yaml | ./testers/bin/goncurrently
-
-  run-git-wasm-http:
-    cmds:
-      - cat ./testers/config/goncurrently/git-wasm-http.yaml | ./testers/bin/goncurrently
+      - cat ./testers/config/goncurrently/{{.CONFIG_NAME}}.yaml | ./testers/bin/goncurrently
