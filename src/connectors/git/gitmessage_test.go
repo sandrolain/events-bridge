@@ -72,4 +72,4 @@ func TestGitMessageAckNak(t *testing.T) {
 }
 
 // Dummy implementation for message.Message interface check
-var _ message.Message = &GitMessage{}
+var _ message.SourceMessage = &GitMessage{}

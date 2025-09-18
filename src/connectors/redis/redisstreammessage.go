@@ -7,7 +7,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-var _ message.Message = &RedisStreamMessage{}
+var _ message.SourceMessage = &RedisStreamMessage{}
 
 type RedisStreamMessage struct {
 	msg     redis.XMessage
@@ -50,6 +50,6 @@ func (m *RedisStreamMessage) Nak() error {
 	return nil
 }
 
-func (m *RedisStreamMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *RedisStreamMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

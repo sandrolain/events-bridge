@@ -49,6 +49,16 @@ func main() {
 		fatal(err, "failed to load configuration file")
 	}
 
+	runnerRoutines := cfg.Runner.Routines
+	if runnerRoutines < 1 {
+		runnerRoutines = 1
+	}
+
+	targetRoutines := cfg.Target.Routines
+	if targetRoutines < 1 {
+		targetRoutines = 1
+	}
+
 	var source sources.Source
 	var runner runners.Runner
 	var target targets.Target
@@ -78,6 +88,8 @@ func main() {
 		slog.Info("no plugins configured")
 	}
 
+	// Setup source, runner, and target
+
 	source, err = createSource(cfg.Source)
 	if err != nil {
 		fatal(err, "failed to create source")
@@ -87,19 +99,6 @@ func main() {
 			slog.Error("failed to close source", "error", err)
 		}
 	}()
-
-	target, err = createTarget(cfg.Target)
-	if err != nil {
-		fatal(err, "failed to create target")
-	}
-	if target != nil {
-		slog.Info("target created, deferring close")
-		defer func() {
-			if err := target.Close(); err != nil {
-				slog.Error("failed to close target", "error", err)
-			}
-		}()
-	}
 
 	runner, err = createRunner(cfg.Runner)
 	if err != nil {
@@ -114,69 +113,70 @@ func main() {
 		}()
 	}
 
+	target, err = createTarget(cfg.Target)
+	if err != nil {
+		fatal(err, "failed to create target")
+	}
+	if target != nil {
+		slog.Info("target created, deferring close")
+		defer func() {
+			if err := target.Close(); err != nil {
+				slog.Error("failed to close target", "error", err)
+			}
+		}()
+	}
+
+	// Start the event incoming loop
+
 	c, err := source.Produce(cfg.Source.Buffer)
 	if err != nil {
 		fatal(err, "failed to produce messages from source")
 	}
+	defer func() {
+		if err := source.Close(); err != nil {
+			slog.Error("failed to close source", "error", err)
+		}
+	}()
 
-	var r <-chan message.Message
+	out := rill.FromChan(c, nil)
+
 	if runner != nil {
 		slog.Info("runner starting to consume messages from source")
-		routines := cfg.Runner.Routines
-		if routines < 1 {
-			routines = 1
-		}
 
-		outChan := make(chan message.Message, cfg.Source.Buffer)
-		errChan := make(chan error, routines)
-
-		rTry := rill.FromChan(r, nil)
-		out := rill.OrderedMap(rTry, routines, func(msg message.Message) (message.Message, error) {
+		out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
 			res, err := runner.Process(msg)
 			if err != nil {
-				if e := msg.Nak(); e != nil {
-					slog.Error("failed to nack message", "error", e)
-				}
+				msg.Nak()
+				slog.Error("error processing message", "error", err)
+				return nil, false, nil
 			}
-			return res, err
+			return res, true, nil
 		})
-
-		// Goroutine to close outChan when all routines are done
-		go func() {
-			for item := range out {
-				if item.Error != nil {
-					errChan <- item.Error
-					continue
-				}
-				outChan <- item.Value
-			}
-			close(outChan)
-			close(errChan)
-		}()
-
-		r = outChan
 	} else {
 		slog.Info("no runner configured, passing messages through without processing")
-		r = c
 	}
 
 	if target != nil {
-		slog.Info("target starting to consume messages from source")
+		slog.Info("target starting to consume messages")
 
-		err = target.Consume(r)
-		if err != nil {
-			fatal(err, "failed to consume messages from target")
-		}
-	} else {
-		go func() {
-			for msg := range r {
-
-				if err := msg.Ack(); err != nil {
-					slog.Error("failed to ack message", "error", err)
-				}
+		rill.ForEach(out, targetRoutines, func(msg *message.RunnerMessage) error {
+			err := target.Consume(msg)
+			if err != nil {
+				slog.Error("failed to consume message", "error", err)
+				msg.Nak()
+			} else {
+				msg.Ack()
 			}
-		}()
+			return nil
+		})
+	} else {
+		rill.ForEach(out, 1, func(msg *message.RunnerMessage) error {
+			msg.Reply()
+			return nil
+		})
 	}
+
+	rill.Drain(out)
 
 	select {}
 }

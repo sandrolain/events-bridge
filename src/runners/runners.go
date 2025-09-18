@@ -9,7 +9,7 @@ import (
 const NewMethodName = "New"
 
 type Runner interface {
-	Process(message.Message) (message.Message, error)
+	Process(*message.RunnerMessage) (*message.RunnerMessage, error)
 	Close() error
 }
 

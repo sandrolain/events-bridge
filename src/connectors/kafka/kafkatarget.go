@@ -16,63 +16,35 @@ func NewTarget(cfg *targets.TargetKafkaConfig) (targets.Target, error) {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka target")
 	}
 
+	l := slog.Default().With("context", "Kafka")
+
+	// Create the topic if it does not exist
+	err := ensureKafkaTopic(l, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor)
+	if err != nil {
+		return nil, fmt.Errorf("error creating/verifying topic: %w", err)
+	}
+
+	writer := kafka.NewWriter(kafka.WriterConfig{
+		Brokers: cfg.Brokers,
+		Topic:   cfg.Topic,
+	})
+	l.Info("Kafka target connected", "brokers", cfg.Brokers, "topic", cfg.Topic)
+
 	return &KafkaTarget{
 		config: cfg,
-		slog:   slog.Default().With("context", "Kafka"),
-		stopCh: make(chan struct{}),
+		slog:   l,
+		writer: writer,
 	}, nil
 }
 
 type KafkaTarget struct {
-	slog    *slog.Logger
-	config  *targets.TargetKafkaConfig
-	stopped bool
-	stopCh  chan struct{}
-	writer  *kafka.Writer
+	slog   *slog.Logger
+	config *targets.TargetKafkaConfig
+	writer *kafka.Writer
 }
 
-func (t *KafkaTarget) Consume(c <-chan message.Message) error {
-	// Create the topic if it does not exist
-	err := ensureKafkaTopic(t.slog, t.config.Brokers, t.config.Topic, t.config.Partitions, t.config.ReplicationFactor)
-	if err != nil {
-		t.slog.Error("error creating/verifying topic", "err", err)
-		return err
-	}
-
-	t.writer = kafka.NewWriter(kafka.WriterConfig{
-		Brokers: t.config.Brokers,
-		Topic:   t.config.Topic,
-	})
-	t.slog.Info("Kafka target connected", "brokers", t.config.Brokers, "topic", t.config.Topic)
-
-	go func() {
-		for {
-			select {
-			case <-t.stopCh:
-				return
-			case msg, ok := <-c:
-				if !ok {
-					return
-				}
-				err := t.publish(msg)
-				if err != nil {
-					t.slog.Error("error publishing message", "err", err)
-					if err := msg.Nak(); err != nil {
-						t.slog.Error("error naking message", "err", err)
-					}
-				} else {
-					if err := msg.Ack(); err != nil {
-						t.slog.Error("error acking message", "err", err)
-					}
-				}
-			}
-		}
-	}()
-	return nil
-}
-
-func (t *KafkaTarget) publish(msg message.Message) error {
-	data, err := msg.GetData()
+func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
@@ -82,6 +54,7 @@ func (t *KafkaTarget) publish(msg message.Message) error {
 	kmsg := kafka.Message{
 		Key:   msg.GetID(),
 		Value: data,
+		// TODO: add headers from metadata?
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -96,11 +69,8 @@ func (t *KafkaTarget) publish(msg message.Message) error {
 }
 
 func (t *KafkaTarget) Close() error {
-	t.stopped = true
-	if t.stopCh != nil {
-		close(t.stopCh)
-	}
 	if t.writer != nil {
+		t.slog.Info("closing Kafka writer")
 		if err := t.writer.Close(); err != nil {
 			t.slog.Error("error closing Kafka writer", "err", err)
 		}

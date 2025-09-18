@@ -5,7 +5,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-var _ message.Message = &MQTTMessage{}
+var _ message.SourceMessage = &MQTTMessage{}
 
 type MQTTMessage struct {
 	orig mqtt.Message
@@ -35,6 +35,6 @@ func (m *MQTTMessage) Nak() error {
 	return nil
 }
 
-func (m *MQTTMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *MQTTMessage) Reply(resp *message.ReplyData) error {
 	return nil
 }

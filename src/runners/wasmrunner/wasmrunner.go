@@ -86,13 +86,13 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 }
 
 // Process handles the logic for a single message
-func (w *WasmRunner) Process(msg message.Message) (message.Message, error) {
-	data, err := msg.GetData()
+func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
+	data, err := msg.GetSourceData()
 	if err != nil {
 		return nil, fmt.Errorf("error getting data from message: %w", err)
 	}
 
-	metadata, err := msg.GetMetadata()
+	metadata, err := msg.GetSourceMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("error getting metadata from message: %w", err)
 	}
@@ -125,13 +125,10 @@ func (w *WasmRunner) Process(msg message.Message) (message.Message, error) {
 		return nil, fmt.Errorf("error decoding output data: %w", err)
 	}
 
-	processed := &WasmMessage{
-		original: msg,
-		data:     outData,
-		metadata: outMeta,
-	}
+	msg.MergeMetadata(outMeta)
+	msg.SetData(outData)
 
-	return processed, nil
+	return msg, nil
 }
 
 func (w *WasmRunner) Close() error {

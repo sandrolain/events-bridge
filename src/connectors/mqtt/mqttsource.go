@@ -13,7 +13,7 @@ import (
 type MQTTSource struct {
 	config  *sources.SourceMQTTConfig
 	slog    *slog.Logger
-	c       chan message.Message
+	c       chan *message.RunnerMessage
 	client  mqtt.Client
 	started bool
 }
@@ -28,8 +28,8 @@ func NewSource(cfg *sources.SourceMQTTConfig) (sources.Source, error) {
 	}, nil
 }
 
-func (s *MQTTSource) Produce(buffer int) (<-chan message.Message, error) {
-	s.c = make(chan message.Message, buffer)
+func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting MQTT source", "address", s.config.Address, "topic", s.config.Topic, "consumerGroup", s.config.ConsumerGroup)
 
@@ -61,11 +61,10 @@ func (s *MQTTSource) Produce(buffer int) (<-chan message.Message, error) {
 
 	handler := func(client mqtt.Client, msg mqtt.Message) {
 		done := make(chan message.ResponseStatus)
-		m := &MQTTMessage{
+		s.c <- message.NewRunnerMessage(&MQTTMessage{
 			orig: msg,
 			done: done,
-		}
-		s.c <- m
+		})
 		// Wait for Ack/Nak or timeout
 		select {
 		case <-done:

@@ -34,12 +34,12 @@ type mockMessage struct {
 	nak      bool
 }
 
-func (m *mockMessage) GetID() []byte                                         { return []byte("id") }
-func (m *mockMessage) GetMetadata() (map[string][]string, error)             { return m.metadata, nil }
-func (m *mockMessage) GetData() ([]byte, error)                              { return m.data, nil }
-func (m *mockMessage) Ack() error                                            { m.ack = true; return nil }
-func (m *mockMessage) Nak() error                                            { m.nak = true; return nil }
-func (m *mockMessage) Reply(data []byte, metadata map[string][]string) error { return nil }
+func (m *mockMessage) GetID() []byte                             { return []byte("id") }
+func (m *mockMessage) GetMetadata() (map[string][]string, error) { return m.metadata, nil }
+func (m *mockMessage) GetData() ([]byte, error)                  { return m.data, nil }
+func (m *mockMessage) Ack() error                                { m.ack = true; return nil }
+func (m *mockMessage) Nak() error                                { m.nak = true; return nil }
+func (m *mockMessage) Reply(data *message.ReplyData) error       { return nil }
 
 func TestNewTargetDefaultTimeout(t *testing.T) {
 	const errMsg = "unexpected error: %v"
@@ -64,11 +64,9 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *HTTPTarget type")
 	}
-	ch := make(chan message.Message, 1)
-	msg := &mockMessage{metadata: map[string][]string{"X-Test": {"v"}}, data: []byte("payload")}
-	ch <- msg
-	close(ch)
-	err = httpTgt.Consume(ch)
+	m := &mockMessage{metadata: map[string][]string{"X-Test": {"v"}}, data: []byte("payload")}
+	msg := message.NewRunnerMessage(m)
+	err = httpTgt.Consume(msg)
 	if err != nil {
 		t.Fatalf(errMsg, err)
 	}
@@ -80,7 +78,8 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 func TestHTTPTargetSendErrorMetadata(t *testing.T) {
 	httpTgt := &HTTPTarget{config: &targets.TargetHTTPConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &metaErrorMock{}
-	err := httpTgt.send(msg)
+	m := message.NewRunnerMessage(msg)
+	err := httpTgt.Consume(m)
 	if err == nil || err.Error() != "error getting metadata: fail meta" {
 		t.Fatalf("expected metadata error, got: %v", err)
 	}
@@ -89,7 +88,8 @@ func TestHTTPTargetSendErrorMetadata(t *testing.T) {
 func TestHTTPTargetSendErrorData(t *testing.T) {
 	httpTgt := &HTTPTarget{config: &targets.TargetHTTPConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &dataErrorMock{}
-	err := httpTgt.send(msg)
+	m := message.NewRunnerMessage(msg)
+	err := httpTgt.Consume(m)
 	if err == nil || err.Error() != "error getting data: fail data" {
 		t.Fatalf("expected data error, got: %v", err)
 	}

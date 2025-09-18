@@ -39,37 +39,8 @@ type CoAPTarget struct {
 	stopCh  chan struct{}
 }
 
-func (t *CoAPTarget) Consume(c <-chan message.Message) error {
-	go func() {
-		for {
-			select {
-			case <-t.stopCh:
-				return
-			case msg := <-c:
-				err := t.send(msg)
-				if err != nil {
-					t.slog.Error("error publishing message", "err", err)
-					if err := msg.Nak(); err != nil {
-						t.slog.Error("error naking message", "err", err)
-					}
-				} else {
-					if err := msg.Ack(); err != nil {
-						t.slog.Error("error acking message", "err", err)
-					}
-				}
-			}
-		}
-	}()
-	return nil
-}
-
-// Send is exported only for integration tests
-func (t *CoAPTarget) Send(msg message.Message) error {
-	return t.send(msg)
-}
-
-func (t *CoAPTarget) send(msg message.Message) error {
-	data, err := msg.GetData()
+func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}

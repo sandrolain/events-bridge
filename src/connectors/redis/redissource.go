@@ -13,7 +13,7 @@ import (
 type RedisSource struct {
 	config  *sources.SourceRedisConfig
 	slog    *slog.Logger
-	c       chan message.Message
+	c       chan *message.RunnerMessage
 	client  *redis.Client
 	pubsub  *redis.PubSub
 	started bool
@@ -22,7 +22,7 @@ type RedisSource struct {
 type RedisStreamSource struct {
 	config         *sources.SourceRedisConfig
 	slog           *slog.Logger
-	c              chan message.Message
+	c              chan *message.RunnerMessage
 	client         *redis.Client
 	started        bool
 	lastID         string
@@ -47,8 +47,8 @@ func NewSource(cfg *sources.SourceRedisConfig) (sources.Source, error) {
 	return nil, fmt.Errorf("invalid config for Redis source")
 }
 
-func (s *RedisSource) Produce(buffer int) (<-chan message.Message, error) {
-	s.c = make(chan message.Message, buffer)
+func (s *RedisSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting Redis source", "address", s.config.Address, "channel", s.config.Channel)
 
@@ -67,7 +67,7 @@ func (s *RedisSource) consume() {
 	ch := s.pubsub.Channel()
 	for msg := range ch {
 		m := &RedisMessage{msg: msg}
-		s.c <- m
+		s.c <- message.NewRunnerMessage(m)
 	}
 }
 
@@ -88,8 +88,8 @@ func (s *RedisSource) Close() error {
 	return nil
 }
 
-func (s *RedisStreamSource) Produce(buffer int) (<-chan message.Message, error) {
-	s.c = make(chan message.Message, buffer)
+func (s *RedisStreamSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting Redis stream source", "address", s.config.Address, "stream", s.config.Stream)
 
@@ -141,7 +141,7 @@ func (s *RedisStreamSource) consume() {
 		for _, xstream := range res {
 			for _, xmsg := range xstream.Messages {
 				m := &RedisStreamMessage{msg: xmsg, dataKey: dataKey}
-				s.c <- m
+				s.c <- message.NewRunnerMessage(m)
 				if s.useConsumerGrp {
 					_ = s.client.XAck(context.Background(), s.config.Stream, s.config.ConsumerGroup, xmsg.ID).Err()
 				} else {

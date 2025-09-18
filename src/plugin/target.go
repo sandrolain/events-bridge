@@ -9,16 +9,16 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-func (p *Plugin) Target(ctx context.Context, msg message.Message) (err error) {
+func (p *Plugin) Target(ctx context.Context, msg *message.RunnerMessage) (err error) {
 	uid := uuid.New().String()
 
-	data, e := msg.GetData()
+	data, e := msg.GetTargetData()
 	if e != nil {
 		err = fmt.Errorf("failed to get message data: %w", e)
 		return
 	}
 
-	metadata, e := msg.GetMetadata()
+	metadata, e := msg.GetTargetMetadata()
 	if e != nil {
 		err = fmt.Errorf("failed to get message metadata: %w", e)
 		return

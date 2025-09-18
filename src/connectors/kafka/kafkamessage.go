@@ -8,7 +8,7 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-var _ message.Message = &KafkaMessage{}
+var _ message.SourceMessage = &KafkaMessage{}
 
 type KafkaMessage struct {
 	msg    *kafka.Message
@@ -43,6 +43,6 @@ func (m *KafkaMessage) Nak() error {
 	return nil
 }
 
-func (m *KafkaMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *KafkaMessage) Reply(data *message.ReplyData) error {
 	return nil
 }

@@ -50,34 +50,10 @@ func NewTarget(mgr *plugin.PluginManager, cfg *targets.TargetPluginConfig) (targ
 	return t, nil
 }
 
-func (t *PluginTarget) Consume(c <-chan message.Message) error {
-	t.slog.Info("starting plugin target", "name", t.config.Name, "plugin", t.plg.Config.Name)
-	go func() {
-		for {
-			select {
-			case <-t.stopCh:
-				return
-			case msg, ok := <-c:
-				if !ok {
-					return
-				}
-				ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
-				err := t.plg.Target(ctx, msg)
-				if err != nil {
-					t.slog.Error("error publishing message", "err", err)
-					if err := msg.Nak(); err != nil {
-						t.slog.Error("error naking message", "err", err)
-					}
-				} else {
-					if err := msg.Ack(); err != nil {
-						t.slog.Error("error acking message", "err", err)
-					}
-				}
-				cancel()
-			}
-		}
-	}()
-	return nil
+func (t *PluginTarget) Consume(msg *message.RunnerMessage) error {
+	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	defer cancel()
+	return t.plg.Target(ctx, msg)
 }
 
 func (t *PluginTarget) Close() error {

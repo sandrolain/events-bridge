@@ -7,11 +7,10 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-var _ message.Message = &PluginMessage{}
+var _ message.SourceMessage = &PluginMessage{}
 
 type PluginMessage struct {
-	original message.Message
-	res      *proto.PluginMessage
+	res *proto.PluginMessage
 }
 
 func (m *PluginMessage) GetID() []byte {
@@ -37,13 +36,13 @@ func (m *PluginMessage) GetData() ([]byte, error) {
 }
 
 func (m *PluginMessage) Ack() error {
-	return m.original.Ack()
+	return nil
 }
 
 func (m *PluginMessage) Nak() error {
-	return m.original.Nak()
+	return nil
 }
 
-func (m *PluginMessage) Reply(data []byte, metadata map[string][]string) error {
-	return m.original.Reply(data, metadata)
+func (m *PluginMessage) Reply(d *message.ReplyData) error {
+	return nil
 }

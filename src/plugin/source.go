@@ -9,7 +9,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan message.Message, closeFn func(), err error) {
+func (p *Plugin) Source(buffer int, config map[string]string) (<-chan *message.RunnerMessage, func(), error) {
 	cfg := []*proto.Config{}
 	for k, v := range config {
 		cfg = append(cfg, &proto.Config{
@@ -22,11 +22,10 @@ func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan messag
 		Configs: cfg,
 	})
 	if e != nil {
-		err = fmt.Errorf("failed to execute input: %w", e)
-		return
+		return nil, nil, fmt.Errorf("failed to execute input: %w", e)
 	}
 
-	resChan := make(chan message.Message, buffer)
+	resChan := make(chan *message.RunnerMessage, buffer)
 	stopChan := make(chan struct{})
 
 	go func() {
@@ -46,15 +45,14 @@ func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan messag
 					p.slog.Error("failed to receive input", "error", e)
 					continue
 				}
-				resChan <- &PluginMessage{
+				resChan <- message.NewRunnerMessage(&PluginMessage{
 					res: streamRes,
-				}
+				})
 			}
 		}
 	}()
 
-	res = resChan
-	closeFn = func() {
+	closeFn := func() {
 		// close stopChan only if not already closed
 		select {
 		case <-stopChan:
@@ -65,5 +63,5 @@ func (p *Plugin) Source(buffer int, config map[string]string) (res <-chan messag
 		}
 	}
 
-	return
+	return resChan, closeFn, nil
 }

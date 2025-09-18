@@ -22,12 +22,12 @@ type dummyMessage struct {
 	acked, naked bool
 }
 
-func (m *dummyMessage) GetID() []byte                                         { return []byte("dummy-id") }
-func (m *dummyMessage) GetMetadata() (map[string][]string, error)             { return nil, nil }
-func (m *dummyMessage) GetData() ([]byte, error)                              { return m.data, nil }
-func (m *dummyMessage) Ack() error                                            { m.acked = true; return nil }
-func (m *dummyMessage) Nak() error                                            { m.naked = true; return nil }
-func (m *dummyMessage) Reply(data []byte, metadata map[string][]string) error { return nil }
+func (m *dummyMessage) GetID() []byte                             { return []byte("dummy-id") }
+func (m *dummyMessage) GetMetadata() (map[string][]string, error) { return nil, nil }
+func (m *dummyMessage) GetData() ([]byte, error)                  { return m.data, nil }
+func (m *dummyMessage) Ack() error                                { m.acked = true; return nil }
+func (m *dummyMessage) Nak() error                                { m.naked = true; return nil }
+func (m *dummyMessage) Reply(data *message.ReplyData) error       { return nil }
 
 // UDP test server that uses mux logic like coapsource
 func startUDPServer(t *testing.T, addr string, onMsg func()) {
@@ -79,9 +79,9 @@ func startTCPServer(t *testing.T, addr string, onMsg func()) {
 	time.Sleep(100 * time.Millisecond)
 }
 
-// Exported only for tests: SendTest is a test helper to invoke the unexported send method
-func SendTest(tgt *coaptarget.CoAPTarget, msg message.Message) error {
-	return tgt.Send(msg)
+// Exported only for tests: sendTest is a test helper to invoke the unexported send method
+func sendTest(tgt *coaptarget.CoAPTarget, msg message.SourceMessage) error {
+	return tgt.Consume(message.NewRunnerMessage(msg))
 }
 
 func TestIntegrationSendUDP(t *testing.T) {
@@ -99,7 +99,7 @@ func TestIntegrationSendUDP(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	msg := &dummyMessage{data: []byte("hello udp")}
-	err = SendTest(target.(*coaptarget.CoAPTarget), msg)
+	err = sendTest(target.(*coaptarget.CoAPTarget), msg)
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestIntegrationSendTCP(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	msg := &dummyMessage{data: []byte("hello tcp")}
-	err = SendTest(target.(*coaptarget.CoAPTarget), msg)
+	err = sendTest(target.(*coaptarget.CoAPTarget), msg)
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-var _ message.Message = &PubSubMessage{}
+var _ message.SourceMessage = &PubSubMessage{}
 
 type PubSubMessage struct {
 	msg *pubsub.Message
@@ -35,6 +35,6 @@ func (m *PubSubMessage) Nak() error {
 	return nil
 }
 
-func (m *PubSubMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *PubSubMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

@@ -7,15 +7,15 @@ import (
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 	"github.com/sandrolain/events-bridge/src/message"
-	msg "github.com/sandrolain/events-bridge/src/message"
 )
 
-var _ msg.Message = &CoAPMessage{}
+var _ message.SourceMessage = &CoAPMessage{}
 
 type CoAPMessage struct {
-	req  *coapmux.Message
-	w    coapmux.ResponseWriter
-	done chan msg.ResponseStatus
+	req   *coapmux.Message
+	w     coapmux.ResponseWriter
+	done  chan message.ResponseStatus
+	reply chan *message.ReplyData
 }
 
 func (m *CoAPMessage) GetID() []byte {
@@ -64,6 +64,7 @@ func (m *CoAPMessage) Nak() error {
 	return nil
 }
 
-func (m *CoAPMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *CoAPMessage) Reply(data *message.ReplyData) error {
+	m.reply <- data
 	return nil
 }

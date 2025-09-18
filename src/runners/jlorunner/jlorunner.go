@@ -62,11 +62,11 @@ func New(cfg *runners.RunnerJSONLogicConfig) (runners.Runner, error) {
 }
 
 // Process applies the JSONLogic rule to the message
-func (j *JSONLogicRunner) Process(msg message.Message) (message.Message, error) {
+func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), j.timeout)
 	defer cancel()
 
-	data, err := msg.GetData()
+	data, err := msg.GetSourceData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
@@ -106,12 +106,9 @@ func (j *JSONLogicRunner) Process(msg message.Message) (message.Message, error) 
 		return nil, fmt.Errorf("failed to marshal jsonlogic result: %w", err)
 	}
 
-	processed := &jsonlogicMessage{
-		original: msg,
-		data:     output,
-	}
+	msg.SetData(output)
 
-	return processed, nil
+	return msg, nil
 }
 
 func (j *JSONLogicRunner) Close() error {

@@ -5,7 +5,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-var _ message.Message = &GitMessage{}
+var _ message.SourceMessage = &GitMessage{}
 
 type GitMessage struct {
 	changes []map[string]interface{}
@@ -38,6 +38,6 @@ func (m *GitMessage) Nak() error {
 	return nil
 }
 
-func (m *GitMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *GitMessage) Reply(data *message.ReplyData) error {
 	return nil
 }

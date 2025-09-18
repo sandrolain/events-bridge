@@ -14,7 +14,7 @@ type PluginSource struct {
 	slog   *slog.Logger
 	mgr    *plugin.PluginManager
 	plg    *plugin.Plugin
-	c      <-chan message.Message
+	c      <-chan *message.RunnerMessage
 	close  func()
 }
 
@@ -40,15 +40,14 @@ func NewSource(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sour
 	return ps, nil
 }
 
-func (s *PluginSource) Produce(buffer int) (<-chan message.Message, error) {
+func (s *PluginSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.slog.Info("starting plugin source", "id", s.config.Name)
-	c, closeFn, err := s.plg.Source(buffer, s.config.Config)
+	var err error
+	s.c, s.close, err = s.plg.Source(buffer, s.config.Config)
 	if err != nil {
 		return nil, err
 	}
-	s.c = c
-	s.close = closeFn
-	return c, nil
+	return s.c, nil
 }
 
 func (s *PluginSource) Close() error {

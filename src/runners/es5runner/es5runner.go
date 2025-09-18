@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -23,9 +22,7 @@ type ES5Runner struct {
 	cfg     *runners.RunnerES5Config
 	slog    *slog.Logger
 	program *goja.Program
-	mu      sync.Mutex
 	timeout time.Duration
-	stopCh  chan struct{} // stop channel
 }
 
 // New creates a new instance of ES5Runner
@@ -62,19 +59,18 @@ func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
 		slog:    log,
 		program: prog,
 		timeout: timeout,
-		stopCh:  make(chan struct{}),
 	}, nil
 }
 
 // processMessage handles the logic for a single message
-func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
+func (e *ES5Runner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
 	defer cancel()
 
 	vm := goja.New()
 	//vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 
-	result := &ES5Message{original: msg}
+	result := msg
 	if err := vm.Set("message", result); err != nil {
 		return nil, fmt.Errorf("failed to set message: %w", err)
 	}
@@ -179,14 +175,5 @@ func (e *ES5Runner) Process(msg message.Message) (message.Message, error) {
 }
 
 func (e *ES5Runner) Close() error {
-	e.slog.Info("closing es5 runner")
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	select {
-	case <-e.stopCh:
-		// already closed
-	default:
-		close(e.stopCh)
-	}
 	return nil
 }

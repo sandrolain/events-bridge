@@ -5,7 +5,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-var _ message.Message = &RedisMessage{}
+var _ message.SourceMessage = &RedisMessage{}
 
 type RedisMessage struct {
 	msg *redis.Message
@@ -31,6 +31,6 @@ func (m *RedisMessage) Nak() error {
 	return nil
 }
 
-func (m *RedisMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *RedisMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

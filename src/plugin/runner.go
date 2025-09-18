@@ -9,17 +9,17 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-func (p *Plugin) Runner(msg message.Message) (res message.Message, err error) {
+func (p *Plugin) Runner(msg *message.RunnerMessage) (res *message.RunnerMessage, err error) {
 	uid := uuid.New().String()
 
-	data, err := msg.GetData()
+	data, err := msg.GetSourceData()
 	if err != nil {
 		err = fmt.Errorf("failed to get message data: %w", err)
 		return
 	}
 
 	var metadata []*proto.Metadata
-	meta, e := msg.GetMetadata()
+	meta, e := msg.GetSourceMetadata()
 	if e != nil {
 		err = fmt.Errorf("failed to get message metadata: %w", e)
 		return
@@ -46,9 +46,5 @@ func (p *Plugin) Runner(msg message.Message) (res message.Message, err error) {
 		return
 	}
 
-	res = &PluginMessage{
-		res: runRes,
-	}
-
-	return
+	return message.NewRunnerMessage(&PluginMessage{res: runRes}), nil
 }

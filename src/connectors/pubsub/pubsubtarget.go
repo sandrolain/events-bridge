@@ -16,10 +16,23 @@ func NewTarget(cfg *targets.TargetPubSubConfig) (targets.Target, error) {
 	if cfg.ProjectID == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("projectID and topic are required for PubSub target")
 	}
+
+	l := slog.Default().With("context", "PubSub")
+
+	ctx := context.Background()
+	client, err := pubsub.NewClient(ctx, cfg.ProjectID)
+	if err != nil {
+		return nil, fmt.Errorf("error creating PubSub client: %w", err)
+	}
+	publisher := client.Publisher(cfg.Topic)
+
+	l.Info("PubSub target connected", "projectID", cfg.ProjectID, "topic", cfg.Topic)
+
 	return &PubSubTarget{
-		config: cfg,
-		slog:   slog.Default().With("context", "PubSub"),
-		stopCh: make(chan struct{}),
+		config:    cfg,
+		slog:      l,
+		client:    client,
+		publisher: publisher,
 	}, nil
 }
 
@@ -32,57 +45,15 @@ type PubSubTarget struct {
 	publisher *pubsub.Publisher
 }
 
-func (t *PubSubTarget) Consume(c <-chan message.Message) error {
-	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, t.config.ProjectID)
-	if err != nil {
-		return fmt.Errorf("error creating PubSub client: %w", err)
-	}
-	t.client = client
-	t.publisher = client.Publisher(t.config.Topic)
-
-	t.slog.Info("PubSub target connected", "projectID", t.config.ProjectID, "topic", t.config.Topic)
-
-	go t.startConsumer(ctx, c)
-	return nil
-}
-
-func (t *PubSubTarget) startConsumer(ctx context.Context, c <-chan message.Message) {
-	for {
-		select {
-		case <-t.stopCh:
-			return
-		case msg, ok := <-c:
-			if !ok {
-				return
-			}
-			t.handleMessage(msg)
-		}
-	}
-}
-
-func (t *PubSubTarget) handleMessage(msg message.Message) {
-	if err := t.publish(msg); err != nil {
-		t.slog.Error("error publishing message", "err", err)
-		if nackErr := msg.Nak(); nackErr != nil {
-			t.slog.Error("error naking message", "err", nackErr)
-		}
-		return
-	}
-	if ackErr := msg.Ack(); ackErr != nil {
-		t.slog.Error("error acking message", "err", ackErr)
-	}
-}
-
-func (t *PubSubTarget) publish(msg message.Message) error {
-	data, err := msg.GetData()
+func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
 	// Get metadata and convert to PubSub attributes
 	attributes := make(map[string]string)
-	if meta, err := msg.GetMetadata(); err == nil {
+	if meta, err := msg.GetTargetMetadata(); err == nil {
 		for k, v := range meta {
 			if len(v) > 0 {
 				attributes[k] = strings.Join(v, ";")

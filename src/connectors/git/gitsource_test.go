@@ -72,7 +72,7 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 		PollInterval: 0,
 	}
 	src := &GitSource{config: cfg, slog: slog.Default()}
-	src.c = make(chan message.Message, 1)
+	src.c = make(chan *message.RunnerMessage, 1)
 	src.lastHash = plumbing.Hash{}
 
 	done := make(chan struct{})
@@ -127,7 +127,7 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 	}
 	src := &GitSource{config: cfg, slog: slog.Default()}
 	src.lastHash = plumbing.Hash{}
-	src.c = make(chan message.Message, 1)
+	src.c = make(chan *message.RunnerMessage, 1)
 	done := make(chan struct{})
 	go func() {
 		src.checkForChanges()
@@ -185,7 +185,7 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 	}
 	src := &GitSource{config: cfg, slog: slog.Default()}
 	src.lastHash = plumbing.Hash{} // force detection
-	src.c = make(chan message.Message, 1)
+	src.c = make(chan *message.RunnerMessage, 1)
 
 	// Should not panic and should process the commit
 	done := make(chan struct{})

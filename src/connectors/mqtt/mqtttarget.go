@@ -15,10 +15,29 @@ func NewTarget(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT target")
 	}
+
+	opts := mqtt.NewClientOptions().AddBroker("tcp://" + cfg.Address)
+	clientID := cfg.ClientID
+	if clientID == "" {
+		clientID = "events-bridge-target-" + fmt.Sprint(time.Now().UnixNano())
+	}
+	opts.SetClientID(clientID)
+	opts.SetAutoReconnect(true)
+	opts.SetConnectRetry(true)
+	opts.SetConnectRetryInterval(2 * time.Second)
+
+	client := mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		return nil, fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
+	}
+
+	l := slog.Default().With("context", "MQTT")
+
+	l.Info("MQTT target connected", "address", cfg.Address, "topic", cfg.Topic)
+
 	return &MQTTTarget{
 		config: cfg,
-		slog:   slog.Default().With("context", "MQTT"),
-		stopCh: make(chan struct{}),
+		slog:   l,
 	}, nil
 }
 
@@ -30,59 +49,15 @@ type MQTTTarget struct {
 	client  mqtt.Client
 }
 
-func (t *MQTTTarget) Consume(c <-chan message.Message) error {
-	opts := mqtt.NewClientOptions().AddBroker("tcp://" + t.config.Address)
-	clientID := t.config.ClientID
-	if clientID == "" {
-		clientID = "events-bridge-target-" + fmt.Sprint(time.Now().UnixNano())
-	}
-	opts.SetClientID(clientID)
-	opts.SetAutoReconnect(true)
-	opts.SetConnectRetry(true)
-	opts.SetConnectRetryInterval(2 * time.Second)
-
-	t.client = mqtt.NewClient(opts)
-	if token := t.client.Connect(); token.Wait() && token.Error() != nil {
-		return fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
-	}
-
-	t.slog.Info("MQTT target connected", "address", t.config.Address, "topic", t.config.Topic)
-
-	go func() {
-		for {
-			select {
-			case <-t.stopCh:
-				return
-			case msg, ok := <-c:
-				if !ok {
-					return
-				}
-				err := t.publish(msg)
-				if err != nil {
-					t.slog.Error("error publishing message", "err", err)
-					if err := msg.Nak(); err != nil {
-						t.slog.Error("error naking message", "err", err)
-					}
-				} else {
-					if err := msg.Ack(); err != nil {
-						t.slog.Error("error acking message", "err", err)
-					}
-				}
-			}
-		}
-	}()
-	return nil
-}
-
-func (t *MQTTTarget) publish(msg message.Message) error {
-	data, err := msg.GetData()
+func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
 	topic := t.config.Topic
 	if t.config.TopicFromMetadataKey != "" {
-		metadata, _ := msg.GetMetadata()
+		metadata, _ := msg.GetTargetMetadata()
 		if v, ok := metadata[t.config.TopicFromMetadataKey]; ok && len(v) > 0 {
 			topic = v[0]
 		}
@@ -100,7 +75,9 @@ func (t *MQTTTarget) publish(msg message.Message) error {
 	if token.Error() != nil {
 		return fmt.Errorf("error publishing to MQTT: %w", token.Error())
 	}
+
 	t.slog.Debug("MQTT message published", "topic", topic)
+
 	return nil
 }
 

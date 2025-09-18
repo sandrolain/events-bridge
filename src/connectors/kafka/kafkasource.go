@@ -13,7 +13,7 @@ import (
 type KafkaSource struct {
 	config  *sources.SourceKafkaConfig
 	slog    *slog.Logger
-	c       chan message.Message
+	c       chan *message.RunnerMessage
 	reader  *kafka.Reader
 	started bool
 }
@@ -28,7 +28,7 @@ func NewSource(cfg *sources.SourceKafkaConfig) (sources.Source, error) {
 	}, nil
 }
 
-func (s *KafkaSource) Produce(buffer int) (<-chan message.Message, error) {
+func (s *KafkaSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	// Create the topic if it does not exist
 	err := ensureKafkaTopic(s.slog, s.config.Brokers, s.config.Topic, s.config.Partitions, s.config.ReplicationFactor)
 	if err != nil {
@@ -36,7 +36,7 @@ func (s *KafkaSource) Produce(buffer int) (<-chan message.Message, error) {
 		return nil, err
 	}
 
-	s.c = make(chan message.Message, buffer)
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting Kafka source", "brokers", s.config.Brokers, "topic", s.config.Topic, "groupID", s.config.GroupID)
 
@@ -60,7 +60,7 @@ func (s *KafkaSource) Produce(buffer int) (<-chan message.Message, error) {
 				msg:    &m,
 				reader: r,
 			}
-			s.c <- msg
+			s.c <- message.NewRunnerMessage(msg)
 		}
 	}()
 

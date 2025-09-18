@@ -42,19 +42,18 @@ func New(cfg *runners.RunnerCLIConfig) (runners.Runner, error) {
 		cfg:     cfg,
 		slog:    log,
 		timeout: timeout,
-		stopCh:  make(chan struct{}),
 	}, nil
 }
 
-func (c *CLIRunner) Process(msg message.Message) (message.Message, error) {
+func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	meta, err := msg.GetMetadata()
+	meta, err := msg.GetSourceMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
-	data, err := msg.GetData()
+	data, err := msg.GetSourceData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
@@ -85,11 +84,12 @@ func (c *CLIRunner) Process(msg message.Message) (message.Message, error) {
 		return nil, fmt.Errorf("failed to decode cli output: %w", err)
 	}
 
-	processed := &cliMessage{
-		original: msg,
-		meta:     outMeta,
-		data:     outData,
-	}
+	msg.MergeMetadata(outMeta)
+	msg.SetData(outData)
 
-	return processed, nil
+	return msg, nil
+}
+
+func (c *CLIRunner) Close() error {
+	return nil
 }

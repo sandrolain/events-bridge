@@ -46,44 +46,14 @@ type HTTPTarget struct {
 	client  *fasthttp.Client
 }
 
-func (s *HTTPTarget) Consume(c <-chan message.Message) (err error) {
-	s.slog.Info("starting HTTP target", "url", s.config.URL, "method", s.config.Method)
-	go func() {
-		for {
-			select {
-			case <-s.stopCh:
-				return
-			case res, ok := <-c:
-				if !ok {
-					return
-				}
-				err := s.send(res)
-				if err != nil {
-					s.slog.Error("error sending data", "err", err)
-					err := res.Nak()
-					if err != nil {
-						s.slog.Error("error naking message", "err", err)
-					}
-				} else {
-					err := res.Ack()
-					if err != nil {
-						s.slog.Error("error acking message", "err", err)
-					}
-				}
-			}
-		}
-	}()
-	return
-}
-
-func (s *HTTPTarget) send(result message.Message) (err error) {
-	metadata, err := result.GetMetadata()
+func (s *HTTPTarget) Consume(result *message.RunnerMessage) (err error) {
+	metadata, err := result.GetTargetMetadata()
 	if err != nil {
 		err = fmt.Errorf("error getting metadata: %w", err)
 		return
 	}
 
-	data, err := result.GetData()
+	data, err := result.GetTargetData()
 	if err != nil {
 		err = fmt.Errorf("error getting data: %w", err)
 		return

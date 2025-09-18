@@ -15,11 +15,21 @@ func NewTarget(cfg *targets.TargetNATSConfig) (targets.Target, error) {
 	if timeout <= 0 {
 		timeout = targets.DefaultTimeout
 	}
+
+	l := slog.Default().With("context", "NATS")
+
+	var err error
+	conn, err := nats.Connect(cfg.Address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to NATS server: %w", err)
+	}
+	l.Info("NATS target connected", "address", cfg.Address, "subject", cfg.Subject)
+
 	return &NATSTarget{
 		config:  cfg,
 		timeout: timeout,
-		slog:    slog.Default().With("context", "NATS"),
-		stopCh:  make(chan struct{}),
+		slog:    l,
+		conn:    conn,
 	}, nil
 }
 
@@ -27,54 +37,18 @@ type NATSTarget struct {
 	slog    *slog.Logger
 	config  *targets.TargetNATSConfig
 	timeout time.Duration
-	stopped bool
-	stopCh  chan struct{}
 	conn    *nats.Conn
 }
 
-func (t *NATSTarget) Consume(c <-chan message.Message) error {
-	var err error
-	t.conn, err = nats.Connect(t.config.Address)
-	if err != nil {
-		return fmt.Errorf("failed to connect to NATS server: %w", err)
-	}
-	t.slog.Info("NATS target connected", "address", t.config.Address, "subject", t.config.Subject)
-
-	go func() {
-		for {
-			select {
-			case <-t.stopCh:
-				return
-			case msg, ok := <-c:
-				if !ok {
-					return
-				}
-				err := t.publish(msg)
-				if err != nil {
-					t.slog.Error("error publishing message", "err", err)
-					if err := msg.Nak(); err != nil {
-						t.slog.Error("error naking message", "err", err)
-					}
-				} else {
-					if err := msg.Ack(); err != nil {
-						t.slog.Error("error acking message", "err", err)
-					}
-				}
-			}
-		}
-	}()
-	return nil
-}
-
-func (t *NATSTarget) publish(msg message.Message) error {
-	data, err := msg.GetData()
+func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
 	subject := t.config.Subject
 	if t.config.SubjectFromMetadataKey != "" {
-		metadata, _ := msg.GetMetadata()
+		metadata, _ := msg.GetTargetMetadata()
 		if v, ok := metadata[t.config.SubjectFromMetadataKey]; ok && len(v) > 0 {
 			subject = v[0]
 		}
@@ -91,10 +65,6 @@ func (t *NATSTarget) publish(msg message.Message) error {
 }
 
 func (t *NATSTarget) Close() error {
-	t.stopped = true
-	if t.stopCh != nil {
-		close(t.stopCh)
-	}
 	if t.conn != nil && t.conn.IsConnected() {
 		t.conn.Close()
 	}

@@ -46,7 +46,7 @@ func New(mgr *plugin.PluginManager, cfg *runners.RunnerPluginConfig) (runners.Ru
 	}, nil
 }
 
-func (p *PluginRunner) Process(msg message.Message) (message.Message, error) {
+func (p *PluginRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
 	return p.plg.Runner(msg)
 }
 

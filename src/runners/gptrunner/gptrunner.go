@@ -24,7 +24,6 @@ type GPTRunner struct {
 	client  *openai.Client
 	timeout time.Duration
 	mu      sync.Mutex
-	stopCh  chan struct{}
 }
 
 type inputItem struct {
@@ -66,11 +65,10 @@ func New(cfg *runners.RunnerGPTRunnerConfig) (runners.Runner, error) {
 		slog:    log,
 		client:  client,
 		timeout: timeout,
-		stopCh:  make(chan struct{}),
 	}, nil
 }
 
-func (g *GPTRunner) Process(msg message.Message) (message.Message, error) {
+func (g *GPTRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
 	prompt, err := g.formatPrompt(msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to format prompt: %w", err)
@@ -96,17 +94,14 @@ func (g *GPTRunner) Process(msg message.Message) (message.Message, error) {
 	result := resp.Choices[0].Message.Content
 	g.slog.Debug("openai response content", "content", result)
 
-	processed := &gptMessage{
-		original: msg,
-		data:     []byte(result),
-	}
+	msg.SetData([]byte(result))
 
-	return processed, nil
+	return msg, nil
 }
 
 // formatPromptItems builds the prompt for a batch of items
-func (g *GPTRunner) formatPrompt(msg message.Message) (string, error) {
-	b, err := msg.GetData()
+func (g *GPTRunner) formatPrompt(msg *message.RunnerMessage) (string, error) {
+	b, err := msg.GetSourceData()
 	if err != nil {
 		return "", err
 	}
@@ -114,13 +109,13 @@ func (g *GPTRunner) formatPrompt(msg message.Message) (string, error) {
 }
 
 // TODO: implement ProcessBatch to handle batches of messages
-func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Message) error {
+func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.RunnerMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
 	batch := make([]inputItem, 0, len(msgs))
-	idToMsg := make(map[string]message.Message)
+	idToMsg := make(map[string]*message.RunnerMessage)
 	for i, msg := range msgs {
-		data, err := msg.GetData()
+		data, err := msg.GetSourceData()
 		if err != nil {
 			g.slog.Debug("GetData failed", "index", i, "error", err)
 			if e := msg.Nak(); e != nil {
@@ -134,7 +129,7 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 	}
 	g.slog.Debug("batch ready", "size", len(batch))
 	if len(batch) == 0 {
-		return nil
+		return nil, fmt.Errorf("no valid messages to process")
 	}
 	prompt, err := g.formatPromptItems(batch)
 	if err != nil {
@@ -144,7 +139,7 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 				g.slog.Error("error naking message", "err", e)
 			}
 		}
-		return fmt.Errorf("failed to format prompt: %w", err)
+		return nil, fmt.Errorf("failed to format prompt: %w", err)
 	}
 	g.slog.Debug("sending prompt to openai", "prompt", prompt)
 	resp, err := g.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
@@ -162,7 +157,7 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 				g.slog.Error("error naking message", "err", e)
 			}
 		}
-		return fmt.Errorf("openai error: %w", err)
+		return nil, fmt.Errorf("openai error: %w", err)
 	}
 	g.slog.Debug("openai response received", "choices", len(resp.Choices))
 	if len(resp.Choices) == 0 {
@@ -172,7 +167,7 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 				g.slog.Error("error naking message", "err", e)
 			}
 		}
-		return fmt.Errorf("no choices from openai")
+		return nil, fmt.Errorf("no choices from openai")
 	}
 	res := resp.Choices[0].Message.Content
 	g.slog.Debug("openai response content", "content", res)
@@ -184,9 +179,10 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 				g.slog.Error("error naking message", "err", e)
 			}
 		}
-		return fmt.Errorf("failed to parse gpt response: %w", err)
+		return nil, fmt.Errorf("failed to parse gpt response: %w", err)
 	}
 	g.slog.Debug("parsed gpt results", "results_count", len(results))
+
 	// After populating results, ensure each message has a response
 	for id, msg := range idToMsg {
 		result, ok := results[id]
@@ -197,11 +193,10 @@ func (g *GPTRunner) ProcessBatch(msgs []message.Message, out chan<- message.Mess
 			}
 			continue
 		}
-		g.slog.Debug("sending out message", "id", id)
-		fmt.Printf("result: %v\n", string(result))
-		out <- &gptMessage{original: msg, data: result}
+
+		msg.SetData(result)
 	}
-	return nil
+	return msgs, nil
 }
 
 // formatPromptItems builds the prompt for a batch of items
@@ -248,14 +243,5 @@ func (g *GPTRunner) parseBatchResponse(resp string) (map[string][]byte, error) {
 }
 
 func (g *GPTRunner) Close() error {
-	g.slog.Info("closing gpt runner")
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	select {
-	case <-g.stopCh:
-		// already closed
-	default:
-		close(g.stopCh)
-	}
 	return nil
 }

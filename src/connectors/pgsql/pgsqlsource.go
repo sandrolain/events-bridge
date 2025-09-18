@@ -14,7 +14,7 @@ import (
 type PGSQLSource struct {
 	config  *sources.SourcePGSQLConfig
 	slog    *slog.Logger
-	c       chan message.Message
+	c       chan *message.RunnerMessage
 	conn    *pgx.Conn
 	started bool
 }
@@ -30,8 +30,8 @@ func NewSource(cfg *sources.SourcePGSQLConfig) (sources.Source, error) {
 	}, nil
 }
 
-func (s *PGSQLSource) Produce(buffer int) (<-chan message.Message, error) {
-	s.c = make(chan message.Message, buffer)
+func (s *PGSQLSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting PGSQL source", "connString", s.config.ConnString, "table", s.config.Table)
 
@@ -67,11 +67,14 @@ func (s *PGSQLSource) listenLoop() {
 			time.Sleep(time.Second)
 			continue
 		}
+		s.slog.Debug("received notification", "channel", n.Channel, "payload", n.Payload)
+
 		m := &PGSQLMessage{
+			// TODO: presereve original notification ?
 			channel: n.Channel,
 			payload: n.Payload,
 		}
-		s.c <- m
+		s.c <- message.NewRunnerMessage(m)
 	}
 }
 

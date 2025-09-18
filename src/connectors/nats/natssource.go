@@ -13,7 +13,7 @@ import (
 type NATSSource struct {
 	config  *sources.SourceNATSConfig
 	slog    *slog.Logger
-	c       chan message.Message
+	c       chan *message.RunnerMessage
 	nc      *nats.Conn
 	js      nats.JetStreamContext
 	sub     *nats.Subscription
@@ -30,8 +30,8 @@ func NewSource(cfg *sources.SourceNATSConfig) (sources.Source, error) {
 	}, nil
 }
 
-func (s *NATSSource) Produce(buffer int) (<-chan message.Message, error) {
-	s.c = make(chan message.Message, buffer)
+func (s *NATSSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting NATS source", "address", s.config.Address, "subject", s.config.Subject, "stream", s.config.Stream, "consumer", s.config.Consumer, "queueGroup", s.config.QueueGroup)
 
@@ -70,7 +70,7 @@ func (s *NATSSource) consumeCore(queue string) (err error) {
 		m := &NATSMessage{
 			msg: msg,
 		}
-		s.c <- m
+		s.c <- message.NewRunnerMessage(m)
 	}
 	var e error
 	if queue != "" {
@@ -108,7 +108,7 @@ func (s *NATSSource) consumeJetStream() (err error) {
 				m := &NATSMessage{
 					msg: msg,
 				}
-				s.c <- m
+				s.c <- message.NewRunnerMessage(m)
 			}
 		}
 	}()

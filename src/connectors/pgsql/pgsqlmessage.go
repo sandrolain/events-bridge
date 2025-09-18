@@ -6,7 +6,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-var _ message.Message = &PGSQLMessage{}
+var _ message.SourceMessage = &PGSQLMessage{}
 
 type PGSQLMessage struct {
 	channel string
@@ -34,6 +34,6 @@ func (m *PGSQLMessage) Nak() error {
 	return nil
 }
 
-func (m *PGSQLMessage) Reply(data []byte, metadata map[string][]string) error {
+func (m *PGSQLMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

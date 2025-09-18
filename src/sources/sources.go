@@ -7,7 +7,7 @@ import (
 const NewMethodName = "NewSource"
 
 type Source interface {
-	Produce(int) (<-chan message.Message, error)
+	Produce(int) (<-chan *message.RunnerMessage, error)
 	Close() error
 }
 

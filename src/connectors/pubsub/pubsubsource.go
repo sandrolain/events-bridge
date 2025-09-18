@@ -17,7 +17,7 @@ import (
 type PubSubSource struct {
 	config  *sources.SourcePubSubConfig
 	slog    *slog.Logger
-	c       chan message.Message
+	c       chan *message.RunnerMessage
 	client  *pubsub.Client
 	sub     *pubsub.Subscriber
 	started bool
@@ -33,7 +33,7 @@ func NewSource(cfg *sources.SourcePubSubConfig) (sources.Source, error) {
 	}, nil
 }
 
-func (s *PubSubSource) Produce(buffer int) (<-chan message.Message, error) {
+func (s *PubSubSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, s.config.ProjectID)
 	if err != nil {
@@ -69,13 +69,13 @@ func (s *PubSubSource) Produce(buffer int) (<-chan message.Message, error) {
 	}
 	s.sub = client.Subscriber(s.config.Subscription)
 
-	s.c = make(chan message.Message, buffer)
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting PubSub source", "projectID", s.config.ProjectID, "subscription", s.config.Subscription)
 
 	go func() {
 		err := s.sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
-			s.c <- &PubSubMessage{msg: m}
+			s.c <- message.NewRunnerMessage(&PubSubMessage{msg: m})
 		})
 		if err != nil {
 			s.slog.Error("error receiving from PubSub", "err", err)

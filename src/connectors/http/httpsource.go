@@ -26,12 +26,12 @@ type HTTPSource struct {
 	config   *sources.SourceHTTPConfig
 	slog     *slog.Logger
 	listener net.Listener
-	c        chan message.Message
+	c        chan *message.RunnerMessage
 	started  bool
 }
 
-func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error) {
-	s.c = make(chan message.Message, buffer)
+func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err error) {
+	s.c = make(chan *message.RunnerMessage, buffer)
 
 	s.slog.Info("starting HTTP server", "addr", s.config.Address, "method", s.config.Method, "path", s.config.Path)
 
@@ -64,13 +64,16 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 				return
 			}
 
-			done := make(chan message.ResponseStatus)
+			done := make(chan message.ResponseStatus, 1)
+			reply := make(chan *message.ReplyData, 1)
+
 			msg := &HTTPMessage{
 				httpCtx: ctx,
 				done:    done,
+				reply:   reply,
 			}
 
-			s.c <- msg
+			s.c <- message.NewRunnerMessage(msg)
 
 			// Wait for Ack or Nak
 			select {
@@ -80,11 +83,17 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan message.Message, err error)
 					ctx.SetStatusCode(fasthttp.StatusAccepted)
 				case message.ResponseStatusNak:
 					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
-				case message.ResponseStatusReply:
-					// Reply already sent in Reply method
 				default:
 					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 				}
+			case r := <-reply:
+				for k, v := range r.Metadata {
+					for _, vv := range v {
+						ctx.Response.Header.Add(k, vv)
+					}
+				}
+				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.SetBody(r.Data)
 			case <-time.After(5 * time.Second): // TODO: timeout configurable?
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 			}

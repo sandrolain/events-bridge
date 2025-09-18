@@ -21,7 +21,7 @@ import (
 type GitSource struct {
 	config   *sources.SourceGitConfig
 	slog     *slog.Logger
-	c        chan message.Message
+	c        chan *message.RunnerMessage
 	started  bool
 	mu       sync.Mutex
 	lastHash plumbing.Hash
@@ -37,8 +37,8 @@ func NewSource(cfg *sources.SourceGitConfig) (sources.Source, error) {
 	}, nil
 }
 
-func (s *GitSource) Produce(buffer int) (<-chan message.Message, error) {
-	s.c = make(chan message.Message, buffer)
+func (s *GitSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
+	s.c = make(chan *message.RunnerMessage, buffer)
 	s.slog.Info("starting GIT source", "repo", s.config.Path, "remote", s.config.Remote, "branch", s.config.Branch, "subdir", s.config.SubDir)
 
 	go s.pollLoop()
@@ -166,7 +166,7 @@ func (s *GitSource) checkForChanges() {
 		msg := &GitMessage{
 			changes: changes,
 		}
-		s.c <- msg
+		s.c <- message.NewRunnerMessage(msg)
 	}
 }
 

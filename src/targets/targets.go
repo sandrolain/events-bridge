@@ -9,7 +9,7 @@ import (
 const NewMethodName = "NewTarget"
 
 type Target interface {
-	Consume(<-chan message.Message) error
+	Consume(*message.RunnerMessage) error
 	Close() error
 }
 
@@ -30,15 +30,16 @@ const (
 
 // Target configurations
 type TargetConfig struct {
-	Type   TargetType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc plugin"`
-	HTTP   *TargetHTTPConfig   `yaml:"http" json:"http"`
-	CoAP   *TargetCoAPConfig   `yaml:"coap" json:"coap"`
-	MQTT   *TargetMQTTConfig   `yaml:"mqtt" json:"mqtt"`
-	NATS   *TargetNATSConfig   `yaml:"nats" json:"nats"`
-	Kafka  *TargetKafkaConfig  `yaml:"kafka" json:"kafka"`
-	Redis  *TargetRedisConfig  `yaml:"redis" json:"redis"`
-	Plugin *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
-	PubSub *TargetPubSubConfig `yaml:"pubsub" json:"pubsub"`
+	Routines int                 `yaml:"routines" json:"routines" validate:"omitempty,min=1"`
+	Type     TargetType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc plugin"`
+	HTTP     *TargetHTTPConfig   `yaml:"http" json:"http"`
+	CoAP     *TargetCoAPConfig   `yaml:"coap" json:"coap"`
+	MQTT     *TargetMQTTConfig   `yaml:"mqtt" json:"mqtt"`
+	NATS     *TargetNATSConfig   `yaml:"nats" json:"nats"`
+	Kafka    *TargetKafkaConfig  `yaml:"kafka" json:"kafka"`
+	Redis    *TargetRedisConfig  `yaml:"redis" json:"redis"`
+	Plugin   *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
+	PubSub   *TargetPubSubConfig `yaml:"pubsub" json:"pubsub"`
 }
 
 const DefaultTimeout = 5 * time.Second
