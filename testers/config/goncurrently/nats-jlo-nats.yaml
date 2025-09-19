@@ -20,9 +20,9 @@ commands:
         "--subject",
         "test.subject.in",
         "--interval",
-        "1s",
+        "1000us",
         "--payload",
-        '{"a":10, "b":20, "date": "{nowtime}"}',
+        '{"a":10, "b":20, "date": "{nowtime}", "count": {counter}}',
       ]
     restartTries: 0
 killOthers: true

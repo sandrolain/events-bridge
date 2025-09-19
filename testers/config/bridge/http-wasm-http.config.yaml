@@ -13,7 +13,7 @@ target:
   routines: 8
 
 runner:
-  type: "none"
+  type: "wasm"
   wasm:
     path: "./testers/bin/wasmrunner.wasm"
   routines: 8
