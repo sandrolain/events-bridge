@@ -61,8 +61,9 @@ type RunnerES5Config struct {
 }
 
 type RunnerJSONLogicConfig struct {
-	Path    string        `yaml:"path" json:"path" validate:"required,filepath"`
-	Timeout time.Duration `yaml:"timeout" json:"timeout"`
+	Path            string        `yaml:"path" json:"path" validate:"required,filepath"`
+	PreservePayload bool          `yaml:"preservePayload" json:"preservePayload"`
+	Timeout         time.Duration `yaml:"timeout" json:"timeout"`
 }
 
 type RunnerGPTRunnerConfig struct {

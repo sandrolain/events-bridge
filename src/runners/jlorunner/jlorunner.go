@@ -95,10 +95,14 @@ func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) (*message.RunnerMe
 		}
 	}
 
-	// TODO: config params to obtain only the result
-	outputStruct := map[string]interface{}{
-		"payload": input,
-		"result":  result,
+	var outputStruct interface{}
+	if j.cfg.PreservePayload {
+		outputStruct = map[string]interface{}{
+			"payload": input,
+			"result":  result,
+		}
+	} else {
+		outputStruct = result
 	}
 
 	output, err := json.Marshal(outputStruct)
