@@ -9,7 +9,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-func (p *Plugin) Runner(msg *message.RunnerMessage) (res *message.RunnerMessage, err error) {
+func (p *Plugin) Runner(ctx context.Context, msg *message.RunnerMessage) (res *message.RunnerMessage, err error) {
 	uid := uuid.New().String()
 
 	data, err := msg.GetSourceData()
@@ -34,7 +34,7 @@ func (p *Plugin) Runner(msg *message.RunnerMessage) (res *message.RunnerMessage,
 		}
 	}
 
-	runRes, e := p.client.Runner(context.TODO(), &proto.PluginMessage{
+	runRes, e := p.client.Runner(ctx, &proto.PluginMessage{
 		Uuid:     uid,
 		Metadata: metadata,
 		Data:     data,

@@ -3,6 +3,7 @@ package plugin
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -37,6 +38,8 @@ func NewPluginManager() (res *PluginManager, err error) {
 	return
 }
 
+var DefaultTimeout = 5 * time.Second
+
 type PluginManager struct {
 	slog    *slog.Logger
 	plugins map[string]*Plugin
@@ -60,14 +63,20 @@ func (p *PluginManager) CreatePlugin(cfg PluginConfig) (plg *Plugin, err error) 
 		return
 	}
 
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+
 	id := uuid.New().String()
 
 	p.slog.Info("creating plugin", "id", id, "protocol", cfg.Protocol)
 
 	plg = &Plugin{
-		Config: cfg,
-		ID:     id,
-		slog:   p.slog.With("plugin", cfg.Name, "id", id),
+		Config:  cfg,
+		ID:      id,
+		slog:    p.slog.With("plugin", cfg.Name, "id", id),
+		timeout: timeout,
 	}
 	p.plugins[cfg.Name] = plg
 

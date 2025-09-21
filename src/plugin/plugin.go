@@ -18,14 +18,16 @@ import (
 )
 
 type PluginConfig struct {
-	Name     string        `yaml:"name" json:"name" validate:"required"`
-	Exec     string        `yaml:"exec" json:"exec" validate:"required"`
-	Args     []string      `yaml:"args" json:"args" validate:"omitempty"`
-	Env      []string      `yaml:"env" json:"env" validate:"omitempty"`
-	Protocol string        `yaml:"protocol" json:"protocol" validate:"required,oneof=unix tcp"`
-	Delay    time.Duration `yaml:"delay" json:"delay" validate:"omitempty"`
-	Retry    int           `yaml:"retry" json:"retry" validate:"omitempty,gt=0"`
-	Output   bool          `yaml:"output" json:"output"`
+	Name           string        `yaml:"name" json:"name" validate:"required"`
+	Exec           string        `yaml:"exec" json:"exec" validate:"required"`
+	Args           []string      `yaml:"args" json:"args" validate:"omitempty"`
+	Env            []string      `yaml:"env" json:"env" validate:"omitempty"`
+	Protocol       string        `yaml:"protocol" json:"protocol" validate:"required,oneof=unix tcp"`
+	Delay          time.Duration `yaml:"delay" json:"delay" validate:"omitempty"`
+	Retry          int           `yaml:"retry" json:"retry" validate:"omitempty,gt=0"`
+	Output         bool          `yaml:"output" json:"output"`
+	StatusInterval time.Duration `yaml:"statusInterval" json:"statusInterval" validate:"omitempty"` // Interval to check status
+	Timeout        time.Duration `yaml:"timeout" json:"timeout" validate:"omitempty"`               // Timeout for plugin operations
 }
 
 type Plugin struct {
@@ -37,6 +39,7 @@ type Plugin struct {
 	conn    *grpc.ClientConn
 	client  proto.PluginServiceClient
 	stopped bool
+	timeout time.Duration
 	slog    *slog.Logger
 }
 
@@ -177,8 +180,11 @@ func (p *Plugin) startCheckStatus() {
 		}
 		p.slog.Debug("Plugin status", "name", cfg.Name, "status", sts.Status)
 		// TODO: handle status
-		// TODO: duration from config
-		time.Sleep(5 * time.Second)
+		interval := p.Config.StatusInterval
+		if interval <= 0 {
+			interval = 5 * time.Second
+		}
+		time.Sleep(interval)
 	}
 }
 

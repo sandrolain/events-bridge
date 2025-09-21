@@ -9,7 +9,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
-func (p *Plugin) Source(buffer int, config map[string]string) (<-chan *message.RunnerMessage, func(), error) {
+func (p *Plugin) Source(ctx context.Context, buffer int, config map[string]string) (<-chan *message.RunnerMessage, func(), error) {
 	cfg := []*proto.Config{}
 	for k, v := range config {
 		cfg = append(cfg, &proto.Config{
@@ -18,7 +18,7 @@ func (p *Plugin) Source(buffer int, config map[string]string) (<-chan *message.R
 		})
 	}
 
-	stream, e := p.client.Source(context.TODO(), &proto.SourceReq{
+	stream, e := p.client.Source(ctx, &proto.SourceReq{
 		Configs: cfg,
 	})
 	if e != nil {
