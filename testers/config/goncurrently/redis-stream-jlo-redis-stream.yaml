@@ -19,7 +19,7 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      CONFIG_FILE_PATH: ./testers/config/bridge/redis-stream-jlo-redis-stream.config.yaml
+      EB_CONFIG_FILE_PATH: ./testers/config/bridge/redis-stream-jlo-redis-stream.config.yaml
     args: []
     restartTries: 0
   - name: redissource-stream

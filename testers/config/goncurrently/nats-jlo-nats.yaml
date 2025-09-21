@@ -7,10 +7,27 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      CONFIG_FILE_PATH: ./testers/config/bridge/nats-jlo-nats.config.yaml
+      EB_CONFIG_FORMAT: "yaml"
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "nats"
+          nats:
+            address: "localhost:4222"
+            subject: "test.subject.in"
+        target:
+          type: "nats"
+          nats:
+            address: "localhost:4222"
+            subject: "test.subject.out"
+          routines: 8
+        runner:
+          type: "jsonlogic"
+          jsonlogic:
+            path: "./testers/config/bridge/jsonlogic-rule.json"
+            preservePayload: true
+          routines: 8
     args: []
     restartTries: 0
-    silent: true
   - name: nats-source
     cmd: "./testers/bin/natstool"
     args:

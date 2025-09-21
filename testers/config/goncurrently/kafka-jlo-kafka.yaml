@@ -6,7 +6,7 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      CONFIG_FILE_PATH: ./testers/config/bridge/kafka-jlo-kafka.config.yaml
+      EB_CONFIG_FILE_PATH: ./testers/config/bridge/kafka-jlo-kafka.config.yaml
     args: []
     restartTries: 0
   - name: kafka-source

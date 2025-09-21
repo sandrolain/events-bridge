@@ -4,7 +4,7 @@ commands:
     restartTries: 0
   - cmd: "./bin/events-bridge"
     env:
-      CONFIG_FILE_PATH: ./testers/config/bridge/gptrunner.config.yaml
+      EB_CONFIG_FILE_PATH: ./testers/config/bridge/gptrunner.config.yaml
     args: []
     restartTries: 0
   - cmd: "./testers/bin/httptool"

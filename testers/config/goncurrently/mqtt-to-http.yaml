@@ -6,7 +6,7 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      CONFIG_FILE_PATH: ./testers/config/bridge/mqtt-to-http.config.yaml
+      EB_CONFIG_FILE_PATH: ./testers/config/bridge/mqtt-to-http.config.yaml
     args: []
     restartTries: 0
   - name: mqtt-source
