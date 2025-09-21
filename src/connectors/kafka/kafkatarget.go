@@ -44,6 +44,11 @@ type KafkaTarget struct {
 }
 
 func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
+	meta, err := msg.GetTargetMetadata()
+	if err != nil {
+		return fmt.Errorf("error getting metadata: %w", err)
+	}
+
 	data, err := msg.GetTargetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
@@ -54,7 +59,17 @@ func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
 	kmsg := kafka.Message{
 		Key:   msg.GetID(),
 		Value: data,
-		// TODO: add headers from metadata?
+	}
+
+	metaLen := len(meta)
+	if metaLen > 0 {
+		kmsg.Headers = make([]kafka.Header, 0, metaLen)
+		for k, v := range meta {
+			kmsg.Headers = append(kmsg.Headers, kafka.Header{
+				Key:   k,
+				Value: []byte(v),
+			})
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
