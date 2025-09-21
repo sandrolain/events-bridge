@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sandrolain/events-bridge/src/message"
@@ -38,11 +39,46 @@ func TestHTTPMessageGetMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(meta["Foo"]) != 2 || meta["Foo"] != "bar" || meta["Foo"] != "baz" {
-		t.Errorf("unexpected Foo values: %v", meta["Foo"])
+	// Validate Foo header has both "bar" and "baz"
+	fooValsRaw := meta["Foo"]
+	var fooVals []string
+	if fooValsRaw != "" {
+		for _, v := range strings.Split(fooValsRaw, ",") {
+			v = strings.TrimSpace(v)
+			if v != "" {
+				fooVals = append(fooVals, v)
+			}
+		}
 	}
-	if len(meta["Bar"]) != 1 || meta["Bar"] != "qux" {
-		t.Errorf("unexpected Bar values: %v", meta["Bar"])
+	if len(fooVals) != 2 {
+		t.Errorf("unexpected Foo values count: %v", fooVals)
+	} else {
+		hasBar := false
+		hasBaz := false
+		for _, v := range fooVals {
+			if v == "bar" {
+				hasBar = true
+			}
+			// Validate Bar header has single "qux"
+			barValsRaw := meta["Bar"]
+			var barVals []string
+			if barValsRaw != "" {
+				for _, v := range strings.Split(barValsRaw, ",") {
+					v = strings.TrimSpace(v)
+					if v != "" {
+						barVals = append(barVals, v)
+					}
+				}
+			}
+			if len(barVals) != 1 || barVals[0] != "qux" {
+				t.Errorf("unexpected Bar values: %v", barVals)
+			}
+			t.Errorf("unexpected Foo values: %v", fooVals)
+		}
+
+		if !hasBar || !hasBaz {
+			t.Errorf("missing Foo values: %v", fooVals)
+		}
 	}
 }
 
