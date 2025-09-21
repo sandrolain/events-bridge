@@ -36,7 +36,7 @@ func New(cfg *runners.RunnerCLIConfig) (runners.Runner, error) {
 
 	timeout := cfg.Timeout
 	if timeout == 0 {
-		timeout = 5 * time.Second // Default timeout if not set
+		timeout = runners.DefaultTimeout
 	}
 	return &CLIRunner{
 		cfg:     cfg,

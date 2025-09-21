@@ -6,6 +6,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+var DefaultTimeout = 5 * time.Second
+
 const NewMethodName = "New"
 
 type Runner interface {
@@ -44,12 +46,13 @@ type RunnerCLIConfig struct {
 }
 
 type RunnerPluginConfig struct {
-	Name string `yaml:"name" json:"name" validate:"required"`
+	Name    string        `yaml:"name" json:"name" validate:"required"`
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
 }
 
 type RunnerWASMConfig struct {
 	Path    string        `yaml:"path" json:"module_path" validate:"required,filepath"`
-	Timeout time.Duration `yaml:"timeout" json:"timeout" `
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
 }
 
 type RunnerES5Config struct {

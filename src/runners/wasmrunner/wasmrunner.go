@@ -43,7 +43,7 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 
 	timeout := cfg.Timeout
 	if timeout == 0 {
-		timeout = 5 * time.Second // Default timeout if not set
+		timeout = runners.DefaultTimeout
 	}
 
 	log := slog.Default().With("context", "WASM")

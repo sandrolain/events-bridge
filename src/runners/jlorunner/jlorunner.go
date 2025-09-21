@@ -49,7 +49,7 @@ func New(cfg *runners.RunnerJSONLogicConfig) (runners.Runner, error) {
 
 	timeout := cfg.Timeout
 	if timeout == 0 {
-		timeout = 5 * time.Second
+		timeout = runners.DefaultTimeout
 	}
 
 	return &JSONLogicRunner{

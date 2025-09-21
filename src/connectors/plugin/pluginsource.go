@@ -1,8 +1,10 @@
 package pluginconn
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
@@ -10,12 +12,13 @@ import (
 )
 
 type PluginSource struct {
-	config *sources.SourcePluginConfig
-	slog   *slog.Logger
-	mgr    *plugin.PluginManager
-	plg    *plugin.Plugin
-	c      <-chan *message.RunnerMessage
-	close  func()
+	config  *sources.SourcePluginConfig
+	slog    *slog.Logger
+	mgr     *plugin.PluginManager
+	plg     *plugin.Plugin
+	c       <-chan *message.RunnerMessage
+	timeout time.Duration
+	close   func()
 }
 
 func NewSource(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sources.Source, error) {
@@ -42,8 +45,12 @@ func NewSource(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sour
 
 func (s *PluginSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.slog.Info("starting plugin source", "id", s.config.Name)
+
+	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	defer cancel()
+
 	var err error
-	s.c, s.close, err = s.plg.Source(buffer, s.config.Config)
+	s.c, s.close, err = s.plg.Source(ctx, buffer, s.config.Config)
 	if err != nil {
 		return nil, err
 	}

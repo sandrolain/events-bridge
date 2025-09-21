@@ -51,7 +51,7 @@ func New(cfg *runners.RunnerGPTRunnerConfig) (runners.Runner, error) {
 	}
 	timeout := cfg.Timeout
 	if timeout == 0 {
-		timeout = 10 * time.Second
+		timeout = runners.DefaultTimeout
 	}
 	log := slog.Default().With("context", "GPTRUNNER")
 

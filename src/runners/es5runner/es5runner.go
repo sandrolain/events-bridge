@@ -51,7 +51,7 @@ func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
 
 	timeout := cfg.Timeout
 	if timeout == 0 {
-		timeout = 5 * time.Second
+		timeout = runners.DefaultTimeout
 	}
 
 	return &ES5Runner{
