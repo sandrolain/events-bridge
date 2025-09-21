@@ -46,7 +46,7 @@ func NewSource(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sour
 func (s *PluginSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.slog.Info("starting plugin source", "id", s.config.Name)
 
-	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
 
 	var err error
