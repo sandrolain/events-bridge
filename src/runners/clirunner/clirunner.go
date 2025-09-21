@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
-	"sync"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/cliformat"
@@ -20,9 +19,7 @@ var _ runners.Runner = &CLIRunner{}
 type CLIRunner struct {
 	cfg     *runners.RunnerCLIConfig
 	slog    *slog.Logger
-	mu      sync.Mutex
 	timeout time.Duration
-	stopCh  chan struct{}
 }
 
 func New(cfg *runners.RunnerCLIConfig) (runners.Runner, error) {

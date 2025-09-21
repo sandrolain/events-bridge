@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,7 +22,6 @@ type GPTRunner struct {
 	slog    *slog.Logger
 	client  *openai.Client
 	timeout time.Duration
-	mu      sync.Mutex
 }
 
 type inputItem struct {

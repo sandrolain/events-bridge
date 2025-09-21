@@ -40,10 +40,11 @@ func New(mgr *plugin.PluginManager, cfg *runners.RunnerPluginConfig) (runners.Ru
 		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
 	}
 	return &PluginRunner{
-		cfg:  cfg,
-		slog: slog.Default().With("context", "Plugin Runner", "id", cfg.Name),
-		mgr:  mgr,
-		plg:  plg,
+		cfg:     cfg,
+		slog:    slog.Default().With("context", "Plugin Runner", "id", cfg.Name),
+		mgr:     mgr,
+		plg:     plg,
+		timeout: timeout,
 	}, nil
 }
 

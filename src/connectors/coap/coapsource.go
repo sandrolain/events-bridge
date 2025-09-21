@@ -136,13 +136,6 @@ func (s *CoAPSource) Close() error {
 	return nil
 }
 
-type responseStatus int
-
-const (
-	statusAck responseStatus = iota
-	statusNak
-)
-
 // Middleware function, which will be called for each request.
 func loggingMiddleware(next coapmux.Handler) coapmux.Handler {
 	return coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {

@@ -146,8 +146,11 @@ func main() {
 		out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
 			res, err := runner.Process(msg)
 			if err != nil {
-				msg.Nak()
 				slog.Error("error processing message", "error", err)
+				err = msg.Nak()
+				if err != nil {
+					slog.Error("failed to nak message after processing error", "error", err)
+				}
 				return nil, false, nil
 			}
 			return res, true, nil
@@ -159,21 +162,40 @@ func main() {
 	if target != nil {
 		slog.Info("target starting to consume messages")
 
-		rill.ForEach(out, targetRoutines, func(msg *message.RunnerMessage) error {
+		err = rill.ForEach(out, targetRoutines, func(msg *message.RunnerMessage) error {
 			err := target.Consume(msg)
 			if err != nil {
 				slog.Error("failed to consume message", "error", err)
-				msg.Nak()
+				err = msg.Nak()
+				if err != nil {
+					slog.Error("failed to nak message after consume failure", "error", err)
+				}
 			} else {
-				msg.Ack()
+				err = msg.Ack()
+				if err != nil {
+					slog.Error("failed to ack message after consume", "error", err)
+				}
 			}
 			return nil
 		})
+		if err != nil {
+			fatal(err, "failed to process messages with target")
+		}
 	} else {
-		rill.ForEach(out, 1, func(msg *message.RunnerMessage) error {
-			msg.Reply()
+		err = rill.ForEach(out, 1, func(msg *message.RunnerMessage) error {
+			err := msg.Reply()
+			if err != nil {
+				slog.Error("failed to reply message", "error", err)
+				err = msg.Nak()
+				if err != nil {
+					slog.Error("failed to nak message after reply", "error", err)
+				}
+			}
 			return nil
 		})
+		if err != nil {
+			fatal(err, "failed to process messages without target")
+		}
 	}
 
 	rill.Drain(out)
