@@ -1,6 +1,8 @@
 package sources
 
 import (
+	"time"
+
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -27,6 +29,8 @@ const (
 	SourceTypePlugin SourceType = "plugin"
 )
 
+const DefaultTimeout = 5 * time.Second
+
 type SourceConfig struct {
 	Type   SourceType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc pgsql plugin git"`
 	Buffer int                 `yaml:"buffer" json:"buffer"`
@@ -50,16 +54,18 @@ const (
 )
 
 type SourceCoAPConfig struct {
-	Protocol CoAPProtocol `yaml:"protocol" json:"protocol" validate:"required,oneof=udp tcp"`
-	Address  string       `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Path     string       `yaml:"path" json:"path" validate:"required"`
-	Method   string       `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT GET"`
+	Protocol CoAPProtocol  `yaml:"protocol" json:"protocol" validate:"required,oneof=udp tcp"`
+	Address  string        `yaml:"address" json:"address" validate:"required,hostname_port"`
+	Path     string        `yaml:"path" json:"path" validate:"required"`
+	Method   string        `yaml:"method" json:"method" validate:"omitempty,oneof=POST PUT GET"`
+	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
 }
 
 type SourceHTTPConfig struct {
-	Address string `yaml:"address" json:"address" validate:"required,hostname_port"`
-	Method  string `yaml:"method" json:"method" validate:"required,oneof=POST PUT PATCH"`
-	Path    string `yaml:"path" json:"path" validate:"required"`
+	Address string        `yaml:"address" json:"address" validate:"required,hostname_port"`
+	Method  string        `yaml:"method" json:"method" validate:"required,oneof=POST PUT PATCH"`
+	Path    string        `yaml:"path" json:"path" validate:"required"`
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
 }
 
 type SourceMQTTConfig struct {

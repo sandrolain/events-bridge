@@ -11,15 +11,17 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func NewSource(cfg *sources.SourceHTTPConfig) (res sources.Source, err error) {
-	conn := &HTTPSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "HTTP"),
+func NewSource(cfg *sources.SourceHTTPConfig) (sources.Source, error) {
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = sources.DefaultTimeout
 	}
 
-	res = conn
-
-	return
+	return &HTTPSource{
+		config:  cfg,
+		slog:    slog.Default().With("context", "HTTP"),
+		timeout: timeout,
+	}, nil
 }
 
 type HTTPSource struct {
@@ -28,6 +30,7 @@ type HTTPSource struct {
 	listener net.Listener
 	c        chan *message.RunnerMessage
 	started  bool
+	timeout  time.Duration
 }
 
 func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err error) {
@@ -92,7 +95,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 				}
 				ctx.SetStatusCode(fasthttp.StatusOK)
 				ctx.SetBody(r.Data)
-			case <-time.After(5 * time.Second): // TODO: timeout configurable?
+			case <-time.After(s.timeout):
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 			}
 		})

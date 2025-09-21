@@ -28,6 +28,8 @@ const (
 	TargetTypePlugin TargetType = "plugin"
 )
 
+const DefaultTimeout = 5 * time.Second
+
 // Target configurations
 type TargetConfig struct {
 	Type     TargetType          `yaml:"type" json:"type" validate:"required,oneof=nats redis kafka http coap mqtt grpc plugin"`
@@ -41,8 +43,6 @@ type TargetConfig struct {
 	Plugin   *TargetPluginConfig `yaml:"plugin" json:"plugin" validate:"omitempty"`
 	PubSub   *TargetPubSubConfig `yaml:"pubsub" json:"pubsub"`
 }
-
-const DefaultTimeout = 5 * time.Second
 
 type CoAPProtocol string
 

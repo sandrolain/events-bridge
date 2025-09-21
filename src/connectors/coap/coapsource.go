@@ -21,9 +21,16 @@ func NewSource(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
 	if cfg.Protocol != sources.CoAPProtocolUDP && cfg.Protocol != sources.CoAPProtocolTCP {
 		return nil, fmt.Errorf("invalid CoAP protocol: %q (must be 'udp' or 'tcp')", cfg.Protocol)
 	}
+
+	timeout := cfg.Timeout
+	if timeout <= 0 {
+		timeout = sources.DefaultTimeout
+	}
+
 	return &CoAPSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "CoAP"),
+		config:  cfg,
+		slog:    slog.Default().With("context", "CoAP"),
+		timeout: timeout,
 	}, nil
 }
 
@@ -33,6 +40,7 @@ type CoAPSource struct {
 	c       chan *message.RunnerMessage
 	started bool
 	conn    *coapnet.UDPConn
+	timeout time.Duration
 }
 
 func (s *CoAPSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
@@ -107,10 +115,10 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 		}
 	case r := <-reply:
-
-		// TODO: type from metadata
-		err = w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader(r.Data))
-	case <-time.After(10 * time.Second): // TODO: duration from config
+		// set type from metadata
+		contentFormat := coapTypeFromMetadata(r.Metadata)
+		err = w.SetResponse(coapcodes.Content, contentFormat, bytes.NewReader(r.Data))
+	case <-time.After(s.timeout):
 		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)
 	}
 	if err != nil {
@@ -169,4 +177,13 @@ func coapTypeFromContentType(ct string) coapmessage.MediaType {
 	default:
 		return coapmessage.TextPlain
 	}
+}
+
+func coapTypeFromMetadata(md message.MessageMetadata) coapmessage.MediaType {
+	for k, v := range md {
+		if bytes.EqualFold([]byte(k), []byte("Content-Type")) {
+			return coapTypeFromContentType(v)
+		}
+	}
+	return coapmessage.TextPlain
 }
