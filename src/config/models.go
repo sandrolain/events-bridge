@@ -8,7 +8,11 @@ import (
 )
 
 type EnvConfig struct {
-	ConfigFilePath string `env:"CONFIG_FILE_PATH" default:"/etc/events-bridge/config.yaml" validate:"required,filepath"`
+	ConfigFilePath string `env:"CONFIG_FILE_PATH" default:"/etc/events-bridge/config.yaml" validate:"omitempty,filepath"`
+	// Optional: raw configuration content (YAML or JSON). If set, it takes precedence over ConfigFilePath.
+	ConfigContent string `env:"CONFIG_CONTENT" validate:"omitempty"`
+	// Optional: explicit config format when using ConfigContent. One of: yaml, yml, json.
+	ConfigFormat string `env:"CONFIG_FORMAT" validate:"omitempty,oneof=yaml yml json"`
 }
 
 type Config struct {

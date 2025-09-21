@@ -15,4 +15,5 @@ runner:
   type: "jsonlogic"
   jsonlogic:
     path: "./testers/config/bridge/jsonlogic-rule.json"
+    preservePayload: true
   routines: 8

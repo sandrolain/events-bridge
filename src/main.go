@@ -31,20 +31,7 @@ func main() {
 		}),
 	))
 
-	envCfg, err := config.LoadEnvConfigFile[config.EnvConfig]()
-
-	if err != nil {
-		fatal(err, "failed to load environment configuration")
-	}
-
-	// This is the main entry point for the application.
-	// The actual implementation would typically involve initializing
-	// the configuration, setting up sources and targets, and starting
-	// the event processing loop.
-
-	slog.Info("loading configuration file", "path", envCfg.ConfigFilePath)
-
-	cfg, err := config.LoadConfigFile[config.Config](envCfg.ConfigFilePath)
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		fatal(err, "failed to load configuration file")
 	}
