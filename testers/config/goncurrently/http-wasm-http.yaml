@@ -12,5 +12,5 @@ commands:
   - name: http-source
     cmd: "./testers/bin/httptool"
     args: ["send", "--interval", "1000us", "--payload", "{counter} - {nowtime}"]
-    startAfter: 5000
+    startAfter: "5s"
 killOthers: true

@@ -10,6 +10,7 @@ commands:
       CONFIG_FILE_PATH: ./testers/config/bridge/nats-jlo-nats.config.yaml
     args: []
     restartTries: 0
+    silent: true
   - name: nats-source
     cmd: "./testers/bin/natstool"
     args:
@@ -25,4 +26,7 @@ commands:
         '{"a":10, "b":20, "date": "{nowtime}", "count": {counter}}',
       ]
     restartTries: 0
+    startAfter: "2s"
+    duration: "3s"
+    silent: true
 killOthers: true

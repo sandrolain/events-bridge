@@ -9,9 +9,10 @@ target:
   nats:
     address: "localhost:4222"
     subject: "test.subject.out"
+  routines: 8
 
 runner:
   type: "jsonlogic"
   jsonlogic:
     path: "./testers/config/bridge/jsonlogic-rule.json"
-  # you can change the path or the rule as needed
+  routines: 8
