@@ -70,9 +70,7 @@ func (s *PGSQLSource) listenLoop() {
 		s.slog.Debug("received notification", "channel", n.Channel, "payload", n.Payload)
 
 		m := &PGSQLMessage{
-			// TODO: presereve original notification ?
-			channel: n.Channel,
-			payload: n.Payload,
+			notification: n,
 		}
 		s.c <- message.NewRunnerMessage(m)
 	}
