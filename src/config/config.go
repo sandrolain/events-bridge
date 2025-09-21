@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	cenv "github.com/caarlos0/env/v11"
 	"github.com/go-playground/validator/v10"
 	kjson "github.com/knadh/koanf/parsers/json"
 	kyaml "github.com/knadh/koanf/parsers/yaml"
@@ -19,16 +18,17 @@ import (
 )
 
 func LoadConfig() (cfg *Config, err error) {
-	envCfg := EnvConfig{}
-	err = cenv.Parse(&envCfg)
+	// Precedence: CLI > Env
+	envCfg, err := loadEnvConfig()
 	if err != nil {
-		return
+		return nil, err
 	}
+	// Apply CLI overrides on top of envs
+	applyCLIOverrides(envCfg)
+	// Validate after merging
 	validate := validator.New()
-	err = validate.Struct(&envCfg)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to load environment configuration: %w", err)
+	if err = validate.Struct(envCfg); err != nil {
+		return nil, fmt.Errorf("failed to validate configuration options: %w", err)
 	}
 
 	if envCfg.ConfigContent != "" {
@@ -38,6 +38,65 @@ func LoadConfig() (cfg *Config, err error) {
 
 	slog.Info("loading configuration file", "path", envCfg.ConfigFilePath)
 	return loadConfigFile(envCfg.ConfigFilePath)
+}
+
+// applyCLIOverrides sets EnvConfig fields from CLI flags if provided.
+// Supported flags (long form only):
+//
+//	--config-file-path <path> | --config-file-path=<path>
+//	--config-content <yaml|json string> | --config-content=<...>
+//	--config-format <yaml|yml|json> | --config-format=<yaml|yml|json>
+//
+// CLI values take precedence over environment variables.
+func applyCLIOverrides(cfg *EnvConfig) {
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case strings.HasPrefix(a, "--config-file-path="):
+			cfg.ConfigFilePath = strings.TrimPrefix(a, "--config-file-path=")
+		case a == "--config-file-path":
+			if i+1 < len(args) {
+				cfg.ConfigFilePath = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(a, "--config-content="):
+			cfg.ConfigContent = strings.TrimPrefix(a, "--config-content=")
+		case a == "--config-content":
+			if i+1 < len(args) {
+				cfg.ConfigContent = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(a, "--config-format="):
+			cfg.ConfigFormat = strings.TrimPrefix(a, "--config-format=")
+		case a == "--config-format":
+			if i+1 < len(args) {
+				cfg.ConfigFormat = args[i+1]
+				i++
+			}
+		}
+	}
+
+}
+
+// loadEnvConfig loads EnvConfig using Koanf env provider.
+// It reads environment variables and fills EnvConfig based on struct `env` tags.
+// Defaults: if neither content nor path is provided, sets ConfigFilePath to "/etc/events-bridge/config.yaml".
+func loadEnvConfig() (*EnvConfig, error) {
+	k := kfn.New(".")
+	// Load all envs; unmarshal will pick only those matching the struct tags
+	if err := k.Load(kenv.Provider("", ".", func(s string) string { return s }), nil); err != nil {
+		return nil, fmt.Errorf("failed to load env variables: %w", err)
+	}
+	ec := &EnvConfig{}
+	if err := k.UnmarshalWithConf("", ec, kfn.UnmarshalConf{Tag: "env"}); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal env config: %w", err)
+	}
+	// Apply default path if nothing provided
+	if ec.ConfigContent == "" && strings.TrimSpace(ec.ConfigFilePath) == "" {
+		ec.ConfigFilePath = "/etc/events-bridge/config.yaml"
+	}
+	return ec, nil
 }
 
 // LoadConfigFile loads configuration from a file (YAML or JSON) and merges environment overrides.
