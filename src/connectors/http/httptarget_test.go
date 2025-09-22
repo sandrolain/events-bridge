@@ -2,11 +2,13 @@ package main
 
 import (
 	"errors"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/valyala/fasthttp"
 )
 
 // metaErrorMock returns an error from GetMetadata
@@ -55,7 +57,26 @@ func TestNewTargetDefaultTimeout(t *testing.T) {
 
 func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	const errMsg = "unexpected error: %v"
-	cfg := &targets.TargetHTTPConfig{URL: "http://localhost:12345", Method: "POST", Headers: map[string]string{}, Timeout: time.Millisecond * 100}
+
+	// Start a local fasthttp server on an ephemeral port
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf(errMsg, err)
+	}
+	done := make(chan struct{})
+	go func() {
+		_ = fasthttp.Serve(ln, func(ctx *fasthttp.RequestCtx) {
+			if string(ctx.Method()) != "POST" || string(ctx.Path()) != "/test" {
+				ctx.SetStatusCode(405)
+				return
+			}
+			ctx.SetStatusCode(200)
+		})
+		close(done)
+	}()
+
+	url := "http://" + ln.Addr().String() + "/test"
+	cfg := &targets.TargetHTTPConfig{URL: url, Method: "POST", Headers: map[string]string{}, Timeout: 250 * time.Millisecond}
 	tgt, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errMsg, err)
@@ -66,10 +87,12 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	}
 	m := &mockMessage{metadata: message.MessageMetadata{"X-Test": "v"}, data: []byte("payload")}
 	msg := message.NewRunnerMessage(m)
-	err = httpTgt.Consume(msg)
-	if err != nil {
+	if err = httpTgt.Consume(msg); err != nil {
 		t.Fatalf(errMsg, err)
 	}
+	// Close listener and target
+	_ = ln.Close()
+	<-done
 	if err := httpTgt.Close(); err != nil {
 		t.Fatalf("unexpected error on close: %v", err)
 	}

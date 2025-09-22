@@ -51,34 +51,35 @@ func TestHTTPMessageGetMetadata(t *testing.T) {
 		}
 	}
 	if len(fooVals) != 2 {
-		t.Errorf("unexpected Foo values count: %v", fooVals)
-	} else {
-		hasBar := false
-		hasBaz := false
-		for _, v := range fooVals {
-			if v == "bar" {
-				hasBar = true
-			}
-			// Validate Bar header has single "qux"
-			barValsRaw := meta["Bar"]
-			var barVals []string
-			if barValsRaw != "" {
-				for _, v := range strings.Split(barValsRaw, ",") {
-					v = strings.TrimSpace(v)
-					if v != "" {
-						barVals = append(barVals, v)
-					}
-				}
-			}
-			if len(barVals) != 1 || barVals[0] != "qux" {
-				t.Errorf("unexpected Bar values: %v", barVals)
-			}
-			t.Errorf("unexpected Foo values: %v", fooVals)
+		t.Fatalf("unexpected Foo values count: %v", fooVals)
+	}
+	hasBar := false
+	hasBaz := false
+	for _, v := range fooVals {
+		if v == "bar" {
+			hasBar = true
 		}
+		if v == "baz" {
+			hasBaz = true
+		}
+	}
+	if !hasBar || !hasBaz {
+		t.Fatalf("missing Foo values: %v", fooVals)
+	}
 
-		if !hasBar || !hasBaz {
-			t.Errorf("missing Foo values: %v", fooVals)
+	// Validate Bar header has single "qux"
+	barValsRaw := meta["Bar"]
+	var barVals []string
+	if barValsRaw != "" {
+		for _, v := range strings.Split(barValsRaw, ",") {
+			v = strings.TrimSpace(v)
+			if v != "" {
+				barVals = append(barVals, v)
+			}
 		}
+	}
+	if len(barVals) != 1 || barVals[0] != "qux" {
+		t.Fatalf("unexpected Bar values: %v", barVals)
 	}
 }
 
