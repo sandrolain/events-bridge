@@ -11,6 +11,9 @@ import (
 )
 
 func NewTarget(cfg *targets.TargetNATSConfig) (targets.Target, error) {
+	if cfg.Address == "" || cfg.Subject == "" {
+		return nil, fmt.Errorf("address and subject are required for NATS target")
+	}
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = targets.DefaultTimeout
