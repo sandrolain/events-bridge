@@ -112,9 +112,8 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 }
 
 func (s *HTTPSource) Close() (err error) {
-	if s.c != nil {
-		close(s.c)
+	if s.listener != nil {
+		err = s.listener.Close()
 	}
-	err = s.listener.Close()
 	return
 }

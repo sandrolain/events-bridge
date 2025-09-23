@@ -86,8 +86,13 @@ func sendTest(tgt *coaptarget.CoAPTarget, msg message.SourceMessage) error {
 
 func TestIntegrationSendUDP(t *testing.T) {
 	addr := "127.0.0.1:56831"
-	var received bool
-	startUDPServer(t, addr, func() { received = true })
+	receivedCh := make(chan struct{}, 1)
+	startUDPServer(t, addr, func() {
+		select {
+		case receivedCh <- struct{}{}:
+		default:
+		}
+	})
 	cfg := &targets.TargetCoAPConfig{
 		Protocol: "udp",
 		Address:  addr,
@@ -103,15 +108,23 @@ func TestIntegrationSendUDP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
-	if !received {
+	select {
+	case <-receivedCh:
+		// ok
+	case <-time.After(2 * time.Second):
 		t.Error("UDP server did not receive message")
 	}
 }
 
 func TestIntegrationSendTCP(t *testing.T) {
 	addr := "127.0.0.1:56832"
-	var received bool
-	startTCPServer(t, addr, func() { received = true })
+	receivedCh := make(chan struct{}, 1)
+	startTCPServer(t, addr, func() {
+		select {
+		case receivedCh <- struct{}{}:
+		default:
+		}
+	})
 	cfg := &targets.TargetCoAPConfig{
 		Protocol: "tcp",
 		Address:  addr,
@@ -127,7 +140,10 @@ func TestIntegrationSendTCP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
-	if !received {
+	select {
+	case <-receivedCh:
+		// ok
+	case <-time.After(2 * time.Second):
 		t.Error("TCP server did not receive message")
 	}
 }
