@@ -38,6 +38,7 @@ func NewTarget(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
 	return &MQTTTarget{
 		config: cfg,
 		slog:   l,
+		client: client,
 	}, nil
 }
 

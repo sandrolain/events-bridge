@@ -27,7 +27,8 @@ require (
 	github.com/knadh/koanf/v2 v2.3.0
 	github.com/lib/pq v1.10.9
 	github.com/lmittmann/tint v1.1.2
-	github.com/nats-io/nats.go v1.45.0
+	github.com/mochi-mqtt/server/v2 v2.7.9
+	github.com/nats-io/nats.go v1.46.0
 	github.com/plgd-dev/go-coap/v3 v3.4.0
 	github.com/redis/go-redis/v9 v9.14.0
 	github.com/sashabaranov/go-openai v1.41.2
@@ -43,7 +44,7 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.122.0 // indirect
+	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.8.4 // indirect
@@ -90,7 +91,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/google/pprof v0.0.0-20250919162441-8b542baf5bcf // indirect
+	github.com/google/pprof v0.0.0-20250923004556-9e5a51aed1e8 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
@@ -133,6 +134,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
+	github.com/rs/xid v1.6.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.8 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
@@ -166,8 +168,8 @@ require (
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
 	google.golang.org/api v0.249.0 // indirect
-	google.golang.org/genproto v0.0.0-20250908214217-97024824d090 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250908214217-97024824d090 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250908214217-97024824d090 // indirect
+	google.golang.org/genproto v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
