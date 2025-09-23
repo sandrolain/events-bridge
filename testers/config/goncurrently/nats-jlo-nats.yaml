@@ -7,7 +7,6 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      EB_CONFIG_FORMAT: "yaml"
       EB_CONFIG_CONTENT: |
         source:
           type: "nats"

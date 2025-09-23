@@ -6,7 +6,27 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      EB_CONFIG_FILE_PATH: ./testers/config/bridge/mqtt-to-http.config.yaml
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "mqtt"
+          mqtt:
+            address: "localhost:1883"
+            topic: "test/topic"
+            client_id: "mqtt-to-http-client"
+            consumer_group: "mqtt-to-http-group"
+
+        target:
+          type: "http"
+          http:
+            method: "POST"
+            url: "http://localhost:8080/api/data"
+          routines: 8
+
+        runner:
+          type: "wasm"
+          wasm:
+            path: "./testers/bin/wasmrunner.wasm"
+          routines: 8
     args: []
     restartTries: 0
   - name: mqtt-source

@@ -6,7 +6,26 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      EB_CONFIG_FILE_PATH: ./testers/config/bridge/kafka-jlo-kafka.config.yaml
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "kafka"
+          kafka:
+            brokers: ["localhost:9092"]
+            group_id: "test-group"
+            topic: "test.topic.in"
+
+        target:
+          type: "kafka"
+          kafka:
+            brokers: ["localhost:9092"]
+            group_id: "test-group"
+            topic: "test.topic.out"
+
+        runner:
+          type: "jsonlogic"
+          jsonlogic:
+            path: "./testers/config/bridge/jsonlogic-rule.json"
+          # you can change the path or the rule as needed
     args: []
     restartTries: 0
   - name: kafka-source

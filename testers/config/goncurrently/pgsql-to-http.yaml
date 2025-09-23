@@ -6,7 +6,23 @@ commands:
   - name: task
     cmd: "./bin/events-bridge"
     env:
-      EB_CONFIG_FILE_PATH: ./testers/config/bridge/pgsql-to-http.config.yaml
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "pgsql"
+          pgsql:
+            conn_string: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+            table: "test_table"
+
+        target:
+          type: "http"
+          http:
+            method: "POST"
+            url: "http://localhost:8080/api/data"
+
+        runner:
+          type: "wasm"
+          wasm:
+            path: "./testers/bin/wasmrunner.wasm"
     args: []
     restartTries: 0
   - name: pgsql-source
