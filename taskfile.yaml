@@ -119,18 +119,6 @@ tasks:
       - go build -buildmode=plugin -o ./bin/runners/jlorunner.so ./src/runners/jlorunner && du -h ./bin/runners/jlorunner.so
       - go build -o ./bin/events-bridge ./src  && du -h ./bin/events-bridge
 
-  test-coap:
-    cmds:
-      - viddy go run ./coapclient 'localhost:5683' '/event' '{"test":123}'
-
-  test-http:
-    cmds:
-      - 'viddy curl -X POST -H ''Content-Type: application/json'' -d ''{"test":123}'' ''http://localhost:8080/event'''
-
-  test-nats:
-    cmds:
-      - viddy nats pub event.subject '{"test":123}' --server nats://localhost:4222
-
   gen-plugin-proto:
     dir: ./src/plugin/proto
     cmds:
