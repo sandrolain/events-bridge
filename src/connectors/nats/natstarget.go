@@ -8,6 +8,7 @@ import (
 	nats "github.com/nats-io/nats.go"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func NewTarget(cfg *targets.TargetNATSConfig) (targets.Target, error) {
@@ -49,13 +50,7 @@ func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	subject := t.config.Subject
-	if t.config.SubjectFromMetadataKey != "" {
-		metadata, _ := msg.GetTargetMetadata()
-		if v, ok := metadata[t.config.SubjectFromMetadataKey]; ok && len(v) > 0 {
-			subject = v
-		}
-	}
+	subject := utils.ResolveFromMetadata(msg, t.config.SubjectFromMetadataKey, t.config.Subject)
 
 	t.slog.Debug("publishing NATS message", "subject", subject, "bodysize", len(data))
 

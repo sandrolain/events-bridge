@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -44,6 +45,11 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
+	meta, _ := msg.GetTargetMetadata()
+	contentFormat := coapmessage.TextPlain
+	if meta != nil {
+		contentFormat = coapTypeFromMetadata(meta)
+	}
 
 	method := strings.ToUpper(t.config.Method)
 	path := t.config.Path
@@ -69,9 +75,9 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 		}()
 		switch method {
 		case "POST":
-			_, err = client.Post(ctx, path, coapmessage.AppCBOR, strings.NewReader(string(data)))
+			_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
 		case "PUT":
-			_, err = client.Put(ctx, path, coapmessage.AppCBOR, strings.NewReader(string(data)))
+			_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
 		case "GET":
 			_, err = client.Get(ctx, path)
 		default:
@@ -91,9 +97,9 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 		}()
 		switch method {
 		case "POST":
-			_, err = client.Post(ctx, path, coapmessage.AppCBOR, strings.NewReader(string(data)))
+			_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
 		case "PUT":
-			_, err = client.Put(ctx, path, coapmessage.AppCBOR, strings.NewReader(string(data)))
+			_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
 		case "GET":
 			_, err = client.Get(ctx, path)
 		default:

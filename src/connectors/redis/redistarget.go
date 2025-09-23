@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func NewTarget(cfg *targets.TargetRedisConfig) (targets.Target, error) {
@@ -46,13 +47,7 @@ func (t *RedisTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	channel := t.config.Channel
-	if t.config.ChannelFromMetadataKey != "" {
-		metadata, _ := msg.GetTargetMetadata()
-		if v, ok := metadata[t.config.ChannelFromMetadataKey]; ok && len(v) > 0 {
-			channel = v
-		}
-	}
+	channel := utils.ResolveFromMetadata(msg, t.config.ChannelFromMetadataKey, t.config.Channel)
 	t.slog.Debug("publishing Redis message", "channel", channel, "bodysize", len(data))
 
 	err = t.client.Publish(context.Background(), channel, data).Err()

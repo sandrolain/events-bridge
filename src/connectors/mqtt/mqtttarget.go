@@ -9,6 +9,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func NewTarget(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
@@ -57,12 +58,7 @@ func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
 	}
 
 	topic := t.config.Topic
-	if t.config.TopicFromMetadataKey != "" {
-		metadata, _ := msg.GetTargetMetadata()
-		if v, ok := metadata[t.config.TopicFromMetadataKey]; ok && len(v) > 0 {
-			topic = v
-		}
-	}
+	topic = utils.ResolveFromMetadata(msg, t.config.TopicFromMetadataKey, topic)
 
 	qos := byte(t.config.QoS)
 	if qos > 2 {
