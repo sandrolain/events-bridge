@@ -171,8 +171,5 @@ func (s *GitSource) checkForChanges() {
 }
 
 func (s *GitSource) Close() error {
-	if s.c != nil {
-		close(s.c)
-	}
 	return nil
 }

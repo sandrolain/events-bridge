@@ -93,9 +93,10 @@ func (s *NATSSource) consumeJetStream() (err error) {
 		err = fmt.Errorf("failed to create JetStream pull subscription: %w", e)
 		return
 	}
+	s.sub = sub
 	go func() {
 		for {
-			msgs, err := sub.Fetch(1, nats.MaxWait(5*time.Second))
+			msgs, err := s.sub.Fetch(1, nats.MaxWait(5*time.Second))
 			if err != nil {
 				if err == nats.ErrTimeout {
 					s.slog.Warn("JetStream fetch timeout")
@@ -116,11 +117,20 @@ func (s *NATSSource) consumeJetStream() (err error) {
 }
 
 func (s *NATSSource) Close() error {
-	if s.c != nil {
-		close(s.c)
+	// Unsubscribe/Drain subscription before closing channel to avoid send-on-closed-channel
+	if s.sub != nil {
+		if err := s.sub.Drain(); err != nil {
+			_ = s.sub.Unsubscribe()
+		}
+		s.sub = nil
 	}
 	if s.nc != nil {
 		s.nc.Close()
+		s.nc = nil
+	}
+	if s.c != nil {
+		close(s.c)
+		s.c = nil
 	}
 	return nil
 }

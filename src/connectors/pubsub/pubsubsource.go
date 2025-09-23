@@ -87,9 +87,6 @@ func (s *PubSubSource) Produce(buffer int) (<-chan *message.RunnerMessage, error
 }
 
 func (s *PubSubSource) Close() error {
-	if s.c != nil {
-		close(s.c)
-	}
 	if s.client != nil {
 		return s.client.Close()
 	}

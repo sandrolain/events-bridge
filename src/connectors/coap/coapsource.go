@@ -15,6 +15,7 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func NewSource(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
@@ -102,24 +103,22 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 
 	s.c <- message.NewRunnerMessage(msg)
 
+	r, status, timeout := utils.AwaitReplyOrStatus(s.timeout, done, reply)
 	var err error
-	select {
-	case status := <-done:
-		switch status {
+	if timeout {
+		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)
+	} else if r != nil {
+		contentFormat := coapTypeFromMetadata(r.Metadata)
+		err = w.SetResponse(coapcodes.Content, contentFormat, bytes.NewReader(r.Data))
+	} else if status != nil {
+		switch *status {
 		case message.ResponseStatusAck:
 			err = w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
 		case message.ResponseStatusNak:
 			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
-
 		default:
 			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 		}
-	case r := <-reply:
-		// set type from metadata
-		contentFormat := coapTypeFromMetadata(r.Metadata)
-		err = w.SetResponse(coapcodes.Content, contentFormat, bytes.NewReader(r.Data))
-	case <-time.After(s.timeout):
-		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)
 	}
 	if err != nil {
 		s.slog.Error("failed to set CoAP response", "err", err)
@@ -127,9 +126,6 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 }
 
 func (s *CoAPSource) Close() error {
-	if s.c != nil {
-		close(s.c)
-	}
 	if s.conn != nil {
 		return s.conn.Close()
 	}

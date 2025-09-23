@@ -8,6 +8,7 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/valyala/fasthttp"
 )
 
@@ -78,10 +79,22 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 
 			s.c <- message.NewRunnerMessage(msg)
 
-			// Wait for Ack or Nak
-			select {
-			case status := <-done:
-				switch status {
+			// Wait for Ack/Nak or reply using helper
+			r, status, timeout := utils.AwaitReplyOrStatus(s.timeout, done, reply)
+			if timeout {
+				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
+				return
+			}
+			if r != nil {
+				for k, v := range r.Metadata {
+					ctx.Response.Header.Add(k, v)
+				}
+				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.SetBody(r.Data)
+				return
+			}
+			if status != nil {
+				switch *status {
 				case message.ResponseStatusAck:
 					ctx.SetStatusCode(fasthttp.StatusAccepted)
 				case message.ResponseStatusNak:
@@ -89,14 +102,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 				default:
 					ctx.SetStatusCode(fasthttp.StatusInternalServerError)
 				}
-			case r := <-reply:
-				for k, v := range r.Metadata {
-					ctx.Response.Header.Add(k, v)
-				}
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.SetBody(r.Data)
-			case <-time.After(s.timeout):
-				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
+				return
 			}
 		})
 		if e != nil {

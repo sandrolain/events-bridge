@@ -53,8 +53,8 @@ func (s *KafkaSource) Produce(buffer int) (<-chan *message.RunnerMessage, error)
 		for {
 			m, err := r.FetchMessage(context.Background())
 			if err != nil {
-				s.slog.Error("error fetching from Kafka", "err", err)
-				continue
+				s.slog.Error("error fetching from Kafka, stopping consumer", "err", err)
+				break
 			}
 			msg := &KafkaMessage{
 				msg:    &m,
@@ -69,9 +69,6 @@ func (s *KafkaSource) Produce(buffer int) (<-chan *message.RunnerMessage, error)
 }
 
 func (s *KafkaSource) Close() error {
-	if s.c != nil {
-		close(s.c)
-	}
 	if s.reader != nil {
 		err := s.reader.Close()
 		if err != nil {

@@ -83,9 +83,6 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 }
 
 func (s *MQTTSource) Close() error {
-	if s.c != nil {
-		close(s.c)
-	}
 	if s.client != nil && s.client.IsConnected() {
 		s.client.Disconnect(250)
 	}

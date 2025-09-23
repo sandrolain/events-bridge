@@ -77,9 +77,6 @@ func (s *PGSQLSource) listenLoop() {
 }
 
 func (s *PGSQLSource) Close() error {
-	if s.c != nil {
-		close(s.c)
-	}
 	if s.conn != nil {
 		return s.conn.Close(context.Background())
 	}
