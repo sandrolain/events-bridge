@@ -12,7 +12,43 @@ import (
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
-func NewTarget(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
+type TargetConfig struct {
+	Address              string `yaml:"address" json:"address"`
+	Topic                string `yaml:"topic" json:"topic"`
+	ClientID             string `yaml:"clientID" json:"clientID"`
+	QoS                  int    `yaml:"qos" json:"qos"`
+	TopicFromMetadataKey string `yaml:"topicFromMetadataKey" json:"topicFromMetadataKey"`
+}
+
+// NewTargetOptions builds an MQTT target config from options map.
+// Expected keys: address, topic, clientID, qos, topicFromMetadataKey.
+func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+	cfg := &TargetConfig{}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["topic"].(string); ok {
+		cfg.Topic = v
+	}
+	if v, ok := opts["clientID"].(string); ok {
+		cfg.ClientID = v
+	}
+	if v, ok := opts["qos"].(int); ok {
+		cfg.QoS = v
+	}
+	if v, ok := opts["qos"].(int64); ok {
+		cfg.QoS = int(v)
+	}
+	if v, ok := opts["qos"].(float64); ok {
+		cfg.QoS = int(v)
+	}
+	if v, ok := opts["topicFromMetadataKey"].(string); ok {
+		cfg.TopicFromMetadataKey = v
+	}
+	return NewTarget(cfg)
+}
+
+func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT target")
 	}
@@ -45,7 +81,7 @@ func NewTarget(cfg *targets.TargetMQTTConfig) (targets.Target, error) {
 
 type MQTTTarget struct {
 	slog    *slog.Logger
-	config  *targets.TargetMQTTConfig
+	config  *TargetConfig
 	stopped bool
 	stopCh  chan struct{}
 	client  mqtt.Client

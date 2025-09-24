@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -11,7 +12,62 @@ import (
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
-func NewTarget(cfg *targets.TargetRedisConfig) (targets.Target, error) {
+type TargetConfig struct {
+	Address string `yaml:"address" json:"address"`
+	// PubSub
+	Channel                string `yaml:"channel" json:"channel"`
+	ChannelFromMetadataKey string `yaml:"channelFromMetadataKey" json:"channelFromMetadataKey"`
+	// Stream
+	Stream                string        `yaml:"stream" json:"stream"`
+	StreamFromMetadataKey string        `yaml:"streamFromMetadataKey" json:"streamFromMetadataKey"`
+	ConsumerGroup         string        `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
+	ConsumerName          string        `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
+	Timeout               time.Duration `yaml:"timeout" json:"timeout"`
+	StreamDataKey         string        `yaml:"stream_data_key" json:"stream_data_key"`
+}
+
+// NewTargetOptions builds a Redis target config from options map.
+// For PubSub: address, channel, channelFromMetadataKey.
+// For Stream: address, stream, streamFromMetadataKey, consumer_group, consumer_name, timeout (ns), stream_data_key.
+func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+	cfg := &TargetConfig{}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["channel"].(string); ok {
+		cfg.Channel = v
+	}
+	if v, ok := opts["channelFromMetadataKey"].(string); ok {
+		cfg.ChannelFromMetadataKey = v
+	}
+	if v, ok := opts["stream"].(string); ok {
+		cfg.Stream = v
+	}
+	if v, ok := opts["streamFromMetadataKey"].(string); ok {
+		cfg.StreamFromMetadataKey = v
+	}
+	if v, ok := opts["consumer_group"].(string); ok {
+		cfg.ConsumerGroup = v
+	}
+	if v, ok := opts["consumer_name"].(string); ok {
+		cfg.ConsumerName = v
+	}
+	if v, ok := opts["timeout"].(int); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(int64); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(float64); ok {
+		cfg.Timeout = time.Duration(int64(v))
+	}
+	if v, ok := opts["stream_data_key"].(string); ok {
+		cfg.StreamDataKey = v
+	}
+	return NewTarget(cfg)
+}
+
+func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 	if cfg.Stream != "" {
 		return NewStreamTarget(cfg)
 	}
@@ -21,7 +77,7 @@ func NewTarget(cfg *targets.TargetRedisConfig) (targets.Target, error) {
 	return nil, fmt.Errorf("invalid config for Redis target")
 }
 
-func NewChannelTarget(cfg *targets.TargetRedisConfig) (targets.Target, error) {
+func NewChannelTarget(cfg *TargetConfig) (targets.Target, error) {
 	l := slog.Default().With("context", "Redis")
 	client := redis.NewClient(&redis.Options{
 		Addr: cfg.Address,
@@ -37,7 +93,7 @@ func NewChannelTarget(cfg *targets.TargetRedisConfig) (targets.Target, error) {
 
 type RedisTarget struct {
 	slog   *slog.Logger
-	config *targets.TargetRedisConfig
+	config *TargetConfig
 	client *redis.Client
 }
 

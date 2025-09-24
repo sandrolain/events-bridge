@@ -18,8 +18,56 @@ import (
 	"github.com/sandrolain/events-bridge/src/sources"
 )
 
+type SourceConfig struct {
+	Path         string `yaml:"path" json:"path"`
+	RemoteURL    string `yaml:"remote_url" json:"remote_url"`
+	Remote       string `yaml:"remote" json:"remote"`
+	Branch       string `yaml:"branch" json:"branch"`
+	Username     string `yaml:"username" json:"username"`
+	Password     string `yaml:"password" json:"password"`
+	SubDir       string `yaml:"subdir" json:"subdir"`
+	PollInterval int    `yaml:"poll_interval" json:"poll_interval"`
+}
+
+// NewSourceOptions builds a Git source config from options map.
+// Expected keys: path, remote_url, remote, branch, username, password, subdir, poll_interval (seconds).
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["path"].(string); ok {
+		cfg.Path = v
+	}
+	if v, ok := opts["remote_url"].(string); ok {
+		cfg.RemoteURL = v
+	}
+	if v, ok := opts["remote"].(string); ok {
+		cfg.Remote = v
+	}
+	if v, ok := opts["branch"].(string); ok {
+		cfg.Branch = v
+	}
+	if v, ok := opts["username"].(string); ok {
+		cfg.Username = v
+	}
+	if v, ok := opts["password"].(string); ok {
+		cfg.Password = v
+	}
+	if v, ok := opts["subdir"].(string); ok {
+		cfg.SubDir = v
+	}
+	if v, ok := opts["poll_interval"].(int); ok {
+		cfg.PollInterval = v
+	}
+	if v, ok := opts["poll_interval"].(int64); ok {
+		cfg.PollInterval = int(v)
+	}
+	if v, ok := opts["poll_interval"].(float64); ok {
+		cfg.PollInterval = int(v)
+	}
+	return NewSource(cfg)
+}
+
 type GitSource struct {
-	config   *sources.SourceGitConfig
+	config   *SourceConfig
 	slog     *slog.Logger
 	c        chan *message.RunnerMessage
 	started  bool
@@ -27,7 +75,7 @@ type GitSource struct {
 	lastHash plumbing.Hash
 }
 
-func NewSource(cfg *sources.SourceGitConfig) (sources.Source, error) {
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	if cfg.RemoteURL == "" || cfg.Branch == "" {
 		return nil, fmt.Errorf("remote_url and branch are required for the git source")
 	}

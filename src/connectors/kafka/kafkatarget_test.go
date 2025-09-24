@@ -2,18 +2,16 @@ package main
 
 import (
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/targets"
 )
 
 func TestKafkaTargetNewTargetValidation(t *testing.T) {
 	// missing brokers
-	_, err := NewTarget(&targets.TargetKafkaConfig{Brokers: nil, Topic: "t"})
+	_, err := NewTarget(&TargetConfig{Brokers: nil, Topic: "t"})
 	if err == nil {
 		t.Fatal("expected error when brokers are empty")
 	}
 	// missing topic
-	_, err = NewTarget(&targets.TargetKafkaConfig{Brokers: []string{"localhost:9092"}, Topic: ""})
+	_, err = NewTarget(&TargetConfig{Brokers: []string{"localhost:9092"}, Topic: ""})
 	if err == nil {
 		t.Fatal("expected error when topic is empty")
 	}

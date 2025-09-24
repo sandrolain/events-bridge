@@ -11,15 +11,33 @@ import (
 	"github.com/sandrolain/events-bridge/src/sources"
 )
 
+type SourceConfig struct {
+	ConnString string `yaml:"conn_string" json:"conn_string"`
+	Table      string `yaml:"table" json:"table"`
+}
+
+// NewSourceOptions builds a PGSQL source config from options map.
+// Expected keys: conn_string, table.
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["conn_string"].(string); ok {
+		cfg.ConnString = v
+	}
+	if v, ok := opts["table"].(string); ok {
+		cfg.Table = v
+	}
+	return NewSource(cfg)
+}
+
 type PGSQLSource struct {
-	config  *sources.SourcePGSQLConfig
+	config  *SourceConfig
 	slog    *slog.Logger
 	c       chan *message.RunnerMessage
 	conn    *pgx.Conn
 	started bool
 }
 
-func NewSource(cfg *sources.SourcePGSQLConfig) (sources.Source, error) {
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	if cfg.ConnString == "" || cfg.Table == "" {
 		return nil, fmt.Errorf("connString and table are required for PGSQL source")
 	}

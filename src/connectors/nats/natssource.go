@@ -10,8 +10,38 @@ import (
 	"github.com/sandrolain/events-bridge/src/sources"
 )
 
+type SourceConfig struct {
+	Address    string `yaml:"address" json:"address"`
+	Stream     string `yaml:"stream" json:"stream"`
+	Subject    string `yaml:"subject" json:"subject"`
+	Consumer   string `yaml:"consumer" json:"consumer"`
+	QueueGroup string `yaml:"queueGroup" json:"queueGroup"`
+}
+
+// NewSourceOptions builds a NATS source config from options map.
+// Expected keys: address, subject, stream, consumer, queueGroup.
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["subject"].(string); ok {
+		cfg.Subject = v
+	}
+	if v, ok := opts["stream"].(string); ok {
+		cfg.Stream = v
+	}
+	if v, ok := opts["consumer"].(string); ok {
+		cfg.Consumer = v
+	}
+	if v, ok := opts["queueGroup"].(string); ok {
+		cfg.QueueGroup = v
+	}
+	return NewSource(cfg)
+}
+
 type NATSSource struct {
-	config  *sources.SourceNATSConfig
+	config  *SourceConfig
 	slog    *slog.Logger
 	c       chan *message.RunnerMessage
 	nc      *nats.Conn
@@ -20,7 +50,7 @@ type NATSSource struct {
 	started bool
 }
 
-func NewSource(cfg *sources.SourceNATSConfig) (sources.Source, error) {
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	if cfg.Address == "" || cfg.Subject == "" {
 		return nil, fmt.Errorf("address and subject are required for NATS source")
 	}

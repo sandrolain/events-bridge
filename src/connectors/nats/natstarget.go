@@ -11,7 +11,39 @@ import (
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
-func NewTarget(cfg *targets.TargetNATSConfig) (targets.Target, error) {
+type TargetConfig struct {
+	Address                string        `yaml:"address" json:"address"`
+	Subject                string        `yaml:"subject" json:"subject"`
+	SubjectFromMetadataKey string        `yaml:"subjectFromMetadataKey" json:"subjectFromMetadataKey"`
+	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
+}
+
+// NewTargetOptions builds a NATS target config from options map.
+// Expected keys: address, subject, subjectFromMetadataKey, timeout (ns).
+func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+	cfg := &TargetConfig{}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["subject"].(string); ok {
+		cfg.Subject = v
+	}
+	if v, ok := opts["subjectFromMetadataKey"].(string); ok {
+		cfg.SubjectFromMetadataKey = v
+	}
+	if v, ok := opts["timeout"].(int); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(int64); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(float64); ok {
+		cfg.Timeout = time.Duration(int64(v))
+	}
+	return NewTarget(cfg)
+}
+
+func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 	if cfg.Address == "" || cfg.Subject == "" {
 		return nil, fmt.Errorf("address and subject are required for NATS target")
 	}
@@ -39,7 +71,7 @@ func NewTarget(cfg *targets.TargetNATSConfig) (targets.Target, error) {
 
 type NATSTarget struct {
 	slog    *slog.Logger
-	config  *targets.TargetNATSConfig
+	config  *TargetConfig
 	timeout time.Duration
 	conn    *nats.Conn
 }

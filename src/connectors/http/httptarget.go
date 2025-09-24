@@ -4,13 +4,54 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
 	"github.com/valyala/fasthttp"
 )
 
-func NewTarget(cfg *targets.TargetHTTPConfig) (res targets.Target, err error) {
+type TargetConfig struct {
+	Method  string            `yaml:"method" json:"method"`
+	URL     string            `yaml:"url" json:"url"`
+	Headers map[string]string `yaml:"headers" json:"headers"`
+	Timeout time.Duration     `yaml:"timeout" json:"timeout"`
+}
+
+// NewTargetOptions decodes a generic options map into the connector-specific config
+// and delegates to NewTarget. Expected keys: url, method, headers (map[string]string), timeout.
+func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+	cfg := &TargetConfig{}
+	if v, ok := opts["url"].(string); ok {
+		cfg.URL = v
+	}
+	if v, ok := opts["method"].(string); ok {
+		cfg.Method = v
+	}
+	if v, ok := opts["headers"].(map[string]string); ok {
+		cfg.Headers = v
+	} else if v, ok := opts["headers"].(map[string]any); ok {
+		headers := make(map[string]string, len(v))
+		for hk, hv := range v {
+			if s, ok := hv.(string); ok {
+				headers[hk] = s
+			}
+		}
+		cfg.Headers = headers
+	}
+	if v, ok := opts["timeout"].(int); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(int64); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(float64); ok {
+		cfg.Timeout = time.Duration(int64(v))
+	}
+	return NewTarget(cfg)
+}
+
+func NewTarget(cfg *TargetConfig) (res targets.Target, err error) {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = targets.DefaultTimeout
@@ -40,7 +81,7 @@ func NewTarget(cfg *targets.TargetHTTPConfig) (res targets.Target, err error) {
 
 type HTTPTarget struct {
 	slog    *slog.Logger
-	config  *targets.TargetHTTPConfig
+	config  *TargetConfig
 	stopped bool
 	stopCh  chan struct{}
 	client  *fasthttp.Client

@@ -10,8 +10,42 @@ import (
 	"github.com/sandrolain/events-bridge/src/sources"
 )
 
+type SourceConfig struct {
+	Address       string `yaml:"address" json:"address"`
+	Channel       string `yaml:"channel" json:"channel"`
+	Stream        string `yaml:"stream" json:"stream"`
+	ConsumerGroup string `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
+	ConsumerName  string `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
+	StreamDataKey string `yaml:"stream_data_key" json:"stream_data_key"`
+}
+
+// NewSourceOptions builds a Redis source config from options map.
+// For PubSub: address, channel. For Stream: address, stream, consumer_group, consumer_name, stream_data_key.
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["channel"].(string); ok {
+		cfg.Channel = v
+	}
+	if v, ok := opts["stream"].(string); ok {
+		cfg.Stream = v
+	}
+	if v, ok := opts["consumer_group"].(string); ok {
+		cfg.ConsumerGroup = v
+	}
+	if v, ok := opts["consumer_name"].(string); ok {
+		cfg.ConsumerName = v
+	}
+	if v, ok := opts["stream_data_key"].(string); ok {
+		cfg.StreamDataKey = v
+	}
+	return NewSource(cfg)
+}
+
 type RedisSource struct {
-	config  *sources.SourceRedisConfig
+	config  *SourceConfig
 	slog    *slog.Logger
 	c       chan *message.RunnerMessage
 	client  *redis.Client
@@ -20,7 +54,7 @@ type RedisSource struct {
 }
 
 type RedisStreamSource struct {
-	config         *sources.SourceRedisConfig
+	config         *SourceConfig
 	slog           *slog.Logger
 	c              chan *message.RunnerMessage
 	client         *redis.Client
@@ -29,7 +63,7 @@ type RedisStreamSource struct {
 	useConsumerGrp bool
 }
 
-func NewSource(cfg *sources.SourceRedisConfig) (sources.Source, error) {
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	if cfg.Stream != "" {
 		useConsumerGrp := cfg.ConsumerGroup != "" && cfg.ConsumerName != ""
 		return &RedisStreamSource{

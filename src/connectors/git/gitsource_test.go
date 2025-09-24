@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
 )
 
 func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
@@ -64,7 +63,7 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 		t.Fatalf("failed to git push: %v", err)
 	}
 
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL:    remoteDir,
 		Branch:       "master",
 		Path:         "",
@@ -117,7 +116,7 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 		t.Fatalf("failed to git commit: %v", err)
 	}
 
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL:    tmpDir,
 		Branch:       "master",
 		Path:         tmpDir,
@@ -176,7 +175,7 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 	}
 
 	// Setup config for local repo
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL:    tmpDir,
 		Branch:       "master",
 		Path:         tmpDir,
@@ -202,14 +201,14 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 }
 
 func TestNewSourceInvalidConfig(t *testing.T) {
-	_, err := NewSource(&sources.SourceGitConfig{})
+	_, err := NewSource(&SourceConfig{})
 	if err == nil {
 		t.Error("expected error for missing remote_url and branch")
 	}
 }
 
 func TestGitSourceProduceAndClose(t *testing.T) {
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL: "https://github.com/sandrolain/events-bridge.git",
 		Branch:    "main",
 	}
@@ -235,7 +234,7 @@ func TestGitSourceProduceAndClose(t *testing.T) {
 }
 
 func TestGitSourceCheckForChangesNoRepo(t *testing.T) {
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL: "",
 		Branch:    "main",
 	}
@@ -244,7 +243,7 @@ func TestGitSourceCheckForChangesNoRepo(t *testing.T) {
 }
 
 func TestGitSourceCheckForChangesSameHash(t *testing.T) {
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL: "https://github.com/sandrolain/events-bridge.git",
 		Branch:    "main",
 	}
@@ -269,7 +268,7 @@ func TestGitSourceCheckForChangesTempDirError(t *testing.T) {
 		}
 	}()
 
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL: "dummy",
 		Branch:    "main",
 		Path:      "", // triggers temp dir creation
@@ -279,7 +278,7 @@ func TestGitSourceCheckForChangesTempDirError(t *testing.T) {
 }
 
 func TestGitSourceCheckForChangesOpenRepoError(t *testing.T) {
-	cfg := &sources.SourceGitConfig{
+	cfg := &SourceConfig{
 		RemoteURL: "dummy",
 		Branch:    "main",
 		Path:      "/dev/null/doesnotexist",

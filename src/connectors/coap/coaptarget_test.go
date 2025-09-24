@@ -15,7 +15,6 @@ import (
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
 )
 
 type mockMessage struct {
@@ -35,7 +34,7 @@ func (m *mockMessage) Reply(data *message.ReplyData) error           { return ni
 const addrLocal = "localhost:5683"
 
 func TestSendUnsupportedProtocol(t *testing.T) {
-	cfg := &targets.TargetCoAPConfig{
+	cfg := &TargetConfig{
 		Protocol: "invalid",
 		Address:  addrLocal,
 		Path:     "/test",
@@ -53,7 +52,7 @@ func TestSendUnsupportedProtocol(t *testing.T) {
 }
 
 func TestSendUnsupportedMethod(t *testing.T) {
-	cfg := &targets.TargetCoAPConfig{
+	cfg := &TargetConfig{
 		Protocol: "udp",
 		Address:  addrLocal,
 		Path:     "/test",
@@ -76,7 +75,7 @@ func TestSendUnsupportedMethod(t *testing.T) {
 }
 
 func TestSendErrorGettingData(t *testing.T) {
-	cfg := &targets.TargetCoAPConfig{
+	cfg := &TargetConfig{
 		Protocol: "udp",
 		Address:  addrLocal,
 		Path:     "/test",
@@ -96,7 +95,7 @@ func TestSendErrorGettingData(t *testing.T) {
 const errUnexpected = "unexpected error: %v"
 
 func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
-	cfg := &targets.TargetCoAPConfig{
+	cfg := &TargetConfig{
 		Protocol: "udp",
 		Address:  "127.0.0.1:9999", // unused port, no server
 		Path:     "/test",
@@ -114,7 +113,7 @@ func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
 }
 
 func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
-	cfg := &targets.TargetCoAPConfig{
+	cfg := &TargetConfig{
 		Protocol: "tcp",
 		Address:  "127.0.0.1:9999", // unused port, no server
 		Path:     "/test",
@@ -222,7 +221,7 @@ func TestIntegrationSendUDP(t *testing.T) {
 		default:
 		}
 	})
-	cfg := &targets.TargetCoAPConfig{
+	cfg := &TargetConfig{
 		Protocol: "udp",
 		Address:  addr,
 		Path:     "/test",
@@ -254,7 +253,7 @@ func TestIntegrationSendTCP(t *testing.T) {
 		default:
 		}
 	})
-	cfg := &targets.TargetCoAPConfig{
+	cfg := &TargetConfig{
 		Protocol: "tcp",
 		Address:  addr,
 		Path:     "/test",

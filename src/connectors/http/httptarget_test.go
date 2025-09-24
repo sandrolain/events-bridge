@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
 	"github.com/valyala/fasthttp"
 )
 
@@ -45,7 +44,7 @@ func (m *mockMessage) Reply(data *message.ReplyData) error           { return ni
 
 func TestNewTargetDefaultTimeout(t *testing.T) {
 	const errMsg = "unexpected error: %v"
-	cfg := &targets.TargetHTTPConfig{Timeout: 0}
+	cfg := &TargetConfig{Timeout: 0}
 	tgt, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errMsg, err)
@@ -76,7 +75,7 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	}()
 
 	url := "http://" + ln.Addr().String() + "/test"
-	cfg := &targets.TargetHTTPConfig{URL: url, Method: "POST", Headers: map[string]string{}, Timeout: 250 * time.Millisecond}
+	cfg := &TargetConfig{URL: url, Method: "POST", Headers: map[string]string{}, Timeout: 250 * time.Millisecond}
 	tgt, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errMsg, err)
@@ -99,7 +98,7 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 }
 
 func TestHTTPTargetSendErrorMetadata(t *testing.T) {
-	httpTgt := &HTTPTarget{config: &targets.TargetHTTPConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
+	httpTgt := &HTTPTarget{config: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &metaErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)
@@ -109,7 +108,7 @@ func TestHTTPTargetSendErrorMetadata(t *testing.T) {
 }
 
 func TestHTTPTargetSendErrorData(t *testing.T) {
-	httpTgt := &HTTPTarget{config: &targets.TargetHTTPConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
+	httpTgt := &HTTPTarget{config: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &dataErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)

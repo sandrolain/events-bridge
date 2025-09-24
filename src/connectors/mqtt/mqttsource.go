@@ -10,15 +10,41 @@ import (
 	"github.com/sandrolain/events-bridge/src/sources"
 )
 
+type SourceConfig struct {
+	Address       string `yaml:"address" json:"address"`
+	Topic         string `yaml:"topic" json:"topic"`
+	ClientID      string `yaml:"client_id" json:"client_id"`
+	ConsumerGroup string `yaml:"consumer_group" json:"consumer_group"`
+}
+
+// NewSourceOptions builds an MQTT source config from options map.
+// Expected keys: address, topic, client_id, consumer_group.
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["topic"].(string); ok {
+		cfg.Topic = v
+	}
+	if v, ok := opts["client_id"].(string); ok {
+		cfg.ClientID = v
+	}
+	if v, ok := opts["consumer_group"].(string); ok {
+		cfg.ConsumerGroup = v
+	}
+	return NewSource(cfg)
+}
+
 type MQTTSource struct {
-	config  *sources.SourceMQTTConfig
+	config  *SourceConfig
 	slog    *slog.Logger
 	c       chan *message.RunnerMessage
 	client  mqtt.Client
 	started bool
 }
 
-func NewSource(cfg *sources.SourceMQTTConfig) (sources.Source, error) {
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT source")
 	}

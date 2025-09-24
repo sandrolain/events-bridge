@@ -5,17 +5,15 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/targets"
 )
 
 func TestMQTTTargetNewTargetValidation(t *testing.T) {
 	// missing address
-	if _, err := NewTarget(&targets.TargetMQTTConfig{Address: "", Topic: "t"}); err == nil {
+	if _, err := NewTarget(&TargetConfig{Address: "", Topic: "t"}); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
 	// missing topic
-	if _, err := NewTarget(&targets.TargetMQTTConfig{Address: "localhost:1883", Topic: ""}); err == nil {
+	if _, err := NewTarget(&TargetConfig{Address: "localhost:1883", Topic: ""}); err == nil {
 		t.Fatal("expected error when topic is empty")
 	}
 }
@@ -33,7 +31,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	defer cleanup()
 
 	// Start source on topic
-	srcCfg := &sources.SourceMQTTConfig{Address: addr, Topic: "ab/#", ClientID: "src1"}
+	srcCfg := &SourceConfig{Address: addr, Topic: "ab/#", ClientID: "src1"}
 	sIface, err := NewSource(srcCfg)
 	if err != nil {
 		t.Fatalf("NewSource: %v", err)
@@ -45,7 +43,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	defer sIface.Close()
 
 	// Target publishes to topic
-	tgtCfg := &targets.TargetMQTTConfig{Address: addr, Topic: "ab/cd", ClientID: "tgt1", QoS: 0}
+	tgtCfg := &TargetConfig{Address: addr, Topic: "ab/cd", ClientID: "tgt1", QoS: 0}
 	tIface, err := NewTarget(tgtCfg)
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
@@ -73,7 +71,7 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	addr, cleanup := startMochi(t)
 	defer cleanup()
 
-	srcCfg := &sources.SourceMQTTConfig{Address: addr, Topic: "dyn/+", ClientID: "src2"}
+	srcCfg := &SourceConfig{Address: addr, Topic: "dyn/+", ClientID: "src2"}
 	sIface, err := NewSource(srcCfg)
 	if err != nil {
 		t.Fatalf("NewSource: %v", err)
@@ -84,7 +82,7 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	}
 	defer sIface.Close()
 
-	tgtCfg := &targets.TargetMQTTConfig{Address: addr, Topic: "unused", TopicFromMetadataKey: "topic"}
+	tgtCfg := &TargetConfig{Address: addr, Topic: "unused", TopicFromMetadataKey: "topic"}
 	tIface, err := NewTarget(tgtCfg)
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)

@@ -14,8 +14,46 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+type SourceConfig struct {
+	ProjectID         string `yaml:"project_id" json:"project_id"`
+	Subscription      string `yaml:"subscription" json:"subscription"`
+	CreateIfNotExists bool   `yaml:"create_if_not_exists" json:"create_if_not_exists"`
+	Topic             string `yaml:"topic" json:"topic"`
+	AckDeadline       int    `yaml:"ack_deadline" json:"ack_deadline"`
+	RetainAcked       bool   `yaml:"retain_acked" json:"retain_acked"`
+	RetentionDuration int    `yaml:"retention_duration" json:"retention_duration"`
+}
+
+// NewSourceOptions builds a PubSub source config from options map.
+// Expected keys: project_id, subscription, create_if_not_exists, topic, ack_deadline, retain_acked, retention_duration.
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["project_id"].(string); ok {
+		cfg.ProjectID = v
+	}
+	if v, ok := opts["subscription"].(string); ok {
+		cfg.Subscription = v
+	}
+	if v, ok := opts["create_if_not_exists"].(bool); ok {
+		cfg.CreateIfNotExists = v
+	}
+	if v, ok := opts["topic"].(string); ok {
+		cfg.Topic = v
+	}
+	if v, ok := opts["ack_deadline"].(int); ok {
+		cfg.AckDeadline = v
+	}
+	if v, ok := opts["retention_duration"].(int); ok {
+		cfg.RetentionDuration = v
+	}
+	if v, ok := opts["retain_acked"].(bool); ok {
+		cfg.RetainAcked = v
+	}
+	return NewSource(cfg)
+}
+
 type PubSubSource struct {
-	config  *sources.SourcePubSubConfig
+	config  *SourceConfig
 	slog    *slog.Logger
 	c       chan *message.RunnerMessage
 	client  *pubsub.Client
@@ -23,7 +61,7 @@ type PubSubSource struct {
 	started bool
 }
 
-func NewSource(cfg *sources.SourcePubSubConfig) (sources.Source, error) {
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	if cfg.ProjectID == "" || cfg.Subscription == "" {
 		return nil, fmt.Errorf("projectID and subscription are required for PubSub source")
 	}

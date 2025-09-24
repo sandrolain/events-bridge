@@ -195,21 +195,21 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 
 	switch cfg.Type {
 	case sources.SourceTypeHTTP:
-		source, err = utils.LoadPlugin[*sources.SourceHTTPConfig, sources.Source]("./connectors/http.so", sources.NewMethodName, cfg.HTTP)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/http.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypeCoAP:
-		source, err = utils.LoadPlugin[*sources.SourceCoAPConfig, sources.Source]("./connectors/coap.so", sources.NewMethodName, cfg.CoAP)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/coap.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypeMQTT:
-		source, err = utils.LoadPlugin[*sources.SourceMQTTConfig, sources.Source]("./connectors/mqtt.so", sources.NewMethodName, cfg.MQTT)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/mqtt.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypeNATS:
-		source, err = utils.LoadPlugin[*sources.SourceNATSConfig, sources.Source]("./connectors/nats.so", sources.NewMethodName, cfg.NATS)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/nats.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypeKafka:
-		source, err = utils.LoadPlugin[*sources.SourceKafkaConfig, sources.Source]("./connectors/kafka.so", sources.NewMethodName, cfg.Kafka)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/kafka.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypeRedis:
-		source, err = utils.LoadPlugin[*sources.SourceRedisConfig, sources.Source]("./connectors/redis.so", sources.NewMethodName, cfg.Redis)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/redis.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypePGSQL:
-		source, err = utils.LoadPlugin[*sources.SourcePGSQLConfig, sources.Source]("./connectors/pgsql.so", sources.NewMethodName, cfg.PgSQL)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/pgsql.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypeGit:
-		source, err = utils.LoadPlugin[*sources.SourceGitConfig, sources.Source]("./connectors/git.so", sources.NewMethodName, cfg.Git)
+		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/git.so", sources.NewMethodName, cfg.Options)
 	case sources.SourceTypePlugin:
 		slog.Info("using Plugin source", "path", cfg.Plugin.Name)
 		plgMan, e := plugin.GetPluginManager()
@@ -229,17 +229,17 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 
 	switch cfg.Type {
 	case targets.TargetTypeHTTP:
-		target, err = utils.LoadPlugin[*targets.TargetHTTPConfig, targets.Target]("./connectors/http.so", targets.NewMethodName, cfg.HTTP)
+		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/http.so", targets.NewMethodName, cfg.Options)
 	case targets.TargetTypeCoAP:
-		target, err = utils.LoadPlugin[*targets.TargetCoAPConfig, targets.Target]("./connectors/coap.so", targets.NewMethodName, cfg.CoAP)
+		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/coap.so", targets.NewMethodName, cfg.Options)
 	case targets.TargetTypeMQTT:
-		target, err = utils.LoadPlugin[*targets.TargetMQTTConfig, targets.Target]("./connectors/mqtt.so", targets.NewMethodName, cfg.MQTT)
+		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/mqtt.so", targets.NewMethodName, cfg.Options)
 	case targets.TargetTypeNATS:
-		target, err = utils.LoadPlugin[*targets.TargetNATSConfig, targets.Target]("./connectors/nats.so", targets.NewMethodName, cfg.NATS)
+		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/nats.so", targets.NewMethodName, cfg.Options)
 	case targets.TargetTypeKafka:
-		target, err = utils.LoadPlugin[*targets.TargetKafkaConfig, targets.Target]("./connectors/kafka.so", targets.NewMethodName, cfg.Kafka)
+		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/kafka.so", targets.NewMethodName, cfg.Options)
 	case targets.TargetTypeRedis:
-		target, err = utils.LoadPlugin[*targets.TargetRedisConfig, targets.Target]("./connectors/redis.so", targets.NewMethodName, cfg.Redis)
+		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/redis.so", targets.NewMethodName, cfg.Options)
 	case targets.TargetTypePlugin:
 		plgMan, e := plugin.GetPluginManager()
 		if e != nil {

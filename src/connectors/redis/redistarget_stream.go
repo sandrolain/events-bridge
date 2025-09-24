@@ -7,10 +7,9 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-func NewStreamTarget(cfg *targets.TargetRedisConfig) (targets.Target, error) {
+func NewStreamTarget(cfg *TargetConfig) (*RedisStreamTarget, error) {
 	l := slog.Default().With("context", "RedisStream")
 
 	client := redis.NewClient(&redis.Options{
@@ -27,7 +26,7 @@ func NewStreamTarget(cfg *targets.TargetRedisConfig) (targets.Target, error) {
 
 type RedisStreamTarget struct {
 	slog   *slog.Logger
-	config *targets.TargetRedisConfig
+	config *TargetConfig
 	client *redis.Client
 }
 

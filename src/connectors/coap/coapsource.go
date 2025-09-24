@@ -18,8 +18,48 @@ import (
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
-func NewSource(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
-	if cfg.Protocol != sources.CoAPProtocolUDP && cfg.Protocol != sources.CoAPProtocolTCP {
+type SourceConfig struct {
+	Protocol CoAPProtocol  `yaml:"protocol" json:"protocol"`
+	Address  string        `yaml:"address" json:"address"`
+	Path     string        `yaml:"path" json:"path"`
+	Method   string        `yaml:"method" json:"method"`
+	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
+}
+
+// NewSourceOptions builds a CoAP config from options map.
+// Expected keys: protocol ("udp"|"tcp"), address, path, method, timeout (ns).
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["protocol"].(string); ok {
+		if v == string(CoAPProtocolTCP) {
+			cfg.Protocol = CoAPProtocolTCP
+		} else {
+			cfg.Protocol = CoAPProtocolUDP
+		}
+	}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["path"].(string); ok {
+		cfg.Path = v
+	}
+	if v, ok := opts["method"].(string); ok {
+		cfg.Method = v
+	}
+	if v, ok := opts["timeout"].(int); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(int64); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(float64); ok {
+		cfg.Timeout = time.Duration(int64(v))
+	}
+	return NewSource(cfg)
+}
+
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
+	if cfg.Protocol != CoAPProtocolUDP && cfg.Protocol != CoAPProtocolTCP {
 		return nil, fmt.Errorf("invalid CoAP protocol: %q (must be 'udp' or 'tcp')", cfg.Protocol)
 	}
 
@@ -36,7 +76,7 @@ func NewSource(cfg *sources.SourceCoAPConfig) (sources.Source, error) {
 }
 
 type CoAPSource struct {
-	config  *sources.SourceCoAPConfig
+	config  *SourceConfig
 	slog    *slog.Logger
 	c       chan *message.RunnerMessage
 	started bool

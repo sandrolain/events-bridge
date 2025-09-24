@@ -12,7 +12,39 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func NewSource(cfg *sources.SourceHTTPConfig) (sources.Source, error) {
+type SourceConfig struct {
+	Address string        `yaml:"address" json:"address"`
+	Method  string        `yaml:"method" json:"method"`
+	Path    string        `yaml:"path" json:"path"`
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
+}
+
+// NewSourceOptions decodes a generic options map into the connector-specific config
+// and delegates to NewSource. Expected keys: address, method, path, timeout.
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["method"].(string); ok {
+		cfg.Method = v
+	}
+	if v, ok := opts["path"].(string); ok {
+		cfg.Path = v
+	}
+	if v, ok := opts["timeout"].(int); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(int64); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(float64); ok { // when decoded from JSON
+		cfg.Timeout = time.Duration(int64(v))
+	}
+	return NewSource(cfg)
+}
+
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = sources.DefaultTimeout
@@ -26,7 +58,7 @@ func NewSource(cfg *sources.SourceHTTPConfig) (sources.Source, error) {
 }
 
 type HTTPSource struct {
-	config   *sources.SourceHTTPConfig
+	config   *SourceConfig
 	slog     *slog.Logger
 	listener net.Listener
 	c        chan *message.RunnerMessage

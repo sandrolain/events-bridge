@@ -4,12 +4,10 @@ import (
 	"net"
 	"testing"
 	"time"
-
-	"github.com/sandrolain/events-bridge/src/sources"
 )
 
 func TestNewSource(t *testing.T) {
-	cfg := &sources.SourceHTTPConfig{Address: "127.0.0.1:0", Method: "POST", Path: "/test"}
+	cfg := &SourceConfig{Address: "127.0.0.1:0", Method: "POST", Path: "/test"}
 	src, err := NewSource(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -20,7 +18,7 @@ func TestNewSource(t *testing.T) {
 }
 
 func TestHTTPSourceProduceAndClose(t *testing.T) {
-	cfg := &sources.SourceHTTPConfig{Address: "127.0.0.1:0", Method: "POST", Path: "/test"}
+	cfg := &SourceConfig{Address: "127.0.0.1:0", Method: "POST", Path: "/test"}
 	src, _ := NewSource(cfg)
 	httpSrc, ok := src.(*HTTPSource)
 	if !ok {
@@ -42,7 +40,7 @@ func TestHTTPSourceProduceAndClose(t *testing.T) {
 
 func TestHTTPSourceProduce_ErrorOnListen(t *testing.T) {
 	// Use an invalid address to force net.Listen to fail
-	cfg := &sources.SourceHTTPConfig{Address: "invalid:address", Method: "POST", Path: "/test"}
+	cfg := &SourceConfig{Address: "invalid:address", Method: "POST", Path: "/test"}
 	src, err := NewSource(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -61,7 +59,7 @@ func TestHTTPSourceProduceMethodNotAllowed(t *testing.T) {
 	const addr = "127.0.0.1:0"
 	const errMsg = "unexpected error: %v"
 	const dialMsg = "failed to dial: %v"
-	cfg := &sources.SourceHTTPConfig{Address: addr, Method: "POST", Path: "/test"}
+	cfg := &SourceConfig{Address: addr, Method: "POST", Path: "/test"}
 	src, _ := NewSource(cfg)
 	httpSrc := src.(*HTTPSource)
 	ch, err := httpSrc.Produce(1)
@@ -95,7 +93,7 @@ func TestHTTPSourceProducePathNotFound(t *testing.T) {
 	const addr = "127.0.0.1:0"
 	const errMsg = "unexpected error: %v"
 	const dialMsg = "failed to dial: %v"
-	cfg := &sources.SourceHTTPConfig{Address: addr, Method: "POST", Path: "/test"}
+	cfg := &SourceConfig{Address: addr, Method: "POST", Path: "/test"}
 	src, _ := NewSource(cfg)
 	httpSrc := src.(*HTTPSource)
 	ch, err := httpSrc.Produce(1)
@@ -127,7 +125,7 @@ func TestHTTPSourceProduceTimeout(t *testing.T) {
 	const addr = "127.0.0.1:0"
 	const errMsg = "unexpected error: %v"
 	const dialMsg = "failed to dial: %v"
-	cfg := &sources.SourceHTTPConfig{Address: addr, Method: "POST", Path: "/test"}
+	cfg := &SourceConfig{Address: addr, Method: "POST", Path: "/test"}
 	src, _ := NewSource(cfg)
 	httpSrc := src.(*HTTPSource)
 	ch, err := httpSrc.Produce(1)

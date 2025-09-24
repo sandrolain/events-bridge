@@ -10,15 +10,65 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+type SourceConfig struct {
+	Brokers           []string `yaml:"brokers" json:"brokers"`
+	GroupID           string   `yaml:"group_id" json:"group_id"`
+	Topic             string   `yaml:"topic" json:"topic"`
+	Partitions        int      `yaml:"partitions" json:"partitions"`
+	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
+}
+
+// NewSourceOptions builds a Kafka source config from options map.
+// Expected keys: brokers ([]string), topic, group_id, partitions, replication_factor.
+func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+	cfg := &SourceConfig{}
+	if v, ok := opts["brokers"].([]string); ok {
+		cfg.Brokers = v
+	} else if v, ok := opts["brokers"].([]any); ok {
+		bs := make([]string, 0, len(v))
+		for _, it := range v {
+			if s, ok := it.(string); ok {
+				bs = append(bs, s)
+			}
+		}
+		cfg.Brokers = bs
+	}
+	if v, ok := opts["group_id"].(string); ok {
+		cfg.GroupID = v
+	}
+	if v, ok := opts["topic"].(string); ok {
+		cfg.Topic = v
+	}
+	if v, ok := opts["partitions"].(int); ok {
+		cfg.Partitions = v
+	}
+	if v, ok := opts["partitions"].(int64); ok {
+		cfg.Partitions = int(v)
+	}
+	if v, ok := opts["partitions"].(float64); ok {
+		cfg.Partitions = int(v)
+	}
+	if v, ok := opts["replication_factor"].(int); ok {
+		cfg.ReplicationFactor = v
+	}
+	if v, ok := opts["replication_factor"].(int64); ok {
+		cfg.ReplicationFactor = int(v)
+	}
+	if v, ok := opts["replication_factor"].(float64); ok {
+		cfg.ReplicationFactor = int(v)
+	}
+	return NewSource(cfg)
+}
+
 type KafkaSource struct {
-	config  *sources.SourceKafkaConfig
+	config  *SourceConfig
 	slog    *slog.Logger
 	c       chan *message.RunnerMessage
 	reader  *kafka.Reader
 	started bool
 }
 
-func NewSource(cfg *sources.SourceKafkaConfig) (sources.Source, error) {
+func NewSource(cfg *SourceConfig) (sources.Source, error) {
 	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka source")
 	}

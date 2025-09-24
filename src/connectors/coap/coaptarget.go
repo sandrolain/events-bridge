@@ -17,7 +17,47 @@ import (
 	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-func NewTarget(cfg *targets.TargetCoAPConfig) (targets.Target, error) {
+type TargetConfig struct {
+	Protocol CoAPProtocol  `yaml:"protocol" json:"protocol"`
+	Address  string        `yaml:"address" json:"address"`
+	Path     string        `yaml:"path" json:"path"`
+	Method   string        `yaml:"method" json:"method"`
+	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
+}
+
+// NewTargetOptions builds a CoAP target config from options map.
+// Expected keys: protocol, address, path, method, timeout (ns).
+func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+	cfg := &TargetConfig{}
+	if v, ok := opts["protocol"].(string); ok {
+		if v == string(CoAPProtocolTCP) {
+			cfg.Protocol = CoAPProtocolTCP
+		} else {
+			cfg.Protocol = CoAPProtocolUDP
+		}
+	}
+	if v, ok := opts["address"].(string); ok {
+		cfg.Address = v
+	}
+	if v, ok := opts["path"].(string); ok {
+		cfg.Path = v
+	}
+	if v, ok := opts["method"].(string); ok {
+		cfg.Method = v
+	}
+	if v, ok := opts["timeout"].(int); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(int64); ok {
+		cfg.Timeout = time.Duration(v)
+	}
+	if v, ok := opts["timeout"].(float64); ok {
+		cfg.Timeout = time.Duration(int64(v))
+	}
+	return NewTarget(cfg)
+}
+
+func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = targets.DefaultTimeout
@@ -34,7 +74,7 @@ func NewTarget(cfg *targets.TargetCoAPConfig) (targets.Target, error) {
 
 type CoAPTarget struct {
 	slog    *slog.Logger
-	config  *targets.TargetCoAPConfig
+	config  *TargetConfig
 	timeout time.Duration
 	stopped bool
 	stopCh  chan struct{}

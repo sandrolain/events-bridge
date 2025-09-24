@@ -6,22 +6,21 @@ import (
 	"time"
 
 	mqttc "github.com/eclipse/paho.mqtt.golang"
-	"github.com/sandrolain/events-bridge/src/sources"
 )
 
 func TestMQTTSourceNewSourceValidation(t *testing.T) {
 	// missing address
-	if _, err := NewSource(&sources.SourceMQTTConfig{Address: "", Topic: "t"}); err == nil {
+	if _, err := NewSource(&SourceConfig{Address: "", Topic: "t"}); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
 	// missing topic
-	if _, err := NewSource(&sources.SourceMQTTConfig{Address: "localhost:1883", Topic: ""}); err == nil {
+	if _, err := NewSource(&SourceConfig{Address: "localhost:1883", Topic: ""}); err == nil {
 		t.Fatal("expected error when topic is empty")
 	}
 }
 
 func TestMQTTSourceCloseWithoutStart(t *testing.T) {
-	src, err := NewSource(&sources.SourceMQTTConfig{Address: "localhost:1883", Topic: "t"})
+	src, err := NewSource(&SourceConfig{Address: "localhost:1883", Topic: "t"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,7 +33,7 @@ func TestMQTTSharedSubscriptionBasic(t *testing.T) {
 	addr, cleanup := startMochi(t)
 	defer cleanup()
 
-	srcCfg1 := &sources.SourceMQTTConfig{Address: addr, Topic: "share/#", ClientID: "s1", ConsumerGroup: "grp"}
+	srcCfg1 := &SourceConfig{Address: addr, Topic: "share/#", ClientID: "s1", ConsumerGroup: "grp"}
 	s1, _ := NewSource(srcCfg1)
 	ch1, err := s1.Produce(10)
 	if err != nil {
@@ -42,7 +41,7 @@ func TestMQTTSharedSubscriptionBasic(t *testing.T) {
 	}
 	defer s1.Close()
 
-	srcCfg2 := &sources.SourceMQTTConfig{Address: addr, Topic: "share/#", ClientID: "s2", ConsumerGroup: "grp"}
+	srcCfg2 := &SourceConfig{Address: addr, Topic: "share/#", ClientID: "s2", ConsumerGroup: "grp"}
 	s2, _ := NewSource(srcCfg2)
 	ch2, err := s2.Produce(10)
 	if err != nil {

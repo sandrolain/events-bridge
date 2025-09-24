@@ -62,7 +62,7 @@ func TestLoadConfigFileYAMLWithEnvOverrides(t *testing.T) {
 	yaml := "" +
 		"source:\n" +
 		"  type: nats\n" +
-		"  nats:\n" +
+		"  options:\n" +
 		"    address: 127.0.0.1:4222\n" +
 		"    subject: fromfile\n" +
 		"runner:\n" +
@@ -71,21 +71,29 @@ func TestLoadConfigFileYAMLWithEnvOverrides(t *testing.T) {
 		"    command: echo\n" +
 		"target:\n" +
 		"  type: nats\n" +
-		"  nats:\n" +
+		"  options:\n" +
 		"    address: 127.0.0.1:4222\n" +
 		"    subject: will-be-overridden\n"
 	require.NoError(t, os.WriteFile(cfgPath, []byte(yaml), 0o600))
 
 	// override via env (prefix EB_ with __ for nesting)
-	t.Setenv("EB_SOURCE__NATS__SUBJECT", "fromenv")
-	t.Setenv("EB_TARGET__NATS__SUBJECT", "outenv")
+	t.Setenv("EB_SOURCE__OPTIONS__SUBJECT", "fromenv")
+	t.Setenv("EB_TARGET__OPTIONS__SUBJECT", "outenv")
 
 	cfg, err := loadConfigFile(cfgPath)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 	require.Equal(t, "nats", string(cfg.Source.Type))
-	require.Equal(t, "fromenv", cfg.Source.NATS.Subject)
-	require.Equal(t, "outenv", cfg.Target.NATS.Subject)
+	if subj, ok := cfg.Source.Options["subject"].(string); ok {
+		require.Equal(t, "fromenv", subj)
+	} else {
+		t.Fatalf("expected source options.subject to be string, got %#v", cfg.Source.Options["subject"])
+	}
+	if subj, ok := cfg.Target.Options["subject"].(string); ok {
+		require.Equal(t, "outenv", subj)
+	} else {
+		t.Fatalf("expected target options.subject to be string, got %#v", cfg.Target.Options["subject"])
+	}
 }
 
 func TestLoadConfigFileUnsupportedExtension(t *testing.T) {
@@ -111,7 +119,7 @@ func TestLoadConfigContentYAMLAndJSONAutoDetectAndExplicit(t *testing.T) {
 	yaml := strings.Join([]string{
 		"source:",
 		"  type: nats",
-		"  nats:",
+		"  options:",
 		"    address: 127.0.0.1:4222",
 		"    subject: a",
 		"runner:",
@@ -120,22 +128,22 @@ func TestLoadConfigContentYAMLAndJSONAutoDetectAndExplicit(t *testing.T) {
 		"    command: echo",
 		"target:",
 		"  type: nats",
-		"  nats:",
+		"  options:",
 		"    address: 127.0.0.1:4222",
 		"    subject: b",
 	}, "\n")
 
 	cfg, err := loadConfigContent(yaml, "yaml")
 	require.NoError(t, err)
-	require.Equal(t, "a", cfg.Source.NATS.Subject)
-	require.Equal(t, "b", cfg.Target.NATS.Subject)
+	require.Equal(t, "a", cfg.Source.Options["subject"])
+	require.Equal(t, "b", cfg.Target.Options["subject"])
 
 	// JSON auto-detect
-	json := `{"source":{"type":"nats","nats":{"address":"127.0.0.1:4222","subject":"ja"}},"runner":{"type":"cli","cli":{"command":"echo"}},"target":{"type":"nats","nats":{"address":"127.0.0.1:4222","subject":"jb"}}}`
+	json := `{"source":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"ja"}},"runner":{"type":"cli","cli":{"command":"echo"}},"target":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"jb"}}}`
 	cfg2, err := loadConfigContent(json, "")
 	require.NoError(t, err)
-	require.Equal(t, "ja", cfg2.Source.NATS.Subject)
-	require.Equal(t, "jb", cfg2.Target.NATS.Subject)
+	require.Equal(t, "ja", cfg2.Source.Options["subject"])
+	require.Equal(t, "jb", cfg2.Target.Options["subject"])
 }
 
 func TestLoadConfigContentUnsupportedFormat(t *testing.T) {
@@ -149,18 +157,22 @@ func TestLoadConfigContentUnsupportedFormat(t *testing.T) {
 func TestLoadConfigUsesEnvAndCLIPrecedence(t *testing.T) {
 	// Provide minimal env content to avoid default path (and its filepath validation),
 	// then override via CLI which should take precedence over env.
-	t.Setenv("EB_CONFIG_CONTENT", `{"source":{"type":"nats","nats":{"address":"127.0.0.1:4222","subject":"fromenv"}},"runner":{"type":"cli"},"target":{"type":"nats"}}`)
+	t.Setenv("EB_CONFIG_CONTENT", `{"source":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"fromenv"}},"runner":{"type":"cli"},"target":{"type":"nats"}}`)
 	t.Setenv("EB_CONFIG_FORMAT", "json")
 
 	// CLI should override env by providing different inline JSON content
-	json := `{"source":{"type":"nats","nats":{"address":"127.0.0.1:4222","subject":"fromcli"}},"runner":{"type":"cli"},"target":{"type":"nats"}}`
+	json := `{"source":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"fromcli"}},"runner":{"type":"cli"},"target":{"type":"nats"}}`
 	withArgs(t, []string{"--config-content", json, "--config-format", "json"})
 
 	cfg, err := LoadConfig()
 	// On some systems, validator tag "filepath" might not be registered; ensure this doesn't fail here.
 	// If it does, the error will be about validation of EnvConfig, not parsing; this test ensures happy path works.
 	require.NoError(t, err)
-	require.Equal(t, "fromcli", cfg.Source.NATS.Subject)
+	if subj, ok := cfg.Source.Options["subject"].(string); ok {
+		require.Equal(t, "fromcli", subj)
+	} else {
+		t.Fatalf("expected source options.subject to be string, got %#v", cfg.Source.Options["subject"])
+	}
 }
 
 func TestUnsupportedExtensionErrorError(t *testing.T) {

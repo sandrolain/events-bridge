@@ -11,7 +11,53 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-func NewTarget(cfg *targets.TargetKafkaConfig) (targets.Target, error) {
+type TargetConfig struct {
+	Brokers           []string `yaml:"brokers" json:"brokers"`
+	Topic             string   `yaml:"topic" json:"topic"`
+	Partitions        int      `yaml:"partitions" json:"partitions"`
+	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
+}
+
+// NewTargetOptions builds a Kafka target config from options map.
+// Expected keys: brokers ([]string), topic, partitions, replication_factor.
+func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+	cfg := &TargetConfig{}
+	if v, ok := opts["brokers"].([]string); ok {
+		cfg.Brokers = v
+	} else if v, ok := opts["brokers"].([]any); ok {
+		bs := make([]string, 0, len(v))
+		for _, it := range v {
+			if s, ok := it.(string); ok {
+				bs = append(bs, s)
+			}
+		}
+		cfg.Brokers = bs
+	}
+	if v, ok := opts["topic"].(string); ok {
+		cfg.Topic = v
+	}
+	if v, ok := opts["partitions"].(int); ok {
+		cfg.Partitions = v
+	}
+	if v, ok := opts["partitions"].(int64); ok {
+		cfg.Partitions = int(v)
+	}
+	if v, ok := opts["partitions"].(float64); ok {
+		cfg.Partitions = int(v)
+	}
+	if v, ok := opts["replication_factor"].(int); ok {
+		cfg.ReplicationFactor = v
+	}
+	if v, ok := opts["replication_factor"].(int64); ok {
+		cfg.ReplicationFactor = int(v)
+	}
+	if v, ok := opts["replication_factor"].(float64); ok {
+		cfg.ReplicationFactor = int(v)
+	}
+	return NewTarget(cfg)
+}
+
+func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka target")
 	}
@@ -39,7 +85,7 @@ func NewTarget(cfg *targets.TargetKafkaConfig) (targets.Target, error) {
 
 type KafkaTarget struct {
 	slog   *slog.Logger
-	config *targets.TargetKafkaConfig
+	config *TargetConfig
 	writer *kafka.Writer
 }
 
