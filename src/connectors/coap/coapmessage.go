@@ -6,6 +6,7 @@ import (
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -55,16 +56,16 @@ func (m *CoAPMessage) GetData() ([]byte, error) {
 }
 
 func (m *CoAPMessage) Ack() error {
-	m.done <- message.ResponseStatusAck
+	common.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *CoAPMessage) Nak() error {
-	m.done <- message.ResponseStatusNak
+	common.SendResponseStatus(m.done, message.ResponseStatusNak)
 	return nil
 }
 
 func (m *CoAPMessage) Reply(data *message.ReplyData) error {
-	m.reply <- data
+	common.SendReply(m.reply, data)
 	return nil
 }

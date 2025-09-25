@@ -63,6 +63,15 @@ func StringOneOf(options ...string) StringValidator {
 	}
 }
 
+func DurationPositive() func(time.Duration) error {
+	return func(d time.Duration) error {
+		if d <= 0 {
+			return fmt.Errorf("duration %s is not positive", d)
+		}
+		return nil
+	}
+}
+
 type OptsParser struct {
 	errors []error
 }

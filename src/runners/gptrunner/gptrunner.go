@@ -36,10 +36,9 @@ type Config struct {
 }
 
 type GPTRunner struct {
-	cfg     *Config
-	slog    *slog.Logger
-	client  *openai.Client
-	timeout time.Duration
+	cfg    *Config
+	slog   *slog.Logger
+	client *openai.Client
 }
 
 type inputItem struct {
@@ -53,40 +52,20 @@ type resultItem struct {
 }
 
 func parseConfig(opts map[string]any) (*Config, error) {
+	cfg := &Config{}
 	parser := &utils.OptsParser{}
-	apiURL := parser.OptString(opts, "api_url", "")
-	apiKey := parser.OptString(opts, "api_key", "")
-	action := parser.OptString(opts, "action", "", utils.StringNonEmpty())
-	model := parser.OptString(opts, "model", openai.GPT3Dot5Turbo)
-	batchSize := parser.OptInt(opts, "batch_size", 0)
-	batchWait := parser.OptDuration(opts, "batch_wait", 0)
-	maxTokens := parser.OptInt(opts, "max_tokens", 0)
-	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	cfg.ApiURL = parser.OptString(opts, "api_url", "", utils.StringNonEmpty())
+	cfg.ApiKey = parser.OptString(opts, "api_key", "", utils.StringNonEmpty())
+	cfg.Action = parser.OptString(opts, "action", "", utils.StringNonEmpty())
+	cfg.Model = parser.OptString(opts, "model", openai.GPT3Dot5Turbo)
+	cfg.BatchSize = parser.OptInt(opts, "batch_size", 0)
+	cfg.BatchWait = parser.OptDuration(opts, "batch_wait", 0)
+	cfg.MaxTokens = parser.OptInt(opts, "max_tokens", 0)
+	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
 	if err := parser.Error(); err != nil {
 		return nil, err
 	}
-	if apiURL == "" && apiKey == "" {
-		return nil, fmt.Errorf("openai api key is required")
-	}
-	if action == "" {
-		return nil, fmt.Errorf("gpt action prompt is required")
-	}
-	if timeout <= 0 {
-		timeout = runners.DefaultTimeout
-	}
-	if model == "" {
-		model = openai.GPT3Dot5Turbo
-	}
-	return &Config{
-		ApiURL:    apiURL,
-		ApiKey:    apiKey,
-		Action:    action,
-		Model:     model,
-		BatchSize: batchSize,
-		BatchWait: batchWait,
-		MaxTokens: maxTokens,
-		Timeout:   timeout,
-	}, nil
+	return cfg, nil
 }
 
 func New(opts map[string]any) (runners.Runner, error) {
@@ -102,10 +81,9 @@ func New(opts map[string]any) (runners.Runner, error) {
 	}
 	client := openai.NewClientWithConfig(clientConfig)
 	return &GPTRunner{
-		cfg:     cfg,
-		slog:    log,
-		client:  client,
-		timeout: cfg.Timeout,
+		cfg:    cfg,
+		slog:   log,
+		client: client,
 	}, nil
 }
 
@@ -115,7 +93,7 @@ func (g *GPTRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 		return nil, fmt.Errorf("failed to format prompt: %w", err)
 	}
 	g.slog.Debug("sending prompt to openai", "prompt", prompt)
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.cfg.Timeout)
 	defer cancel()
 	resp, err := g.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 		Model: g.cfg.Model,
@@ -151,7 +129,7 @@ func (g *GPTRunner) formatPrompt(msg *message.RunnerMessage) (string, error) {
 
 // ProcessBatch handles batches of messages by batching prompts to the GPT API.
 func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.RunnerMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.cfg.Timeout)
 	defer cancel()
 	batch := make([]inputItem, 0, len(msgs))
 	idToMsg := make(map[string]*message.RunnerMessage)

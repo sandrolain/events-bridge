@@ -28,26 +28,17 @@ type ES5Runner struct {
 	cfg     *Config
 	slog    *slog.Logger
 	program *goja.Program
-	timeout time.Duration
 }
 
 func parseConfig(opts map[string]any) (*Config, error) {
+	cfg := &Config{}
 	parser := &utils.OptsParser{}
-	path := parser.OptString(opts, "path", "")
-	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	cfg.Path = parser.OptString(opts, "path", "", utils.StringNonEmpty())
+	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
 	if err := parser.Error(); err != nil {
 		return nil, err
 	}
-	if path == "" {
-		return nil, fmt.Errorf("js program path is required")
-	}
-	if timeout <= 0 {
-		timeout = runners.DefaultTimeout
-	}
-	return &Config{
-		Path:    path,
-		Timeout: timeout,
-	}, nil
+	return cfg, nil
 }
 
 // New creates a new instance of ES5Runner
@@ -76,13 +67,12 @@ func New(opts map[string]any) (runners.Runner, error) {
 		cfg:     cfg,
 		slog:    log,
 		program: prog,
-		timeout: cfg.Timeout,
 	}, nil
 }
 
 // processMessage handles the logic for a single message
 func (e *ES5Runner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), e.cfg.Timeout)
 	defer cancel()
 
 	vm := goja.New()

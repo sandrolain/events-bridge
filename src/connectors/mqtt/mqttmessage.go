@@ -2,6 +2,7 @@ package main
 
 import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -26,12 +27,12 @@ func (m *MQTTMessage) GetData() ([]byte, error) {
 }
 
 func (m *MQTTMessage) Ack() error {
-	m.done <- message.ResponseStatusAck
+	common.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *MQTTMessage) Nak() error {
-	m.done <- message.ResponseStatusNak
+	common.SendResponseStatus(m.done, message.ResponseStatusNak)
 	return nil
 }
 

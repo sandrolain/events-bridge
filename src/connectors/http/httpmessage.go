@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
@@ -40,22 +41,16 @@ func (m HTTPMessage) GetData() ([]byte, error) {
 }
 
 func (m *HTTPMessage) Ack() error {
-	if m.done != nil {
-		m.done <- message.ResponseStatusAck
-	}
+	common.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *HTTPMessage) Nak() error {
-	if m.done != nil {
-		m.done <- message.ResponseStatusNak
-	}
+	common.SendResponseStatus(m.done, message.ResponseStatusNak)
 	return nil
 }
 
 func (m *HTTPMessage) Reply(data *message.ReplyData) error {
-	if m.reply != nil {
-		m.reply <- data
-	}
+	common.SendReply(m.reply, data)
 	return nil
 }

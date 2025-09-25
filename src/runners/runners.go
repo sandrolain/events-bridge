@@ -19,5 +19,4 @@ type RunnerConfig struct {
 	Type     string         `yaml:"type" json:"type" validate:"required"`
 	Routines int            `yaml:"routines" json:"routines" validate:"omitempty,min=1"`
 	Options  map[string]any `yaml:"options" json:"options"`
-	Plugin   map[string]any `yaml:"plugin" json:"plugin" validate:"omitempty,required_if=Type plugin"`
 }

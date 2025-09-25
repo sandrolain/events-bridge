@@ -31,26 +31,16 @@ type CLIRunner struct {
 }
 
 func parseConfig(opts map[string]any) (*Config, error) {
+	cfg := &Config{}
 	parser := &utils.OptsParser{}
-	command := parser.OptString(opts, "command", "", utils.StringNonEmpty())
-	args := parser.OptStringArray(opts, "args", nil)
-	envs := parser.OptStringMap(opts, "envs", nil)
-	timeout := parser.OptDuration(opts, "timeout", 0)
+	cfg.Command = parser.OptString(opts, "command", "", utils.StringNonEmpty())
+	cfg.Args = parser.OptStringArray(opts, "args", nil)
+	cfg.Envs = parser.OptStringMap(opts, "envs", nil)
+	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
 	if err := parser.Error(); err != nil {
 		return nil, err
 	}
-	if command == "" {
-		return nil, fmt.Errorf("cli command is required")
-	}
-	if timeout <= 0 {
-		timeout = runners.DefaultTimeout
-	}
-	return &Config{
-		Command: command,
-		Timeout: timeout,
-		Args:    args,
-		Envs:    envs,
-	}, nil
+	return cfg, nil
 }
 
 func New(opts map[string]any) (runners.Runner, error) {

@@ -25,33 +25,23 @@ type Config struct {
 }
 
 type JSONLogicRunner struct {
-	cfg     *Config
-	slog    *slog.Logger
-	logic   map[string]interface{}
-	mu      sync.Mutex
-	timeout time.Duration
-	stopCh  chan struct{}
+	cfg    *Config
+	slog   *slog.Logger
+	logic  map[string]interface{}
+	mu     sync.Mutex
+	stopCh chan struct{}
 }
 
 func parseConfig(opts map[string]any) (*Config, error) {
+	cfg := &Config{}
 	parser := &utils.OptsParser{}
-	path := parser.OptString(opts, "path", "")
-	preserve := parser.OptBool(opts, "preservePayload", false)
-	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	cfg.Path = parser.OptString(opts, "path", "", utils.StringNonEmpty())
+	cfg.PreservePayload = parser.OptBool(opts, "preservePayload", false)
+	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
 	if err := parser.Error(); err != nil {
 		return nil, err
 	}
-	if path == "" {
-		return nil, fmt.Errorf("jsonlogic rule path is required")
-	}
-	if timeout <= 0 {
-		timeout = runners.DefaultTimeout
-	}
-	return &Config{
-		Path:            path,
-		PreservePayload: preserve,
-		Timeout:         timeout,
-	}, nil
+	return cfg, nil
 }
 
 // New creates a new instance of JSONLogicRunner
@@ -74,17 +64,16 @@ func New(opts map[string]any) (runners.Runner, error) {
 	}
 
 	return &JSONLogicRunner{
-		cfg:     cfg,
-		slog:    log,
-		logic:   logic,
-		timeout: cfg.Timeout,
-		stopCh:  make(chan struct{}),
+		cfg:    cfg,
+		slog:   log,
+		logic:  logic,
+		stopCh: make(chan struct{}),
 	}, nil
 }
 
 // Process applies the JSONLogic rule to the message
 func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), j.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), j.cfg.Timeout)
 	defer cancel()
 
 	data, err := msg.GetSourceData()

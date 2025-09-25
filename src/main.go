@@ -256,7 +256,7 @@ func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 			err = fmt.Errorf("failed to get plugin manager: %w", e)
 			return
 		}
-		runner, err = pluginrunner.New(plgMan, cfg.Plugin)
+		runner, err = pluginrunner.New(plgMan, cfg.Options)
 		return
 	}
 

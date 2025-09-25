@@ -20,30 +20,21 @@ type Config struct {
 }
 
 type PluginRunner struct {
-	cfg     *Config
-	slog    *slog.Logger
-	mgr     *plugin.PluginManager
-	plg     *plugin.Plugin
-	timeout time.Duration
+	cfg  *Config
+	slog *slog.Logger
+	mgr  *plugin.PluginManager
+	plg  *plugin.Plugin
 }
 
 func parseConfig(opts map[string]any) (*Config, error) {
+	cfg := &Config{}
 	parser := &utils.OptsParser{}
-	name := parser.OptString(opts, "name", "", utils.StringNonEmpty())
-	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	cfg.Name = parser.OptString(opts, "name", "", utils.StringNonEmpty())
+	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
 	if err := parser.Error(); err != nil {
 		return nil, err
 	}
-	if name == "" {
-		return nil, fmt.Errorf("plugin runner name is required")
-	}
-	if timeout <= 0 {
-		timeout = runners.DefaultTimeout
-	}
-	return &Config{
-		Name:    name,
-		Timeout: timeout,
-	}, nil
+	return cfg, nil
 }
 
 // New creates a new instance of PluginRunner
@@ -61,16 +52,15 @@ func New(mgr *plugin.PluginManager, opts map[string]any) (runners.Runner, error)
 		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
 	}
 	return &PluginRunner{
-		cfg:     cfg,
-		slog:    slog.Default().With("context", "Plugin Runner", "id", cfg.Name),
-		mgr:     mgr,
-		plg:     plg,
-		timeout: cfg.Timeout,
+		cfg:  cfg,
+		slog: slog.Default().With("context", "Plugin Runner", "id", cfg.Name),
+		mgr:  mgr,
+		plg:  plg,
 	}, nil
 }
 
 func (p *PluginRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), p.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), p.cfg.Timeout)
 	defer cancel()
 	return p.plg.Runner(ctx, msg)
 }
