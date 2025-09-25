@@ -113,10 +113,10 @@ tasks:
       - go build -buildmode=plugin -o ./bin/connectors/kafka.so ./src/connectors/kafka && du -h ./bin/connectors/kafka.so
       - go build -buildmode=plugin -o ./bin/connectors/redis.so ./src/connectors/redis && du -h ./bin/connectors/redis.so
       - go build -buildmode=plugin -o ./bin/connectors/git.so ./src/connectors/git && du -h ./bin/connectors/git.so
-      - go build -buildmode=plugin -o ./bin/runners/es5runner.so ./src/runners/es5runner && du -h ./bin/runners/es5runner.so
-      - go build -buildmode=plugin -o ./bin/runners/wasmrunner.so ./src/runners/wasmrunner && du -h ./bin/runners/wasmrunner.so
-      - go build -buildmode=plugin -o ./bin/runners/gptrunner.so ./src/runners/gptrunner && du -h ./bin/runners/gptrunner.so
-      - go build -buildmode=plugin -o ./bin/runners/jlorunner.so ./src/runners/jlorunner && du -h ./bin/runners/jlorunner.so
+      - go build -buildmode=plugin -o ./bin/runners/es5.so ./src/runners/es5runner && du -h ./bin/runners/es5.so
+      - go build -buildmode=plugin -o ./bin/runners/wasm.so ./src/runners/wasmrunner && du -h ./bin/runners/wasm.so
+      - go build -buildmode=plugin -o ./bin/runners/gtp.so ./src/runners/gptrunner && du -h ./bin/runners/gtp.so
+      - go build -buildmode=plugin -o ./bin/runners/jsonlogic.so ./src/runners/jlorunner && du -h ./bin/runners/jsonlogic.so
       - go build -o ./bin/events-bridge ./src  && du -h ./bin/events-bridge
 
   gen-plugin-proto:
