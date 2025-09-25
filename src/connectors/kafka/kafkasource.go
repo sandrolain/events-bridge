@@ -7,6 +7,7 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -18,46 +19,19 @@ type SourceConfig struct {
 	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
 }
 
-// NewSourceOptions builds a Kafka source config from options map.
+// parseSourceOptions builds a Kafka source config from options map.
 // Expected keys: brokers ([]string), topic, group_id, partitions, replication_factor.
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+func parseSourceOptions(opts map[string]any) *SourceConfig {
 	cfg := &SourceConfig{}
-	if v, ok := opts["brokers"].([]string); ok {
-		cfg.Brokers = v
-	} else if v, ok := opts["brokers"].([]any); ok {
-		bs := make([]string, 0, len(v))
-		for _, it := range v {
-			if s, ok := it.(string); ok {
-				bs = append(bs, s)
-			}
-		}
-		cfg.Brokers = bs
-	}
-	if v, ok := opts["group_id"].(string); ok {
-		cfg.GroupID = v
-	}
-	if v, ok := opts["topic"].(string); ok {
-		cfg.Topic = v
-	}
-	if v, ok := opts["partitions"].(int); ok {
-		cfg.Partitions = v
-	}
-	if v, ok := opts["partitions"].(int64); ok {
-		cfg.Partitions = int(v)
-	}
-	if v, ok := opts["partitions"].(float64); ok {
-		cfg.Partitions = int(v)
-	}
-	if v, ok := opts["replication_factor"].(int); ok {
-		cfg.ReplicationFactor = v
-	}
-	if v, ok := opts["replication_factor"].(int64); ok {
-		cfg.ReplicationFactor = int(v)
-	}
-	if v, ok := opts["replication_factor"].(float64); ok {
-		cfg.ReplicationFactor = int(v)
-	}
-	return NewSource(cfg)
+	op := &utils.OptsParser{}
+
+	cfg.Brokers = op.OptStringArray(opts, "brokers", nil, utils.StringNonEmpty())
+	cfg.GroupID = op.OptString(opts, "group_id", "")
+	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
+	cfg.Partitions = op.OptInt(opts, "partitions", 1, utils.IntGreaterThan(0))
+	cfg.ReplicationFactor = op.OptInt(opts, "replication_factor", 1, utils.IntGreaterThan(0))
+
+	return cfg
 }
 
 type KafkaSource struct {
@@ -68,7 +42,9 @@ type KafkaSource struct {
 	started bool
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates a Kafka source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg := parseSourceOptions(opts)
 	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka source")
 	}

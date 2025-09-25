@@ -18,9 +18,9 @@ type TargetConfig struct {
 	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
 }
 
-// NewTargetOptions builds a Kafka target config from options map.
+// parseTargetOptions builds a Kafka target config from options map.
 // Expected keys: brokers ([]string), topic, partitions, replication_factor.
-func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+func parseTargetOptions(opts map[string]any) *TargetConfig {
 	cfg := &TargetConfig{}
 	if v, ok := opts["brokers"].([]string); ok {
 		cfg.Brokers = v
@@ -54,10 +54,10 @@ func NewTargetOptions(opts map[string]any) (targets.Target, error) {
 	if v, ok := opts["replication_factor"].(float64); ok {
 		cfg.ReplicationFactor = int(v)
 	}
-	return NewTarget(cfg)
+	return cfg
 }
 
-func NewTarget(cfg *TargetConfig) (targets.Target, error) {
+func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
 	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
 		return nil, fmt.Errorf("brokers and topic are required for Kafka target")
 	}
@@ -81,6 +81,12 @@ func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 		slog:   l,
 		writer: writer,
 	}, nil
+}
+
+// NewTarget creates a Kafka target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg := parseTargetOptions(opts)
+	return newTargetFromConfig(cfg)
 }
 
 type KafkaTarget struct {

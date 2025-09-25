@@ -19,32 +19,25 @@ type SourceConfig struct {
 	Timeout time.Duration `yaml:"timeout" json:"timeout"`
 }
 
-// NewSourceOptions decodes a generic options map into the connector-specific config
-// and delegates to NewSource. Expected keys: address, method, path, timeout.
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+// parseSourceOptions decodes a generic options map into the connector-specific config.
+// Expected keys: address, method, path, timeout.
+func parseSourceOptions(opts map[string]any) *SourceConfig {
+	op := &utils.OptsParser{}
 	cfg := &SourceConfig{}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
+
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Method = op.OptString(opts, "method", "", utils.StringNonEmpty())
+	cfg.Path = op.OptString(opts, "path", "", utils.StringNonEmpty())
+	cfg.Timeout = op.OptDuration(opts, "timeout", sources.DefaultTimeout)
+	if err := op.Error(); err != nil {
+		slog.Error("invalid HTTP source options", "error", err)
 	}
-	if v, ok := opts["method"].(string); ok {
-		cfg.Method = v
-	}
-	if v, ok := opts["path"].(string); ok {
-		cfg.Path = v
-	}
-	if v, ok := opts["timeout"].(int); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(int64); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(float64); ok { // when decoded from JSON
-		cfg.Timeout = time.Duration(int64(v))
-	}
-	return NewSource(cfg)
+	return cfg
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates an HTTP source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg := parseSourceOptions(opts)
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = sources.DefaultTimeout

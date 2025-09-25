@@ -8,10 +8,10 @@ import (
 )
 
 func TestNATSTargetNewTargetValidation(t *testing.T) {
-	if _, err := NewTarget(&TargetConfig{Address: "", Subject: "s"}); err == nil {
+	if _, err := NewTarget(map[string]any{"address": "", "subject": "s"}); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
-	if _, err := NewTarget(&TargetConfig{Address: "127.0.0.1:4222", Subject: ""}); err == nil {
+	if _, err := NewTarget(map[string]any{"address": "127.0.0.1:4222", "subject": ""}); err == nil {
 		t.Fatal("expected error when subject is empty")
 	}
 }
@@ -27,8 +27,7 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 	addr, cleanup := startNATSServer(t)
 	defer cleanup()
 
-	srcCfg := &SourceConfig{Address: addr, Subject: "ab.*"}
-	sIface, err := NewSource(srcCfg)
+	sIface, err := NewSource(map[string]any{"address": addr, "subject": "ab.*"})
 	if err != nil {
 		t.Fatalf("NewSource: %v", err)
 	}
@@ -38,8 +37,7 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 	}
 	defer sIface.Close()
 
-	tgtCfg := &TargetConfig{Address: addr, Subject: "ab.cd"}
-	tIface, err := NewTarget(tgtCfg)
+	tIface, err := NewTarget(map[string]any{"address": addr, "subject": "ab.cd"})
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}
@@ -66,8 +64,7 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	addr, cleanup := startNATSServer(t)
 	defer cleanup()
 
-	srcCfg := &SourceConfig{Address: addr, Subject: "dyn.*"}
-	sIface, err := NewSource(srcCfg)
+	sIface, err := NewSource(map[string]any{"address": addr, "subject": "dyn.*"})
 	if err != nil {
 		t.Fatalf("NewSource: %v", err)
 	}
@@ -77,8 +74,7 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	}
 	defer sIface.Close()
 
-	tgtCfg := &TargetConfig{Address: addr, Subject: "unused", SubjectFromMetadataKey: "subject"}
-	tIface, err := NewTarget(tgtCfg)
+	tIface, err := NewTarget(map[string]any{"address": addr, "subject": "unused", "subjectFromMetadataKey": "subject"})
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}

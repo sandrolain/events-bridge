@@ -20,35 +20,21 @@ type TargetConfig struct {
 	TopicFromMetadataKey string `yaml:"topicFromMetadataKey" json:"topicFromMetadataKey"`
 }
 
-// NewTargetOptions builds an MQTT target config from options map.
+// parseTargetOptions builds a config from options map with validation.
 // Expected keys: address, topic, clientID, qos, topicFromMetadataKey.
-func NewTargetOptions(opts map[string]any) (targets.Target, error) {
-	cfg := &TargetConfig{}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
-	}
-	if v, ok := opts["topic"].(string); ok {
-		cfg.Topic = v
-	}
-	if v, ok := opts["clientID"].(string); ok {
-		cfg.ClientID = v
-	}
-	if v, ok := opts["qos"].(int); ok {
-		cfg.QoS = v
-	}
-	if v, ok := opts["qos"].(int64); ok {
-		cfg.QoS = int(v)
-	}
-	if v, ok := opts["qos"].(float64); ok {
-		cfg.QoS = int(v)
-	}
-	if v, ok := opts["topicFromMetadataKey"].(string); ok {
-		cfg.TopicFromMetadataKey = v
-	}
-	return NewTarget(cfg)
+func parseTargetOptions(opts map[string]any) (cfg *TargetConfig, err error) {
+	cfg = &TargetConfig{}
+	op := &utils.OptsParser{}
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
+	cfg.ClientID = op.OptString(opts, "clientID", "")
+	cfg.QoS = op.OptInt(opts, "qos", 0, utils.IntMin(0), utils.IntMax(2))
+	cfg.TopicFromMetadataKey = op.OptString(opts, "topicFromMetadataKey", "")
+	err = op.Error()
+	return
 }
 
-func NewTarget(cfg *TargetConfig) (targets.Target, error) {
+func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT target")
 	}
@@ -77,6 +63,15 @@ func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 		slog:   l,
 		client: client,
 	}, nil
+}
+
+// NewTarget creates an MQTT target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+	return newTargetFromConfig(cfg)
 }
 
 type MQTTTarget struct {

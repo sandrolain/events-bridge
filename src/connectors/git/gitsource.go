@@ -16,6 +16,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
@@ -29,41 +30,23 @@ type SourceConfig struct {
 	PollInterval int    `yaml:"poll_interval" json:"poll_interval"`
 }
 
-// NewSourceOptions builds a Git source config from options map.
-// Expected keys: path, remote_url, remote, branch, username, password, subdir, poll_interval (seconds).
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
-	if v, ok := opts["path"].(string); ok {
-		cfg.Path = v
+	op := &utils.OptsParser{}
+	// Strings
+	cfg.Path = op.OptString(opts, "path", "")
+	cfg.RemoteURL = op.OptString(opts, "remote_url", "", utils.StringNonEmpty())
+	cfg.Remote = op.OptString(opts, "remote", "origin")
+	cfg.Branch = op.OptString(opts, "branch", "", utils.StringNonEmpty())
+	cfg.Username = op.OptString(opts, "username", "")
+	cfg.Password = op.OptString(opts, "password", "")
+	cfg.SubDir = op.OptString(opts, "subdir", "")
+	// Ints
+	cfg.PollInterval = op.OptInt(opts, "poll_interval", 10, utils.IntMin(0))
+	if err := op.Error(); err != nil {
+		return nil, err
 	}
-	if v, ok := opts["remote_url"].(string); ok {
-		cfg.RemoteURL = v
-	}
-	if v, ok := opts["remote"].(string); ok {
-		cfg.Remote = v
-	}
-	if v, ok := opts["branch"].(string); ok {
-		cfg.Branch = v
-	}
-	if v, ok := opts["username"].(string); ok {
-		cfg.Username = v
-	}
-	if v, ok := opts["password"].(string); ok {
-		cfg.Password = v
-	}
-	if v, ok := opts["subdir"].(string); ok {
-		cfg.SubDir = v
-	}
-	if v, ok := opts["poll_interval"].(int); ok {
-		cfg.PollInterval = v
-	}
-	if v, ok := opts["poll_interval"].(int64); ok {
-		cfg.PollInterval = int(v)
-	}
-	if v, ok := opts["poll_interval"].(float64); ok {
-		cfg.PollInterval = int(v)
-	}
-	return NewSource(cfg)
+	return cfg, nil
 }
 
 type GitSource struct {
@@ -75,7 +58,11 @@ type GitSource struct {
 	lastHash plumbing.Hash
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.RemoteURL == "" || cfg.Branch == "" {
 		return nil, fmt.Errorf("remote_url and branch are required for the git source")
 	}

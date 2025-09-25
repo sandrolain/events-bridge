@@ -9,11 +9,11 @@ import (
 
 func TestMQTTTargetNewTargetValidation(t *testing.T) {
 	// missing address
-	if _, err := NewTarget(&TargetConfig{Address: "", Topic: "t"}); err == nil {
+	if _, err := NewTarget(map[string]any{"address": "", "topic": "t"}); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
 	// missing topic
-	if _, err := NewTarget(&TargetConfig{Address: "localhost:1883", Topic: ""}); err == nil {
+	if _, err := NewTarget(map[string]any{"address": "localhost:1883", "topic": ""}); err == nil {
 		t.Fatal("expected error when topic is empty")
 	}
 }
@@ -31,8 +31,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	defer cleanup()
 
 	// Start source on topic
-	srcCfg := &SourceConfig{Address: addr, Topic: "ab/#", ClientID: "src1"}
-	sIface, err := NewSource(srcCfg)
+	sIface, err := NewSource(map[string]any{"address": addr, "topic": "ab/#", "client_id": "src1"})
 	if err != nil {
 		t.Fatalf("NewSource: %v", err)
 	}
@@ -43,8 +42,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	defer sIface.Close()
 
 	// Target publishes to topic
-	tgtCfg := &TargetConfig{Address: addr, Topic: "ab/cd", ClientID: "tgt1", QoS: 0}
-	tIface, err := NewTarget(tgtCfg)
+	tIface, err := NewTarget(map[string]any{"address": addr, "topic": "ab/cd", "clientID": "tgt1", "qos": 0})
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}
@@ -71,8 +69,7 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	addr, cleanup := startMochi(t)
 	defer cleanup()
 
-	srcCfg := &SourceConfig{Address: addr, Topic: "dyn/+", ClientID: "src2"}
-	sIface, err := NewSource(srcCfg)
+	sIface, err := NewSource(map[string]any{"address": addr, "topic": "dyn/+", "client_id": "src2"})
 	if err != nil {
 		t.Fatalf("NewSource: %v", err)
 	}
@@ -82,8 +79,7 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	}
 	defer sIface.Close()
 
-	tgtCfg := &TargetConfig{Address: addr, Topic: "unused", TopicFromMetadataKey: "topic"}
-	tIface, err := NewTarget(tgtCfg)
+	tIface, err := NewTarget(map[string]any{"address": addr, "topic": "unused", "topicFromMetadataKey": "topic"})
 	if err != nil {
 		t.Fatalf("NewTarget: %v", err)
 	}

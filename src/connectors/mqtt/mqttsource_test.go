@@ -10,17 +10,17 @@ import (
 
 func TestMQTTSourceNewSourceValidation(t *testing.T) {
 	// missing address
-	if _, err := NewSource(&SourceConfig{Address: "", Topic: "t"}); err == nil {
+	if _, err := NewSource(map[string]any{"address": "", "topic": "t"}); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
 	// missing topic
-	if _, err := NewSource(&SourceConfig{Address: "localhost:1883", Topic: ""}); err == nil {
+	if _, err := NewSource(map[string]any{"address": "localhost:1883", "topic": ""}); err == nil {
 		t.Fatal("expected error when topic is empty")
 	}
 }
 
 func TestMQTTSourceCloseWithoutStart(t *testing.T) {
-	src, err := NewSource(&SourceConfig{Address: "localhost:1883", Topic: "t"})
+	src, err := NewSource(map[string]any{"address": "localhost:1883", "topic": "t"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -33,16 +33,14 @@ func TestMQTTSharedSubscriptionBasic(t *testing.T) {
 	addr, cleanup := startMochi(t)
 	defer cleanup()
 
-	srcCfg1 := &SourceConfig{Address: addr, Topic: "share/#", ClientID: "s1", ConsumerGroup: "grp"}
-	s1, _ := NewSource(srcCfg1)
+	s1, _ := NewSource(map[string]any{"address": addr, "topic": "share/#", "client_id": "s1", "consumer_group": "grp"})
 	ch1, err := s1.Produce(10)
 	if err != nil {
 		t.Fatalf("s1 produce: %v", err)
 	}
 	defer s1.Close()
 
-	srcCfg2 := &SourceConfig{Address: addr, Topic: "share/#", ClientID: "s2", ConsumerGroup: "grp"}
-	s2, _ := NewSource(srcCfg2)
+	s2, _ := NewSource(map[string]any{"address": addr, "topic": "share/#", "client_id": "s2", "consumer_group": "grp"})
 	ch2, err := s2.Produce(10)
 	if err != nil {
 		t.Fatalf("s2 produce: %v", err)

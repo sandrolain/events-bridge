@@ -8,6 +8,7 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
@@ -17,23 +18,17 @@ type SourceConfig struct {
 	ConsumerGroup string `yaml:"consumer_group" json:"consumer_group"`
 }
 
-// NewSourceOptions builds an MQTT source config from options map.
+// parseSourceOptions builds a config from options map with validation.
 // Expected keys: address, topic, client_id, consumer_group.
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
-	cfg := &SourceConfig{}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
-	}
-	if v, ok := opts["topic"].(string); ok {
-		cfg.Topic = v
-	}
-	if v, ok := opts["client_id"].(string); ok {
-		cfg.ClientID = v
-	}
-	if v, ok := opts["consumer_group"].(string); ok {
-		cfg.ConsumerGroup = v
-	}
-	return NewSource(cfg)
+func parseSourceOptions(opts map[string]any) (cfg *SourceConfig, err error) {
+	cfg = &SourceConfig{}
+	op := &utils.OptsParser{}
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
+	cfg.ClientID = op.OptString(opts, "client_id", "")
+	cfg.ConsumerGroup = op.OptString(opts, "consumer_group", "")
+	err = op.Error()
+	return
 }
 
 type MQTTSource struct {
@@ -44,7 +39,12 @@ type MQTTSource struct {
 	started bool
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates the MQTT source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT source")
 	}

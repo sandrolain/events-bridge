@@ -28,14 +28,14 @@ const (
 
 func startCoAPSource(t *testing.T, protocol CoAPProtocol, addr string, method string, timeout time.Duration) (<-chan *message.RunnerMessage, func()) {
 	t.Helper()
-	cfg := &SourceConfig{
-		Protocol: protocol,
-		Address:  addr,
-		Path:     testPath,
-		Method:   method,
-		Timeout:  timeout,
+	opts := map[string]any{
+		"protocol": string(protocol),
+		"address":  addr,
+		"path":     testPath,
+		"method":   method,
+		"timeout":  int(timeout),
 	}
-	src, err := NewSource(cfg)
+	src, err := NewSource(opts)
 	if err != nil {
 		t.Fatalf("failed to create source: %v", err)
 	}

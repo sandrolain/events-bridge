@@ -201,18 +201,17 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 }
 
 func TestNewSourceInvalidConfig(t *testing.T) {
-	_, err := NewSource(&SourceConfig{})
+	_, err := NewSource(map[string]any{})
 	if err == nil {
 		t.Error("expected error for missing remote_url and branch")
 	}
 }
 
 func TestGitSourceProduceAndClose(t *testing.T) {
-	cfg := &SourceConfig{
-		RemoteURL: "https://github.com/sandrolain/events-bridge.git",
-		Branch:    "main",
-	}
-	src, err := NewSource(cfg)
+	src, err := NewSource(map[string]any{
+		"remote_url": "https://github.com/sandrolain/events-bridge.git",
+		"branch":     "main",
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

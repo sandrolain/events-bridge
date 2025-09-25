@@ -6,12 +6,12 @@ import (
 
 func TestKafkaTargetNewTargetValidation(t *testing.T) {
 	// missing brokers
-	_, err := NewTarget(&TargetConfig{Brokers: nil, Topic: "t"})
+	_, err := NewTarget(map[string]any{"brokers": []string{}, "topic": "t"})
 	if err == nil {
 		t.Fatal("expected error when brokers are empty")
 	}
 	// missing topic
-	_, err = NewTarget(&TargetConfig{Brokers: []string{"localhost:9092"}, Topic: ""})
+	_, err = NewTarget(map[string]any{"brokers": []string{"localhost:9092"}, "topic": ""})
 	if err == nil {
 		t.Fatal("expected error when topic is empty")
 	}

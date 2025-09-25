@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
@@ -16,17 +17,18 @@ type SourceConfig struct {
 	Table      string `yaml:"table" json:"table"`
 }
 
-// NewSourceOptions builds a PGSQL source config from options map.
+// parseSourceOptions builds a PGSQL source config from options map.
 // Expected keys: conn_string, table.
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
-	cfg := &SourceConfig{}
-	if v, ok := opts["conn_string"].(string); ok {
-		cfg.ConnString = v
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
+	var p utils.OptsParser
+	cfg := &SourceConfig{
+		ConnString: p.OptString(opts, "conn_string", "", utils.StringNonEmpty()),
+		Table:      p.OptString(opts, "table", "", utils.StringNonEmpty()),
 	}
-	if v, ok := opts["table"].(string); ok {
-		cfg.Table = v
+	if err := p.Error(); err != nil {
+		return nil, err
 	}
-	return NewSource(cfg)
+	return cfg, nil
 }
 
 type PGSQLSource struct {
@@ -37,7 +39,13 @@ type PGSQLSource struct {
 	started bool
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates a PGSQL source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	if cfg.ConnString == "" || cfg.Table == "" {
 		return nil, fmt.Errorf("connString and table are required for PGSQL source")
 	}

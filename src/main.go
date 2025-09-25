@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/destel/rill"
@@ -193,66 +194,51 @@ func main() {
 func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 	slog.Info("creating source", "type", cfg.Type, "buffer", cfg.Buffer)
 
-	switch cfg.Type {
-	case sources.SourceTypeHTTP:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/http.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypeCoAP:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/coap.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypeMQTT:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/mqtt.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypeNATS:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/nats.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypeKafka:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/kafka.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypeRedis:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/redis.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypePGSQL:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/pgsql.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypeGit:
-		source, err = utils.LoadPluginOptions[sources.Source]("./connectors/git.so", sources.NewMethodName, cfg.Options)
-	case sources.SourceTypePlugin:
-		slog.Info("using Plugin source", "path", cfg.Plugin.Name)
+	if cfg.Type == "" || cfg.Type == "none" {
+		err = fmt.Errorf("no source configured, cannot proceed")
+		return
+	}
+
+	if cfg.Type == "plugin" {
 		plgMan, e := plugin.GetPluginManager()
 		if e != nil {
 			err = fmt.Errorf("failed to get plugin manager: %w", e)
 			return
 		}
 		source, err = pluginconn.NewSource(plgMan, cfg.Plugin)
-	default:
-		err = fmt.Errorf("unsupported source type: %s", cfg.Type)
+		return
 	}
+
+	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
+
+	source, err = utils.LoadPluginOptions[sources.Source](path, sources.NewMethodName, cfg.Options)
+
 	return
 }
 
 func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 	slog.Info("creating target", "type", cfg.Type)
 
-	switch cfg.Type {
-	case targets.TargetTypeHTTP:
-		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/http.so", targets.NewMethodName, cfg.Options)
-	case targets.TargetTypeCoAP:
-		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/coap.so", targets.NewMethodName, cfg.Options)
-	case targets.TargetTypeMQTT:
-		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/mqtt.so", targets.NewMethodName, cfg.Options)
-	case targets.TargetTypeNATS:
-		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/nats.so", targets.NewMethodName, cfg.Options)
-	case targets.TargetTypeKafka:
-		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/kafka.so", targets.NewMethodName, cfg.Options)
-	case targets.TargetTypeRedis:
-		target, err = utils.LoadPluginOptions[targets.Target]("./connectors/redis.so", targets.NewMethodName, cfg.Options)
-	case targets.TargetTypePlugin:
+	if cfg.Type == "" || cfg.Type == "none" {
+		slog.Info("no target configured, messages will be replyed to source if supported")
+		target = nil
+		return
+	}
+
+	if cfg.Type == "plugin" {
 		plgMan, e := plugin.GetPluginManager()
 		if e != nil {
 			err = fmt.Errorf("failed to get plugin manager: %w", e)
 			return
 		}
 		target, err = pluginconn.NewTarget(plgMan, cfg.Plugin)
-	case targets.TargetTypeNone:
-		slog.Info("no target configured, messages will be replyed to source if supported")
-		target = nil
-	default:
-		err = fmt.Errorf("unsupported target type: %s", cfg.Type)
+		return
 	}
+
+	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
+
+	target, err = utils.LoadPluginOptions[targets.Target](path, targets.NewMethodName, cfg.Options)
+
 	return
 }
 

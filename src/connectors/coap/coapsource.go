@@ -26,52 +26,36 @@ type SourceConfig struct {
 	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
 }
 
-// NewSourceOptions builds a CoAP config from options map.
+// parseSourceOptions builds a CoAP source config from options map.
 // Expected keys: protocol ("udp"|"tcp"), address, path, method, timeout (ns).
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
-	if v, ok := opts["protocol"].(string); ok {
-		if v == string(CoAPProtocolTCP) {
-			cfg.Protocol = CoAPProtocolTCP
-		} else {
-			cfg.Protocol = CoAPProtocolUDP
-		}
+	var p utils.OptsParser
+	cfg.Protocol = CoAPProtocol(p.OptString(opts, "protocol", string(CoAPProtocolUDP), utils.StringOneOf(string(CoAPProtocolUDP), string(CoAPProtocolTCP))))
+	cfg.Address = p.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Path = p.OptString(opts, "path", "", utils.StringNonEmpty())
+	cfg.Method = p.OptString(opts, "method", "", utils.StringNonEmpty())
+	cfg.Timeout = p.OptDuration(opts, "timeout", sources.DefaultTimeout)
+	if err := p.Error(); err != nil {
+		return nil, err
 	}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
-	}
-	if v, ok := opts["path"].(string); ok {
-		cfg.Path = v
-	}
-	if v, ok := opts["method"].(string); ok {
-		cfg.Method = v
-	}
-	if v, ok := opts["timeout"].(int); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(int64); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(float64); ok {
-		cfg.Timeout = time.Duration(int64(v))
-	}
-	return NewSource(cfg)
+	return cfg, nil
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates a CoAP source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.Protocol != CoAPProtocolUDP && cfg.Protocol != CoAPProtocolTCP {
 		return nil, fmt.Errorf("invalid CoAP protocol: %q (must be 'udp' or 'tcp')", cfg.Protocol)
-	}
-
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = sources.DefaultTimeout
 	}
 
 	return &CoAPSource{
 		config:  cfg,
 		slog:    slog.Default().With("context", "CoAP"),
-		timeout: timeout,
+		timeout: cfg.Timeout,
 	}, nil
 }
 

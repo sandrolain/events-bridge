@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
@@ -19,29 +20,21 @@ type SourceConfig struct {
 	StreamDataKey string `yaml:"stream_data_key" json:"stream_data_key"`
 }
 
-// NewSourceOptions builds a Redis source config from options map.
+// parseSourceOptions builds a Redis source config from options map.
 // For PubSub: address, channel. For Stream: address, stream, consumer_group, consumer_name, stream_data_key.
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
+	op := &utils.OptsParser{}
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Channel = op.OptString(opts, "channel", "")
+	cfg.Stream = op.OptString(opts, "stream", "")
+	cfg.ConsumerGroup = op.OptString(opts, "consumer_group", "")
+	cfg.ConsumerName = op.OptString(opts, "consumer_name", "")
+	cfg.StreamDataKey = op.OptString(opts, "stream_data_key", "")
+	if err := op.Error(); err != nil {
+		return nil, fmt.Errorf("invalid Redis source options: %w", err)
 	}
-	if v, ok := opts["channel"].(string); ok {
-		cfg.Channel = v
-	}
-	if v, ok := opts["stream"].(string); ok {
-		cfg.Stream = v
-	}
-	if v, ok := opts["consumer_group"].(string); ok {
-		cfg.ConsumerGroup = v
-	}
-	if v, ok := opts["consumer_name"].(string); ok {
-		cfg.ConsumerName = v
-	}
-	if v, ok := opts["stream_data_key"].(string); ok {
-		cfg.StreamDataKey = v
-	}
-	return NewSource(cfg)
+	return cfg, nil
 }
 
 type RedisSource struct {
@@ -63,7 +56,12 @@ type RedisStreamSource struct {
 	useConsumerGrp bool
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates a Redis source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.Stream != "" {
 		useConsumerGrp := cfg.ConsumerGroup != "" && cfg.ConsumerName != ""
 		return &RedisStreamSource{

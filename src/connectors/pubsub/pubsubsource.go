@@ -11,6 +11,7 @@ import (
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -24,32 +25,24 @@ type SourceConfig struct {
 	RetentionDuration int    `yaml:"retention_duration" json:"retention_duration"`
 }
 
-// NewSourceOptions builds a PubSub source config from options map.
+// parseSourceOptions builds a PubSub source config from options map.
 // Expected keys: project_id, subscription, create_if_not_exists, topic, ack_deadline, retain_acked, retention_duration.
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
-	if v, ok := opts["project_id"].(string); ok {
-		cfg.ProjectID = v
+
+	op := &utils.OptsParser{}
+	cfg.ProjectID = op.OptString(opts, "project_id", "", utils.StringNonEmpty())
+	cfg.Subscription = op.OptString(opts, "subscription", "", utils.StringNonEmpty())
+	cfg.CreateIfNotExists = op.OptBool(opts, "create_if_not_exists", false)
+	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
+	cfg.AckDeadline = op.OptInt(opts, "ack_deadline", 10)
+	cfg.RetainAcked = op.OptBool(opts, "retain_acked", false)
+	cfg.RetentionDuration = op.OptInt(opts, "retention_duration", 24*3600)
+
+	if err := op.Error(); err != nil {
+		return nil, err
 	}
-	if v, ok := opts["subscription"].(string); ok {
-		cfg.Subscription = v
-	}
-	if v, ok := opts["create_if_not_exists"].(bool); ok {
-		cfg.CreateIfNotExists = v
-	}
-	if v, ok := opts["topic"].(string); ok {
-		cfg.Topic = v
-	}
-	if v, ok := opts["ack_deadline"].(int); ok {
-		cfg.AckDeadline = v
-	}
-	if v, ok := opts["retention_duration"].(int); ok {
-		cfg.RetentionDuration = v
-	}
-	if v, ok := opts["retain_acked"].(bool); ok {
-		cfg.RetainAcked = v
-	}
-	return NewSource(cfg)
+	return cfg, nil
 }
 
 type PubSubSource struct {
@@ -61,7 +54,12 @@ type PubSubSource struct {
 	started bool
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates a PubSub source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.ProjectID == "" || cfg.Subscription == "" {
 		return nil, fmt.Errorf("projectID and subscription are required for PubSub source")
 	}

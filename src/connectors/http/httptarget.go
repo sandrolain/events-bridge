@@ -18,9 +18,9 @@ type TargetConfig struct {
 	Timeout time.Duration     `yaml:"timeout" json:"timeout"`
 }
 
-// NewTargetOptions decodes a generic options map into the connector-specific config
-// and delegates to NewTarget. Expected keys: url, method, headers (map[string]string), timeout.
-func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+// parseTargetOptions decodes a generic options map into the connector-specific config.
+// Expected keys: url, method, headers (map[string]string), timeout.
+func parseTargetOptions(opts map[string]any) *TargetConfig {
 	cfg := &TargetConfig{}
 	if v, ok := opts["url"].(string); ok {
 		cfg.URL = v
@@ -48,10 +48,10 @@ func NewTargetOptions(opts map[string]any) (targets.Target, error) {
 	if v, ok := opts["timeout"].(float64); ok {
 		cfg.Timeout = time.Duration(int64(v))
 	}
-	return NewTarget(cfg)
+	return cfg
 }
 
-func NewTarget(cfg *TargetConfig) (res targets.Target, err error) {
+func newTargetFromConfig(cfg *TargetConfig) (res targets.Target, err error) {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = targets.DefaultTimeout
@@ -77,6 +77,12 @@ func NewTarget(cfg *TargetConfig) (res targets.Target, err error) {
 	}
 
 	return
+}
+
+// NewTarget creates an HTTP target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg := parseTargetOptions(opts)
+	return newTargetFromConfig(cfg)
 }
 
 type HTTPTarget struct {

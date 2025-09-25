@@ -18,9 +18,9 @@ type TargetConfig struct {
 	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
 }
 
-// NewTargetOptions builds a NATS target config from options map.
+// parseTargetOptions builds a NATS target config from options map.
 // Expected keys: address, subject, subjectFromMetadataKey, timeout (ns).
-func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+func parseTargetOptions(opts map[string]any) *TargetConfig {
 	cfg := &TargetConfig{}
 	if v, ok := opts["address"].(string); ok {
 		cfg.Address = v
@@ -40,10 +40,10 @@ func NewTargetOptions(opts map[string]any) (targets.Target, error) {
 	if v, ok := opts["timeout"].(float64); ok {
 		cfg.Timeout = time.Duration(int64(v))
 	}
-	return NewTarget(cfg)
+	return cfg
 }
 
-func NewTarget(cfg *TargetConfig) (targets.Target, error) {
+func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
 	if cfg.Address == "" || cfg.Subject == "" {
 		return nil, fmt.Errorf("address and subject are required for NATS target")
 	}
@@ -67,6 +67,12 @@ func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 		slog:    l,
 		conn:    conn,
 	}, nil
+}
+
+// NewTarget creates the NATS target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg := parseTargetOptions(opts)
+	return newTargetFromConfig(cfg)
 }
 
 type NATSTarget struct {

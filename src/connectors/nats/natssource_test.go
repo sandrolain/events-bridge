@@ -8,16 +8,16 @@ import (
 )
 
 func TestNATSSourceNewSourceValidation(t *testing.T) {
-	if _, err := NewSource(&SourceConfig{Address: "", Subject: "s"}); err == nil {
+	if _, err := NewSource(map[string]any{"address": "", "subject": "s"}); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
-	if _, err := NewSource(&SourceConfig{Address: "nats://127.0.0.1:4222", Subject: ""}); err == nil {
+	if _, err := NewSource(map[string]any{"address": "nats://127.0.0.1:4222", "subject": ""}); err == nil {
 		t.Fatal("expected error when subject is empty")
 	}
 }
 
 func TestNATSSourceCloseWithoutStart(t *testing.T) {
-	src, err := NewSource(&SourceConfig{Address: "nats://127.0.0.1:4222", Subject: "s"})
+	src, err := NewSource(map[string]any{"address": "nats://127.0.0.1:4222", "subject": "s"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -30,16 +30,14 @@ func TestNATSQueueGroupBasic(t *testing.T) {
 	addr, cleanup := startNATSServer(t)
 	defer cleanup()
 
-	s1Cfg := &SourceConfig{Address: addr, Subject: "share.*", QueueGroup: "grp"}
-	s1, _ := NewSource(s1Cfg)
+	s1, _ := NewSource(map[string]any{"address": addr, "subject": "share.*", "queueGroup": "grp"})
 	ch1, err := s1.Produce(10)
 	if err != nil {
 		t.Fatalf("s1 produce: %v", err)
 	}
 	defer s1.Close()
 
-	s2Cfg := &SourceConfig{Address: addr, Subject: "share.*", QueueGroup: "grp"}
-	s2, _ := NewSource(s2Cfg)
+	s2, _ := NewSource(map[string]any{"address": addr, "subject": "share.*", "queueGroup": "grp"})
 	ch2, err := s2.Produce(10)
 	if err != nil {
 		t.Fatalf("s2 produce: %v", err)

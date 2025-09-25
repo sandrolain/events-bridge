@@ -44,8 +44,7 @@ func (m *mockMessage) Reply(data *message.ReplyData) error           { return ni
 
 func TestNewTargetDefaultTimeout(t *testing.T) {
 	const errMsg = "unexpected error: %v"
-	cfg := &TargetConfig{Timeout: 0}
-	tgt, err := NewTarget(cfg)
+	tgt, err := NewTarget(map[string]any{"timeout": 0})
 	if err != nil {
 		t.Fatalf(errMsg, err)
 	}
@@ -75,8 +74,7 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	}()
 
 	url := "http://" + ln.Addr().String() + "/test"
-	cfg := &TargetConfig{URL: url, Method: "POST", Headers: map[string]string{}, Timeout: 250 * time.Millisecond}
-	tgt, err := NewTarget(cfg)
+	tgt, err := NewTarget(map[string]any{"url": url, "method": "POST", "headers": map[string]string{}, "timeout": int64(250 * time.Millisecond)})
 	if err != nil {
 		t.Fatalf(errMsg, err)
 	}

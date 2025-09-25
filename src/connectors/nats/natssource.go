@@ -8,6 +8,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/sources"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
@@ -18,26 +19,17 @@ type SourceConfig struct {
 	QueueGroup string `yaml:"queueGroup" json:"queueGroup"`
 }
 
-// NewSourceOptions builds a NATS source config from options map.
+// parseSourceOptions builds a NATS source config from options map.
 // Expected keys: address, subject, stream, consumer, queueGroup.
-func NewSourceOptions(opts map[string]any) (sources.Source, error) {
+func parseSourceOptions(opts map[string]any) *SourceConfig {
 	cfg := &SourceConfig{}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
-	}
-	if v, ok := opts["subject"].(string); ok {
-		cfg.Subject = v
-	}
-	if v, ok := opts["stream"].(string); ok {
-		cfg.Stream = v
-	}
-	if v, ok := opts["consumer"].(string); ok {
-		cfg.Consumer = v
-	}
-	if v, ok := opts["queueGroup"].(string); ok {
-		cfg.QueueGroup = v
-	}
-	return NewSource(cfg)
+	op := &utils.OptsParser{}
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Subject = op.OptString(opts, "subject", "", utils.StringNonEmpty())
+	cfg.Stream = op.OptString(opts, "stream", "", utils.StringNonEmpty())
+	cfg.Consumer = op.OptString(opts, "consumer", "", utils.StringNonEmpty())
+	cfg.QueueGroup = op.OptString(opts, "queueGroup", "", utils.StringNonEmpty())
+	return cfg
 }
 
 type NATSSource struct {
@@ -50,7 +42,9 @@ type NATSSource struct {
 	started bool
 }
 
-func NewSource(cfg *SourceConfig) (sources.Source, error) {
+// NewSource creates the NATS source from options map.
+func NewSource(opts map[string]any) (sources.Source, error) {
+	cfg := parseSourceOptions(opts)
 	if cfg.Address == "" || cfg.Subject == "" {
 		return nil, fmt.Errorf("address and subject are required for NATS source")
 	}

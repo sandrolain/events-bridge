@@ -40,10 +40,6 @@ func LoadPlugin[T any, R any](relPath string, method string, cfg T) (R, error) {
 	return constructor(cfg)
 }
 
-// LoadPluginDual tries to resolve a constructor that accepts map[string]any (options-first),
-// falling back to the typed constructor if not found. The 'method' parameter is the base
-// symbol name (e.g., "NewSource" or "NewTarget"). For options-based constructors, the
-// symbol is expected to be method+"Options" (e.g., "NewSourceOptions").
 func LoadPluginDual[T any, R any](relPath string, method string, typedCfg T, options map[string]any) (R, error) {
 	exePath, err := os.Executable()
 	if err != nil {
@@ -105,15 +101,18 @@ func LoadPluginOptions[R any](relPath string, method string, options map[string]
 		return zero, fmt.Errorf("failed to open plugin: %w", err)
 	}
 
-	sym, err := p.Lookup(method + "Options")
-	if err != nil {
-		var zero R
-		return zero, fmt.Errorf("failed to lookup options constructor: %w", err)
+	// Prefer exact method name taking options: func(map[string]any) (R, error)
+	if sym, err := p.Lookup(method); err == nil {
+		if constructor, ok := sym.(func(map[string]any) (R, error)); ok {
+			return constructor(options)
+		}
 	}
-	constructor, ok := sym.(func(map[string]any) (R, error))
-	if !ok {
-		var zero R
-		return zero, fmt.Errorf("invalid options constructor signature in plugin")
+	// Fallback to historical method+"Options"
+	if sym, err := p.Lookup(method + "Options"); err == nil {
+		if constructor, ok := sym.(func(map[string]any) (R, error)); ok {
+			return constructor(options)
+		}
 	}
-	return constructor(options)
+	var zero R
+	return zero, fmt.Errorf("failed to find options-based constructor for %s", method)
 }
