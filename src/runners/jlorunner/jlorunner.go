@@ -12,13 +12,20 @@ import (
 	jsonlogic "github.com/diegoholiveira/jsonlogic"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/runners"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 // Ensure JSONLogicRunner implements runners.Runner
 var _ runners.Runner = &JSONLogicRunner{}
 
+type Config struct {
+	Path            string
+	PreservePayload bool
+	Timeout         time.Duration
+}
+
 type JSONLogicRunner struct {
-	cfg     *runners.RunnerJSONLogicConfig
+	cfg     *Config
 	slog    *slog.Logger
 	logic   map[string]interface{}
 	mu      sync.Mutex
@@ -26,13 +33,32 @@ type JSONLogicRunner struct {
 	stopCh  chan struct{}
 }
 
-// New creates a new instance of JSONLogicRunner
-func New(cfg *runners.RunnerJSONLogicConfig) (runners.Runner, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("jsonlogic runner configuration cannot be nil")
+func parseConfig(opts map[string]any) (*Config, error) {
+	parser := &utils.OptsParser{}
+	path := parser.OptString(opts, "path", "")
+	preserve := parser.OptBool(opts, "preservePayload", false)
+	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	if err := parser.Error(); err != nil {
+		return nil, err
 	}
-	if cfg.Path == "" {
+	if path == "" {
 		return nil, fmt.Errorf("jsonlogic rule path is required")
+	}
+	if timeout <= 0 {
+		timeout = runners.DefaultTimeout
+	}
+	return &Config{
+		Path:            path,
+		PreservePayload: preserve,
+		Timeout:         timeout,
+	}, nil
+}
+
+// New creates a new instance of JSONLogicRunner
+func New(opts map[string]any) (runners.Runner, error) {
+	cfg, err := parseConfig(opts)
+	if err != nil {
+		return nil, err
 	}
 	log := slog.Default().With("context", "JSONLOGIC")
 	log.Info("loading jsonlogic rule", "path", cfg.Path)
@@ -47,16 +73,11 @@ func New(cfg *runners.RunnerJSONLogicConfig) (runners.Runner, error) {
 		return nil, fmt.Errorf("invalid jsonlogic rule: %w", err)
 	}
 
-	timeout := cfg.Timeout
-	if timeout == 0 {
-		timeout = runners.DefaultTimeout
-	}
-
 	return &JSONLogicRunner{
 		cfg:     cfg,
 		slog:    log,
 		logic:   logic,
-		timeout: timeout,
+		timeout: cfg.Timeout,
 		stopCh:  make(chan struct{}),
 	}, nil
 }

@@ -38,7 +38,7 @@ commands:
 
         runner:
           type: "jsonlogic"
-          jsonlogic:
+          options:
             path: "./testers/config/bridge/jsonlogic-stream-rule.json"
     args: []
     restartTries: 0

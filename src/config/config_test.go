@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	runnerOptionsYAMLLine = "  options:\n"
+	runnerOptionsLine     = "  options:"
+)
+
 // helper to temporarily set os.Args and restore on cleanup
 func withArgs(t *testing.T, args []string) {
 	t.Helper()
@@ -62,16 +67,16 @@ func TestLoadConfigFileYAMLWithEnvOverrides(t *testing.T) {
 	yaml := "" +
 		"source:\n" +
 		"  type: nats\n" +
-		"  options:\n" +
+		runnerOptionsYAMLLine +
 		"    address: 127.0.0.1:4222\n" +
 		"    subject: fromfile\n" +
 		"runner:\n" +
 		"  type: cli\n" +
-		"  cli:\n" +
+		runnerOptionsYAMLLine +
 		"    command: echo\n" +
 		"target:\n" +
 		"  type: nats\n" +
-		"  options:\n" +
+		runnerOptionsYAMLLine +
 		"    address: 127.0.0.1:4222\n" +
 		"    subject: will-be-overridden\n"
 	require.NoError(t, os.WriteFile(cfgPath, []byte(yaml), 0o600))
@@ -119,16 +124,16 @@ func TestLoadConfigContentYAMLAndJSONAutoDetectAndExplicit(t *testing.T) {
 	yaml := strings.Join([]string{
 		"source:",
 		"  type: nats",
-		"  options:",
+		runnerOptionsLine,
 		"    address: 127.0.0.1:4222",
 		"    subject: a",
 		"runner:",
 		"  type: cli",
-		"  cli:",
+		runnerOptionsLine,
 		"    command: echo",
 		"target:",
 		"  type: nats",
-		"  options:",
+		runnerOptionsLine,
 		"    address: 127.0.0.1:4222",
 		"    subject: b",
 	}, "\n")
@@ -139,7 +144,7 @@ func TestLoadConfigContentYAMLAndJSONAutoDetectAndExplicit(t *testing.T) {
 	require.Equal(t, "b", cfg.Target.Options["subject"])
 
 	// JSON auto-detect
-	json := `{"source":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"ja"}},"runner":{"type":"cli","cli":{"command":"echo"}},"target":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"jb"}}}`
+	json := `{"source":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"ja"}},"runner":{"type":"cli","options":{"command":"echo"}},"target":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"jb"}}}`
 	cfg2, err := loadConfigContent(json, "")
 	require.NoError(t, err)
 	require.Equal(t, "ja", cfg2.Source.Options["subject"])

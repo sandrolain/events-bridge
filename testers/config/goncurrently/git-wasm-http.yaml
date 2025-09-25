@@ -26,7 +26,7 @@ commands:
 
         runner:
           type: "wasm"
-          wasm:
+          options:
             path: "./testers/bin/wasmrunner.wasm"
     args: []
     restartTries: 0

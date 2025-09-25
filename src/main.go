@@ -14,7 +14,6 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
 	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/runners/clirunner"
 	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
 	"github.com/sandrolain/events-bridge/src/sources"
 	"github.com/sandrolain/events-bridge/src/targets"
@@ -211,7 +210,7 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 
 	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
 
-	source, err = utils.LoadPluginOptions[sources.Source](path, sources.NewMethodName, cfg.Options)
+	source, err = utils.LoadPlugin[sources.Source](path, sources.NewMethodName, cfg.Options)
 
 	return
 }
@@ -237,7 +236,7 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 
 	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
 
-	target, err = utils.LoadPluginOptions[targets.Target](path, targets.NewMethodName, cfg.Options)
+	target, err = utils.LoadPlugin[targets.Target](path, targets.NewMethodName, cfg.Options)
 
 	return
 }
@@ -245,30 +244,26 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 	slog.Info("creating runner", "type", cfg.Type)
 
-	switch cfg.Type {
-	case runners.RunnerTypeWASM:
-		runner, err = utils.LoadPlugin[*runners.RunnerWASMConfig, runners.Runner]("./runners/wasmrunner.so", runners.NewMethodName, cfg.WASM)
-	case runners.RunnerTypeES5:
-		runner, err = utils.LoadPlugin[*runners.RunnerES5Config, runners.Runner]("./runners/es5runner.so", runners.NewMethodName, cfg.ES5)
-	case runners.RunnerTypeGPT:
-		runner, err = utils.LoadPlugin[*runners.RunnerGPTRunnerConfig, runners.Runner]("./runners/gptrunner.so", runners.NewMethodName, cfg.GPT)
-	case runners.RunnerTypeJSONLogic:
-		runner, err = utils.LoadPlugin[*runners.RunnerJSONLogicConfig, runners.Runner]("./runners/jlorunner.so", runners.NewMethodName, cfg.JSONLogic)
-	case runners.RunnerTypeCLI:
-		runner, err = clirunner.New(cfg.CLI)
-	case runners.RunnerTypePlugin:
+	if cfg.Type == "" || cfg.Type == "none" {
+		slog.Info("no runner configured, messages will be passed through without processing")
+		runner = nil
+		return
+	}
+
+	if cfg.Type == "plugin" {
 		plgMan, e := plugin.GetPluginManager()
 		if e != nil {
 			err = fmt.Errorf("failed to get plugin manager: %w", e)
 			return
 		}
 		runner, err = pluginrunner.New(plgMan, cfg.Plugin)
-	case runners.RunnerTypeNone:
-		slog.Info("no runner configured, messages will be passed through without processing")
-		runner = nil
-	default:
-		err = fmt.Errorf("unsupported runner type: %s", cfg.Type)
+		return
 	}
+
+	path := fmt.Sprintf("./runners/%s.so", strings.ToLower(cfg.Type))
+
+	runner, err = utils.LoadPlugin[runners.Runner](path, runners.NewMethodName, cfg.Options)
+
 	return
 }
 

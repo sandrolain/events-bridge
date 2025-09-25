@@ -22,7 +22,7 @@ commands:
 
         runner:
           type: "jsonlogic"
-          jsonlogic:
+          options:
             path: "./testers/config/bridge/jsonlogic-rule.json"
           # you can change the path or the rule as needed
     args: []

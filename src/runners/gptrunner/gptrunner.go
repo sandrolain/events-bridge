@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -11,14 +12,31 @@ import (
 	"github.com/google/uuid"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/runners"
+	"github.com/sandrolain/events-bridge/src/utils"
 	openai "github.com/sashabaranov/go-openai"
 )
 
 // Ensure GPTRunner implements runners.Runner
 var _ runners.Runner = &GPTRunner{}
 
+const (
+	errNoChoicesFromOpenAI = "no choices from openai"
+	logNakMessage          = "error naking message"
+)
+
+type Config struct {
+	ApiURL    string
+	ApiKey    string
+	Action    string
+	Model     string
+	BatchSize int
+	BatchWait time.Duration
+	MaxTokens int
+	Timeout   time.Duration
+}
+
 type GPTRunner struct {
-	cfg     *runners.RunnerGPTRunnerConfig
+	cfg     *Config
 	slog    *slog.Logger
 	client  *openai.Client
 	timeout time.Duration
@@ -34,22 +52,47 @@ type resultItem struct {
 	Result string `json:"result"`
 }
 
-func New(cfg *runners.RunnerGPTRunnerConfig) (runners.Runner, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("gpt runner configuration cannot be nil")
+func parseConfig(opts map[string]any) (*Config, error) {
+	parser := &utils.OptsParser{}
+	apiURL := parser.OptString(opts, "api_url", "")
+	apiKey := parser.OptString(opts, "api_key", "")
+	action := parser.OptString(opts, "action", "", utils.StringNonEmpty())
+	model := parser.OptString(opts, "model", openai.GPT3Dot5Turbo)
+	batchSize := parser.OptInt(opts, "batch_size", 0)
+	batchWait := parser.OptDuration(opts, "batch_wait", 0)
+	maxTokens := parser.OptInt(opts, "max_tokens", 0)
+	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	if err := parser.Error(); err != nil {
+		return nil, err
 	}
-	if cfg.ApiURL == "" && cfg.ApiKey == "" {
+	if apiURL == "" && apiKey == "" {
 		return nil, fmt.Errorf("openai api key is required")
 	}
-	if cfg.Action == "" {
+	if action == "" {
 		return nil, fmt.Errorf("gpt action prompt is required")
 	}
-	if cfg.Model == "" {
-		cfg.Model = openai.GPT3Dot5Turbo
-	}
-	timeout := cfg.Timeout
-	if timeout == 0 {
+	if timeout <= 0 {
 		timeout = runners.DefaultTimeout
+	}
+	if model == "" {
+		model = openai.GPT3Dot5Turbo
+	}
+	return &Config{
+		ApiURL:    apiURL,
+		ApiKey:    apiKey,
+		Action:    action,
+		Model:     model,
+		BatchSize: batchSize,
+		BatchWait: batchWait,
+		MaxTokens: maxTokens,
+		Timeout:   timeout,
+	}, nil
+}
+
+func New(opts map[string]any) (runners.Runner, error) {
+	cfg, err := parseConfig(opts)
+	if err != nil {
+		return nil, err
 	}
 	log := slog.Default().With("context", "GPTRUNNER")
 
@@ -62,7 +105,7 @@ func New(cfg *runners.RunnerGPTRunnerConfig) (runners.Runner, error) {
 		cfg:     cfg,
 		slog:    log,
 		client:  client,
-		timeout: timeout,
+		timeout: cfg.Timeout,
 	}, nil
 }
 
@@ -87,7 +130,7 @@ func (g *GPTRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 	}
 	g.slog.Debug("openai response received", "choices", len(resp.Choices))
 	if len(resp.Choices) == 0 {
-		return nil, fmt.Errorf("no choices from openai")
+		return nil, errors.New(errNoChoicesFromOpenAI)
 	}
 	result := resp.Choices[0].Message.Content
 	g.slog.Debug("openai response content", "content", result)
@@ -106,7 +149,7 @@ func (g *GPTRunner) formatPrompt(msg *message.RunnerMessage) (string, error) {
 	return fmt.Sprintf("%s\n\n%s", g.cfg.Action, string(b)), nil
 }
 
-// TODO: implement ProcessBatch to handle batches of messages
+// ProcessBatch handles batches of messages by batching prompts to the GPT API.
 func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.RunnerMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	defer cancel()
@@ -116,9 +159,7 @@ func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.Runn
 		data, err := msg.GetSourceData()
 		if err != nil {
 			g.slog.Debug("GetData failed", "index", i, "error", err)
-			if e := msg.Nak(); e != nil {
-				g.slog.Error("error naking message", "err", e)
-			}
+			g.tryNak(msg)
 			continue
 		}
 		id := uuid.NewString()
@@ -133,9 +174,7 @@ func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.Runn
 	if err != nil {
 		g.slog.Error("failed to format prompt", "error", err)
 		for _, msg := range msgs {
-			if e := msg.Nak(); e != nil {
-				g.slog.Error("error naking message", "err", e)
-			}
+			g.tryNak(msg)
 		}
 		return nil, fmt.Errorf("failed to format prompt: %w", err)
 	}
@@ -151,21 +190,17 @@ func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.Runn
 	if err != nil {
 		g.slog.Error("openai error", "error", err)
 		for _, msg := range msgs {
-			if e := msg.Nak(); e != nil {
-				g.slog.Error("error naking message", "err", e)
-			}
+			g.tryNak(msg)
 		}
 		return nil, fmt.Errorf("openai error: %w", err)
 	}
 	g.slog.Debug("openai response received", "choices", len(resp.Choices))
 	if len(resp.Choices) == 0 {
-		g.slog.Error("no choices from openai")
+		g.slog.Error(errNoChoicesFromOpenAI)
 		for _, msg := range msgs {
-			if e := msg.Nak(); e != nil {
-				g.slog.Error("error naking message", "err", e)
-			}
+			g.tryNak(msg)
 		}
-		return nil, fmt.Errorf("no choices from openai")
+		return nil, errors.New(errNoChoicesFromOpenAI)
 	}
 	res := resp.Choices[0].Message.Content
 	g.slog.Debug("openai response content", "content", res)
@@ -173,9 +208,7 @@ func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.Runn
 	if err != nil {
 		g.slog.Error("failed to parse gpt response", "error", err)
 		for _, msg := range msgs {
-			if e := msg.Nak(); e != nil {
-				g.slog.Error("error naking message", "err", e)
-			}
+			g.tryNak(msg)
 		}
 		return nil, fmt.Errorf("failed to parse gpt response: %w", err)
 	}
@@ -186,15 +219,19 @@ func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.Runn
 		result, ok := results[id]
 		if !ok {
 			g.slog.Debug("no result for id", "id", id)
-			if e := msg.Nak(); e != nil {
-				g.slog.Error("error naking message", "err", e)
-			}
+			g.tryNak(msg)
 			continue
 		}
 
 		msg.SetData(result)
 	}
 	return msgs, nil
+}
+
+func (g *GPTRunner) tryNak(msg *message.RunnerMessage) {
+	if err := msg.Nak(); err != nil {
+		g.slog.Error(logNakMessage, "err", err)
+	}
 }
 
 // formatPromptItems builds the prompt for a batch of items

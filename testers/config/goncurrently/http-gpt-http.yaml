@@ -17,7 +17,7 @@ commands:
 
         runner:
           type: gpt
-          gpt:
+          options:
             action: "Give sentimental analysis of the text: positive, negative, or neutral."
             model: "google/gemma-3-4b"
             batch_size: 2

@@ -11,34 +11,59 @@ import (
 	"github.com/sandrolain/events-bridge/src/cliformat"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/runners"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 // Ensure CLIRunner implements runner.Runner
 var _ runners.Runner = &CLIRunner{}
 
+type Config struct {
+	Command string
+	Timeout time.Duration
+	Args    []string
+	Envs    map[string]string
+}
+
 type CLIRunner struct {
-	cfg     *runners.RunnerCLIConfig
+	cfg     *Config
 	slog    *slog.Logger
 	timeout time.Duration
 }
 
-func New(cfg *runners.RunnerCLIConfig) (runners.Runner, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("cli runner config cannot be nil")
+func parseConfig(opts map[string]any) (*Config, error) {
+	parser := &utils.OptsParser{}
+	command := parser.OptString(opts, "command", "", utils.StringNonEmpty())
+	args := parser.OptStringArray(opts, "args", nil)
+	envs := parser.OptStringMap(opts, "envs", nil)
+	timeout := parser.OptDuration(opts, "timeout", 0)
+	if err := parser.Error(); err != nil {
+		return nil, err
 	}
-	if cfg.Command == "" {
+	if command == "" {
 		return nil, fmt.Errorf("cli command is required")
+	}
+	if timeout <= 0 {
+		timeout = runners.DefaultTimeout
+	}
+	return &Config{
+		Command: command,
+		Timeout: timeout,
+		Args:    args,
+		Envs:    envs,
+	}, nil
+}
+
+func New(opts map[string]any) (runners.Runner, error) {
+	cfg, err := parseConfig(opts)
+	if err != nil {
+		return nil, err
 	}
 	log := slog.Default().With("context", "CLI")
 
-	timeout := cfg.Timeout
-	if timeout == 0 {
-		timeout = runners.DefaultTimeout
-	}
 	return &CLIRunner{
 		cfg:     cfg,
 		slog:    log,
-		timeout: timeout,
+		timeout: cfg.Timeout,
 	}, nil
 }
 

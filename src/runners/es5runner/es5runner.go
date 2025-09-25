@@ -13,25 +13,48 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/runners"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 // Ensure ES5Runner implements models.Runner
 var _ runners.Runner = &ES5Runner{}
 
+type Config struct {
+	Path    string
+	Timeout time.Duration
+}
+
 type ES5Runner struct {
-	cfg     *runners.RunnerES5Config
+	cfg     *Config
 	slog    *slog.Logger
 	program *goja.Program
 	timeout time.Duration
 }
 
-// New creates a new instance of ES5Runner
-func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("es5runner configuration cannot be nil")
+func parseConfig(opts map[string]any) (*Config, error) {
+	parser := &utils.OptsParser{}
+	path := parser.OptString(opts, "path", "")
+	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	if err := parser.Error(); err != nil {
+		return nil, err
 	}
-	if cfg.Path == "" {
+	if path == "" {
 		return nil, fmt.Errorf("js program path is required")
+	}
+	if timeout <= 0 {
+		timeout = runners.DefaultTimeout
+	}
+	return &Config{
+		Path:    path,
+		Timeout: timeout,
+	}, nil
+}
+
+// New creates a new instance of ES5Runner
+func New(opts map[string]any) (runners.Runner, error) {
+	cfg, err := parseConfig(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	log := slog.Default().With("context", "ES5")
@@ -49,16 +72,11 @@ func New(cfg *runners.RunnerES5Config) (runners.Runner, error) {
 		return nil, fmt.Errorf("failed to compile js: %w", err)
 	}
 
-	timeout := cfg.Timeout
-	if timeout == 0 {
-		timeout = runners.DefaultTimeout
-	}
-
 	return &ES5Runner{
 		cfg:     cfg,
 		slog:    log,
 		program: prog,
-		timeout: timeout,
+		timeout: cfg.Timeout,
 	}, nil
 }
 
@@ -75,7 +93,7 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 		return nil, fmt.Errorf("failed to set message: %w", err)
 	}
 
-	// TODO: define ES5 context functions
+	// Additional ES5 context functions can be registered here.
 
 	// Expose EncodeJSON/DecodeJSON
 	err := vm.Set("EncodeJSON", func(call goja.FunctionCall) goja.Value {

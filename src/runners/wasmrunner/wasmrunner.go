@@ -12,6 +12,7 @@ import (
 	"github.com/sandrolain/events-bridge/src/cliformat"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/runners"
+	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
@@ -19,8 +20,13 @@ import (
 // Ensure WasmRunner implements runners.Runner
 var _ runners.Runner = &WasmRunner{}
 
+type Config struct {
+	Path    string
+	Timeout time.Duration
+}
+
 type WasmRunner struct {
-	cfg       *runners.RunnerWASMConfig
+	cfg       *Config
 	timeout   time.Duration // Timeout for processing messages
 	slog      *slog.Logger
 	rt        wazero.Runtime
@@ -31,19 +37,30 @@ type WasmRunner struct {
 	stopCh    chan struct{}         // stop channel
 }
 
-// New creates a new instance of WasmRunner
-func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("wasm runner configuration cannot be nil")
+func parseConfig(opts map[string]any) (*Config, error) {
+	parser := &utils.OptsParser{}
+	path := parser.OptString(opts, "path", "")
+	timeout := parser.OptDuration(opts, "timeout", runners.DefaultTimeout)
+	if err := parser.Error(); err != nil {
+		return nil, err
 	}
-
-	if cfg.Path == "" {
+	if path == "" {
 		return nil, fmt.Errorf("wasm module path is required")
 	}
-
-	timeout := cfg.Timeout
-	if timeout == 0 {
+	if timeout <= 0 {
 		timeout = runners.DefaultTimeout
+	}
+	return &Config{
+		Path:    path,
+		Timeout: timeout,
+	}, nil
+}
+
+// New creates a new instance of WasmRunner
+func New(opts map[string]any) (runners.Runner, error) {
+	cfg, err := parseConfig(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	log := slog.Default().With("context", "WASM")
@@ -77,7 +94,7 @@ func New(cfg *runners.RunnerWASMConfig) (runners.Runner, error) {
 		cfg:       cfg,
 		slog:      log,
 		ctx:       ctx,
-		timeout:   timeout,
+		timeout:   cfg.Timeout,
 		rt:        rt,
 		wasmBytes: wasmBytes,
 		module:    cmod,
