@@ -10,13 +10,13 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "redis"
-          redis:
+          options:
             address: "localhost:6379"
             channel: "test.channel.in"
 
         target:
           type: "redis"
-          redis:
+          options:
             address: "localhost:6379"
             channel: "test.channel.out"
 

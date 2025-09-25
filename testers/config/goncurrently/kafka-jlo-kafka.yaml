@@ -9,14 +9,14 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "kafka"
-          kafka:
+          options:
             brokers: ["localhost:9092"]
             group_id: "test-group"
             topic: "test.topic.in"
 
         target:
           type: "kafka"
-          kafka:
+          options:
             brokers: ["localhost:9092"]
             group_id: "test-group"
             topic: "test.topic.out"

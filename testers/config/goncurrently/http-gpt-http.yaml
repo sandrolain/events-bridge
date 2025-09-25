@@ -9,7 +9,7 @@ commands:
 
         source:
           type: http
-          http:
+          options:
             address: ":8080"
             method: "POST"
             path: "/event"
@@ -29,7 +29,7 @@ commands:
 
         target:
           type: http
-          http:
+          options:
             url: "http://localhost:8081/processed"
             method: POST
             timeout: 5s

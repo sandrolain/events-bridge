@@ -9,13 +9,13 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "pgsql"
-          pgsql:
+          options:
             conn_string: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
             table: "test_table"
 
         target:
           type: "http"
-          http:
+          options:
             method: "POST"
             url: "http://localhost:8080/api/data"
 

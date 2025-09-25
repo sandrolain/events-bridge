@@ -9,7 +9,7 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "mqtt"
-          mqtt:
+          options:
             address: "localhost:1883"
             topic: "test/topic"
             client_id: "mqtt-to-http-client"
@@ -17,7 +17,7 @@ commands:
 
         target:
           type: "http"
-          http:
+          options:
             method: "POST"
             url: "http://localhost:8080/api/data"
           routines: 8

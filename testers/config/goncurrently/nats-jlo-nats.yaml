@@ -10,12 +10,12 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "nats"
-          nats:
+          options:
             address: "localhost:4222"
             subject: "test.subject.in"
         target:
           type: "nats"
-          nats:
+          options:
             address: "localhost:4222"
             subject: "test.subject.out"
           routines: 8

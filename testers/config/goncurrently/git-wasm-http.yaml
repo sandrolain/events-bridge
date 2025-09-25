@@ -9,7 +9,7 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "git"
-          git:
+          options:
             remote_url: "http://localhost:3000/testuser/testrepo.git"
             username: "testuser"
             password: "testpass"
@@ -20,7 +20,7 @@ commands:
 
         target:
           type: "http"
-          http:
+          options:
             method: "POST"
             url: "http://localhost:8080/api/data"
 

@@ -9,14 +9,14 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "http"
-          http:
+          options:
             address: "localhost:8080"
             method: "POST"
             path: "/event"
 
         target:
           type: "http"
-          http:
+          options:
             method: "POST"
             url: "http://localhost:9090/api/data"
           routines: 8

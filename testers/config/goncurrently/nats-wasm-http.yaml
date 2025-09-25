@@ -9,13 +9,13 @@ commands:
       EB_CONFIG_CONTENT: |
         source:
           type: "nats"
-          nats:
+          options:
             address: "localhost:4222"
             subject: "test.subject"
 
         target:
           type: "http"
-          http:
+          options:
             method: "POST"
             url: "http://localhost:8080/api/data"
 
