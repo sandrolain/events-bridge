@@ -26,10 +26,16 @@ func (m *NATSMessage) GetData() ([]byte, error) {
 }
 
 func (m *NATSMessage) Ack() error {
+	if m.msg.Reply == "" {
+		return nil
+	}
 	return m.msg.Ack()
 }
 
 func (m *NATSMessage) Nak() error {
+	if m.msg.Reply == "" {
+		return nil
+	}
 	return m.msg.Nak()
 }
 
