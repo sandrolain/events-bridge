@@ -20,15 +20,17 @@ type SourceConfig struct {
 
 // parseSourceOptions builds a config from options map with validation.
 // Expected keys: address, topic, client_id, consumer_group.
-func parseSourceOptions(opts map[string]any) (cfg *SourceConfig, err error) {
-	cfg = &SourceConfig{}
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
+	cfg := &SourceConfig{}
 	op := &utils.OptsParser{}
 	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
 	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
 	cfg.ClientID = op.OptString(opts, "client_id", "")
 	cfg.ConsumerGroup = op.OptString(opts, "consumer_group", "")
-	err = op.Error()
-	return
+	if err := op.Error(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 type MQTTSource struct {
@@ -44,9 +46,6 @@ func NewSource(opts map[string]any) (sources.Source, error) {
 	cfg, err := parseSourceOptions(opts)
 	if err != nil {
 		return nil, err
-	}
-	if cfg.Address == "" || cfg.Topic == "" {
-		return nil, fmt.Errorf("address and topic are required for MQTT source")
 	}
 	return &MQTTSource{
 		config: cfg,

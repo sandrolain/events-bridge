@@ -48,14 +48,10 @@ func NewSource(opts map[string]any) (sources.Source, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Protocol != CoAPProtocolUDP && cfg.Protocol != CoAPProtocolTCP {
-		return nil, fmt.Errorf("invalid CoAP protocol: %q (must be 'udp' or 'tcp')", cfg.Protocol)
-	}
 
 	return &CoAPSource{
-		config:  cfg,
-		slog:    slog.Default().With("context", "CoAP"),
-		timeout: cfg.Timeout,
+		config: cfg,
+		slog:   slog.Default().With("context", "CoAP"),
 	}, nil
 }
 
@@ -65,7 +61,6 @@ type CoAPSource struct {
 	c       chan *message.RunnerMessage
 	started bool
 	conn    *coapnet.UDPConn
-	timeout time.Duration
 }
 
 func (s *CoAPSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
@@ -127,7 +122,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 
 	s.c <- message.NewRunnerMessage(msg)
 
-	r, status, timeout := utils.AwaitReplyOrStatus(s.timeout, done, reply)
+	r, status, timeout := utils.AwaitReplyOrStatus(s.config.Timeout, done, reply)
 	var err error
 	if timeout {
 		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)

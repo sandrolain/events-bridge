@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -154,6 +155,45 @@ func (p *OptsParser) OptStringArray(opts map[string]any, key string, defaultVal 
 		}
 	}
 	return arr
+}
+
+func (p *OptsParser) OptStringMap(opts map[string]any, key string, defaultVal map[string]string) map[string]string {
+	if opts == nil {
+		return defaultVal
+	}
+	raw, ok := opts[key]
+	if !ok || raw == nil {
+		return defaultVal
+	}
+	var result map[string]string
+	switch t := raw.(type) {
+	case string:
+		pairs := strings.Split(t, ";")
+		result = make(map[string]string, len(pairs))
+		for _, p := range pairs {
+			kv := strings.SplitN(p, ":", 2)
+			if len(kv) == 2 {
+				k := strings.TrimSpace(kv[0])
+				v := strings.TrimSpace(kv[1])
+				if k != "" {
+					result[k] = v
+				}
+			}
+		}
+	case map[string]string:
+		result = t
+	case map[string]any:
+		result = make(map[string]string, len(t))
+		for k, v := range t {
+			if s, ok := v.(string); ok {
+				result[k] = s
+			}
+		}
+	default:
+		p.errors = append(p.errors, fmt.Errorf("option %s has invalid type %T, expected map[string]string", key, raw))
+		return nil
+	}
+	return result
 }
 
 func (p *OptsParser) OptBool(opts map[string]any, key string, defaultVal bool, validators ...func(bool) error) bool {

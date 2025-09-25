@@ -26,48 +26,33 @@ type TargetConfig struct {
 	StreamDataKey         string        `yaml:"stream_data_key" json:"stream_data_key"`
 }
 
-// NewTargetOptions builds a Redis target config from options map.
+// parseTargetOptions builds a Redis target config from options map with validation.
 // For PubSub: address, channel, channelFromMetadataKey.
-// For Stream: address, stream, streamFromMetadataKey, consumer_group, consumer_name, timeout (ns), stream_data_key.
-func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+// For Stream: address, stream, streamFromMetadataKey, consumer_group, consumer_name, timeout, stream_data_key.
+func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
+	op := &utils.OptsParser{}
 	cfg := &TargetConfig{}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Channel = op.OptString(opts, "channel", "")
+	cfg.ChannelFromMetadataKey = op.OptString(opts, "channelFromMetadataKey", "")
+	cfg.Stream = op.OptString(opts, "stream", "")
+	cfg.StreamFromMetadataKey = op.OptString(opts, "streamFromMetadataKey", "")
+	cfg.ConsumerGroup = op.OptString(opts, "consumer_group", "")
+	cfg.ConsumerName = op.OptString(opts, "consumer_name", "")
+	cfg.Timeout = op.OptDuration(opts, "timeout", 0)
+	cfg.StreamDataKey = op.OptString(opts, "stream_data_key", "")
+	if err := op.Error(); err != nil {
+		return nil, err
 	}
-	if v, ok := opts["channel"].(string); ok {
-		cfg.Channel = v
-	}
-	if v, ok := opts["channelFromMetadataKey"].(string); ok {
-		cfg.ChannelFromMetadataKey = v
-	}
-	if v, ok := opts["stream"].(string); ok {
-		cfg.Stream = v
-	}
-	if v, ok := opts["streamFromMetadataKey"].(string); ok {
-		cfg.StreamFromMetadataKey = v
-	}
-	if v, ok := opts["consumer_group"].(string); ok {
-		cfg.ConsumerGroup = v
-	}
-	if v, ok := opts["consumer_name"].(string); ok {
-		cfg.ConsumerName = v
-	}
-	if v, ok := opts["timeout"].(int); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(int64); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(float64); ok {
-		cfg.Timeout = time.Duration(int64(v))
-	}
-	if v, ok := opts["stream_data_key"].(string); ok {
-		cfg.StreamDataKey = v
-	}
-	return NewTarget(cfg)
+	return cfg, nil
 }
 
-func NewTarget(cfg *TargetConfig) (targets.Target, error) {
+// NewTarget creates a Redis target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.Stream != "" {
 		return NewStreamTarget(cfg)
 	}

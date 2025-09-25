@@ -12,6 +12,15 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+const (
+	errWriteFile    = "failed to write file: %v"
+	errGitAdd       = "failed to git add: %v"
+	errGitCommit    = "failed to git commit: %v"
+	errCheckTimeout = "checkForChanges did not return in time"
+
+	gitAuthorArg = "--author=Test <test@example.com>"
+)
+
 func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 	remoteDir, err := os.MkdirTemp("", "gitsource-remote-")
 	if err != nil {
@@ -45,17 +54,17 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 	}
 	filePath := filepath.Join(localDir, "foo.txt")
 	if err := os.WriteFile(filePath, []byte("bar"), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
+		t.Fatalf(errWriteFile, err)
 	}
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = localDir
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to git add: %v", err)
+		t.Fatalf(errGitAdd, err)
 	}
-	cmd = exec.Command("git", "commit", "-m", "add foo", "--author=Test <test@example.com>")
+	cmd = exec.Command("git", "commit", "-m", "add foo", gitAuthorArg)
 	cmd.Dir = localDir
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to git commit: %v", err)
+		t.Fatalf(errGitCommit, err)
 	}
 	cmd = exec.Command("git", "push", "origin", "master")
 	cmd.Dir = localDir
@@ -82,7 +91,7 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Error("checkForChanges did not return in time")
+		t.Error(errCheckTimeout)
 	}
 }
 
@@ -103,17 +112,17 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 	}
 	filePath := filepath.Join(tmpDir, "test.txt")
 	if err := os.WriteFile(filePath, []byte("hello world"), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
+		t.Fatalf(errWriteFile, err)
 	}
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to git add: %v", err)
+		t.Fatalf(errGitAdd, err)
 	}
-	cmd = exec.Command("git", "commit", "-m", "initial commit", "--author=Test <test@example.com>")
+	cmd = exec.Command("git", "commit", "-m", "initial commit", gitAuthorArg)
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to git commit: %v", err)
+		t.Fatalf(errGitCommit, err)
 	}
 
 	cfg := &SourceConfig{
@@ -135,7 +144,7 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Error("checkForChanges did not return in time")
+		t.Error(errCheckTimeout)
 	}
 }
 
@@ -161,17 +170,17 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 	// Create a file and commit it
 	filePath := filepath.Join(tmpDir, "test.txt")
 	if err := os.WriteFile(filePath, []byte("hello world"), 0644); err != nil {
-		t.Fatalf("failed to write file: %v", err)
+		t.Fatalf(errWriteFile, err)
 	}
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to git add: %v", err)
+		t.Fatalf(errGitAdd, err)
 	}
-	cmd = exec.Command("git", "commit", "-m", "initial commit", "--author=Test <test@example.com>")
+	cmd = exec.Command("git", "commit", "-m", "initial commit", gitAuthorArg)
 	cmd.Dir = tmpDir
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to git commit: %v", err)
+		t.Fatalf(errGitCommit, err)
 	}
 
 	// Setup config for local repo
@@ -196,14 +205,17 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 	case <-done:
 		// ok
 	case <-time.After(2 * time.Second):
-		t.Error("checkForChanges did not return in time")
+		t.Error(errCheckTimeout)
 	}
 }
 
 func TestNewSourceInvalidConfig(t *testing.T) {
-	_, err := NewSource(map[string]any{})
+	_, err := NewSource(map[string]any{
+		"remote_url": 123,
+		"branch":     456,
+	})
 	if err == nil {
-		t.Error("expected error for missing remote_url and branch")
+		t.Error("expected error when options have invalid types")
 	}
 }
 

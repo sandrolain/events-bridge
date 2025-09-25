@@ -4,21 +4,23 @@ import (
 	"testing"
 )
 
+const (
+	testBrokerAddr = "localhost:9092"
+)
+
 func TestKafkaSourceNewSourceValidation(t *testing.T) {
-	// missing brokers
-	_, err := NewSource(map[string]any{"brokers": []string{}, "topic": "t"})
+	_, err := NewSource(map[string]any{"brokers": testBrokerAddr, "topic": "t"})
 	if err == nil {
-		t.Fatal("expected error when brokers are empty")
+		t.Fatal("expected error when brokers option has invalid type")
 	}
-	// missing topic
-	_, err = NewSource(map[string]any{"brokers": []string{"localhost:9092"}, "topic": ""})
+	_, err = NewSource(map[string]any{"brokers": []string{testBrokerAddr}, "topic": 42})
 	if err == nil {
-		t.Fatal("expected error when topic is empty")
+		t.Fatal("expected error when topic option has invalid type")
 	}
 }
 
 func TestKafkaSourceCloseWithoutStart(t *testing.T) {
-	src, err := NewSource(map[string]any{"brokers": []string{"localhost:9092"}, "topic": "t"})
+	src, err := NewSource(map[string]any{"brokers": []string{testBrokerAddr}, "topic": "t"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

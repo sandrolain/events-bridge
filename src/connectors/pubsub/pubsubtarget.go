@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/pubsub/v2"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type TargetConfig struct {
@@ -16,22 +17,24 @@ type TargetConfig struct {
 	Topic     string `yaml:"topic" json:"topic"`
 }
 
-// NewTargetOptions builds a PubSub target config from options map.
+// parseTargetOptions builds a PubSub target config from options map.
 // Expected keys: project_id, topic.
-func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
 	cfg := &TargetConfig{}
-	if v, ok := opts["project_id"].(string); ok {
-		cfg.ProjectID = v
+	op := &utils.OptsParser{}
+	cfg.ProjectID = op.OptString(opts, "project_id", "", utils.StringNonEmpty())
+	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
+	if op.Error() != nil {
+		return nil, op.Error()
 	}
-	if v, ok := opts["topic"].(string); ok {
-		cfg.Topic = v
-	}
-	return NewTarget(cfg)
+	return cfg, nil
 }
 
-func NewTarget(cfg *TargetConfig) (targets.Target, error) {
-	if cfg.ProjectID == "" || cfg.Topic == "" {
-		return nil, fmt.Errorf("projectID and topic are required for PubSub target")
+// NewTarget creates a PubSub target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	l := slog.Default().With("context", "PubSub")

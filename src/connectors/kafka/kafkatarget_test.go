@@ -5,15 +5,13 @@ import (
 )
 
 func TestKafkaTargetNewTargetValidation(t *testing.T) {
-	// missing brokers
-	_, err := NewTarget(map[string]any{"brokers": []string{}, "topic": "t"})
+	_, err := NewTarget(map[string]any{"brokers": testBrokerAddr, "topic": "t"})
 	if err == nil {
-		t.Fatal("expected error when brokers are empty")
+		t.Fatal("expected error when brokers option has invalid type")
 	}
-	// missing topic
-	_, err = NewTarget(map[string]any{"brokers": []string{"localhost:9092"}, "topic": ""})
+	_, err = NewTarget(map[string]any{"brokers": []string{testBrokerAddr}, "topic": 99})
 	if err == nil {
-		t.Fatal("expected error when topic is empty")
+		t.Fatal("expected error when topic option has invalid type")
 	}
 }
 

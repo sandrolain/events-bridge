@@ -45,11 +45,6 @@ func NewSource(opts map[string]any) (sources.Source, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	if cfg.ConnString == "" || cfg.Table == "" {
-		return nil, fmt.Errorf("connString and table are required for PGSQL source")
-	}
-
 	return &PGSQLSource{
 		config: cfg,
 		slog:   slog.Default().With("context", "PGSQL"),

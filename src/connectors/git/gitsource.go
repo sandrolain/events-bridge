@@ -33,7 +33,6 @@ type SourceConfig struct {
 func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
 	op := &utils.OptsParser{}
-	// Strings
 	cfg.Path = op.OptString(opts, "path", "")
 	cfg.RemoteURL = op.OptString(opts, "remote_url", "", utils.StringNonEmpty())
 	cfg.Remote = op.OptString(opts, "remote", "origin")
@@ -41,7 +40,6 @@ func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg.Username = op.OptString(opts, "username", "")
 	cfg.Password = op.OptString(opts, "password", "")
 	cfg.SubDir = op.OptString(opts, "subdir", "")
-	// Ints
 	cfg.PollInterval = op.OptInt(opts, "poll_interval", 10, utils.IntMin(0))
 	if err := op.Error(); err != nil {
 		return nil, err
@@ -62,9 +60,6 @@ func NewSource(opts map[string]any) (sources.Source, error) {
 	cfg, err := parseSourceOptions(opts)
 	if err != nil {
 		return nil, err
-	}
-	if cfg.RemoteURL == "" || cfg.Branch == "" {
-		return nil, fmt.Errorf("remote_url and branch are required for the git source")
 	}
 	return &GitSource{
 		config: cfg,

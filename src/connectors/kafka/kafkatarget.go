@@ -8,6 +8,7 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -20,52 +21,30 @@ type TargetConfig struct {
 
 // parseTargetOptions builds a Kafka target config from options map.
 // Expected keys: brokers ([]string), topic, partitions, replication_factor.
-func parseTargetOptions(opts map[string]any) *TargetConfig {
+func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
 	cfg := &TargetConfig{}
-	if v, ok := opts["brokers"].([]string); ok {
-		cfg.Brokers = v
-	} else if v, ok := opts["brokers"].([]any); ok {
-		bs := make([]string, 0, len(v))
-		for _, it := range v {
-			if s, ok := it.(string); ok {
-				bs = append(bs, s)
-			}
-		}
-		cfg.Brokers = bs
+	op := &utils.OptsParser{}
+	cfg.Brokers = op.OptStringArray(opts, "brokers", nil, utils.StringNonEmpty())
+	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
+	cfg.Partitions = op.OptInt(opts, "partitions", 1, utils.IntMin(1))
+	cfg.ReplicationFactor = op.OptInt(opts, "replication_factor", 1, utils.IntMin(1))
+	if err := op.Error(); err != nil {
+		return nil, err
 	}
-	if v, ok := opts["topic"].(string); ok {
-		cfg.Topic = v
-	}
-	if v, ok := opts["partitions"].(int); ok {
-		cfg.Partitions = v
-	}
-	if v, ok := opts["partitions"].(int64); ok {
-		cfg.Partitions = int(v)
-	}
-	if v, ok := opts["partitions"].(float64); ok {
-		cfg.Partitions = int(v)
-	}
-	if v, ok := opts["replication_factor"].(int); ok {
-		cfg.ReplicationFactor = v
-	}
-	if v, ok := opts["replication_factor"].(int64); ok {
-		cfg.ReplicationFactor = int(v)
-	}
-	if v, ok := opts["replication_factor"].(float64); ok {
-		cfg.ReplicationFactor = int(v)
-	}
-	return cfg
+	return cfg, nil
 }
 
-func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
-	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
-		return nil, fmt.Errorf("brokers and topic are required for Kafka target")
+// NewTarget creates a Kafka target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	l := slog.Default().With("context", "Kafka")
 
 	// Create the topic if it does not exist
-	err := ensureKafkaTopic(l, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor)
+	err = ensureKafkaTopic(l, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor)
 	if err != nil {
 		return nil, fmt.Errorf("error creating/verifying topic: %w", err)
 	}
@@ -81,12 +60,6 @@ func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
 		slog:   l,
 		writer: writer,
 	}, nil
-}
-
-// NewTarget creates a Kafka target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg := parseTargetOptions(opts)
-	return newTargetFromConfig(cfg)
 }
 
 type KafkaTarget struct {

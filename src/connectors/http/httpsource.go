@@ -21,32 +21,28 @@ type SourceConfig struct {
 
 // parseSourceOptions decodes a generic options map into the connector-specific config.
 // Expected keys: address, method, path, timeout.
-func parseSourceOptions(opts map[string]any) *SourceConfig {
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	op := &utils.OptsParser{}
 	cfg := &SourceConfig{}
-
 	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
 	cfg.Method = op.OptString(opts, "method", "", utils.StringNonEmpty())
 	cfg.Path = op.OptString(opts, "path", "", utils.StringNonEmpty())
 	cfg.Timeout = op.OptDuration(opts, "timeout", sources.DefaultTimeout)
 	if err := op.Error(); err != nil {
-		slog.Error("invalid HTTP source options", "error", err)
+		return nil, err
 	}
-	return cfg
+	return cfg, nil
 }
 
 // NewSource creates an HTTP source from options map.
 func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg := parseSourceOptions(opts)
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = sources.DefaultTimeout
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
 	}
-
 	return &HTTPSource{
-		config:  cfg,
-		slog:    slog.Default().With("context", "HTTP"),
-		timeout: timeout,
+		config: cfg,
+		slog:   slog.Default().With("context", "HTTP"),
 	}, nil
 }
 
@@ -56,7 +52,6 @@ type HTTPSource struct {
 	listener net.Listener
 	c        chan *message.RunnerMessage
 	started  bool
-	timeout  time.Duration
 }
 
 func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err error) {
@@ -105,7 +100,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 			s.c <- message.NewRunnerMessage(msg)
 
 			// Wait for Ack/Nak or reply using helper
-			r, status, timeout := utils.AwaitReplyOrStatus(s.timeout, done, reply)
+			r, status, timeout := utils.AwaitReplyOrStatus(s.config.Timeout, done, reply)
 			if timeout {
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 				return

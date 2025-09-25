@@ -22,34 +22,37 @@ type TargetConfig struct {
 
 // parseTargetOptions builds a config from options map with validation.
 // Expected keys: address, topic, clientID, qos, topicFromMetadataKey.
-func parseTargetOptions(opts map[string]any) (cfg *TargetConfig, err error) {
-	cfg = &TargetConfig{}
+func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
+	cfg := &TargetConfig{}
 	op := &utils.OptsParser{}
 	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
 	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
-	cfg.ClientID = op.OptString(opts, "clientID", "")
+	cfg.ClientID = op.OptString(opts, "clientID", "events-bridge-target-"+fmt.Sprint(time.Now().UnixNano()))
 	cfg.QoS = op.OptInt(opts, "qos", 0, utils.IntMin(0), utils.IntMax(2))
 	cfg.TopicFromMetadataKey = op.OptString(opts, "topicFromMetadataKey", "")
-	err = op.Error()
-	return
+	if err := op.Error(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
-func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
+// NewTarget creates an MQTT target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
+	}
 	if cfg.Address == "" || cfg.Topic == "" {
 		return nil, fmt.Errorf("address and topic are required for MQTT target")
 	}
 
-	opts := mqtt.NewClientOptions().AddBroker("tcp://" + cfg.Address)
-	clientID := cfg.ClientID
-	if clientID == "" {
-		clientID = "events-bridge-target-" + fmt.Sprint(time.Now().UnixNano())
-	}
-	opts.SetClientID(clientID)
-	opts.SetAutoReconnect(true)
-	opts.SetConnectRetry(true)
-	opts.SetConnectRetryInterval(2 * time.Second)
+	copts := mqtt.NewClientOptions().AddBroker("tcp://" + cfg.Address)
+	copts.SetClientID(cfg.ClientID)
+	copts.SetAutoReconnect(true)
+	copts.SetConnectRetry(true)
+	copts.SetConnectRetryInterval(2 * time.Second)
 
-	client := mqtt.NewClient(opts)
+	client := mqtt.NewClient(copts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		return nil, fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
 	}
@@ -63,15 +66,6 @@ func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
 		slog:   l,
 		client: client,
 	}, nil
-}
-
-// NewTarget creates an MQTT target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
-	if err != nil {
-		return nil, err
-	}
-	return newTargetFromConfig(cfg)
 }
 
 type MQTTTarget struct {

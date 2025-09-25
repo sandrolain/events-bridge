@@ -8,6 +8,7 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/valyala/fasthttp"
 )
 
@@ -20,46 +21,29 @@ type TargetConfig struct {
 
 // parseTargetOptions decodes a generic options map into the connector-specific config.
 // Expected keys: url, method, headers (map[string]string), timeout.
-func parseTargetOptions(opts map[string]any) *TargetConfig {
+func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
 	cfg := &TargetConfig{}
-	if v, ok := opts["url"].(string); ok {
-		cfg.URL = v
+	op := &utils.OptsParser{}
+	cfg.URL = op.OptString(opts, "url", "")
+	cfg.Method = op.OptString(opts, "method", "POST", utils.StringOneOf("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"))
+	cfg.Headers = op.OptStringMap(opts, "headers", map[string]string{})
+	cfg.Timeout = op.OptDuration(opts, "timeout", targets.DefaultTimeout)
+	if op.Error() != nil {
+		return nil, op.Error()
 	}
-	if v, ok := opts["method"].(string); ok {
-		cfg.Method = v
-	}
-	if v, ok := opts["headers"].(map[string]string); ok {
-		cfg.Headers = v
-	} else if v, ok := opts["headers"].(map[string]any); ok {
-		headers := make(map[string]string, len(v))
-		for hk, hv := range v {
-			if s, ok := hv.(string); ok {
-				headers[hk] = s
-			}
-		}
-		cfg.Headers = headers
-	}
-	if v, ok := opts["timeout"].(int); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(int64); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(float64); ok {
-		cfg.Timeout = time.Duration(int64(v))
-	}
-	return cfg
+	return cfg, nil
 }
 
-func newTargetFromConfig(cfg *TargetConfig) (res targets.Target, err error) {
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = targets.DefaultTimeout
+// NewTarget creates an HTTP target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	client := &fasthttp.Client{
-		ReadTimeout:                   timeout,
-		WriteTimeout:                  timeout,
+		ReadTimeout:                   cfg.Timeout,
+		WriteTimeout:                  cfg.Timeout,
 		NoDefaultUserAgentHeader:      true,
 		DisableHeaderNamesNormalizing: true,
 		DisablePathNormalizing:        true,
@@ -69,20 +53,12 @@ func newTargetFromConfig(cfg *TargetConfig) (res targets.Target, err error) {
 		}).Dial,
 	}
 
-	res = &HTTPTarget{
+	return &HTTPTarget{
 		config: cfg,
 		slog:   slog.Default().With("context", "HTTP"),
 		client: client,
 		stopCh: make(chan struct{}),
-	}
-
-	return
-}
-
-// NewTarget creates an HTTP target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg := parseTargetOptions(opts)
-	return newTargetFromConfig(cfg)
+	}, nil
 }
 
 type HTTPTarget struct {

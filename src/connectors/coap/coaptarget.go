@@ -15,6 +15,7 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type TargetConfig struct {
@@ -25,46 +26,31 @@ type TargetConfig struct {
 	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
 }
 
-// NewTargetOptions builds a CoAP target config from options map.
-// Expected keys: protocol, address, path, method, timeout (ns).
-func NewTargetOptions(opts map[string]any) (targets.Target, error) {
+// parseTargetOptions builds a CoAP target config from options map with validation.
+// Expected keys: protocol (udp|tcp), address, path, method (GET|POST|PUT), timeout.
+func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
+	// Local minimal parser to avoid extra deps; integrates simple validations.
 	cfg := &TargetConfig{}
-	if v, ok := opts["protocol"].(string); ok {
-		if v == string(CoAPProtocolTCP) {
-			cfg.Protocol = CoAPProtocolTCP
-		} else {
-			cfg.Protocol = CoAPProtocolUDP
-		}
+	op := &utils.OptsParser{}
+	cfg.Protocol = CoAPProtocol(op.OptString(opts, "protocol", "udp", utils.StringOneOf("udp", "tcp")))
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Path = op.OptString(opts, "path", "", utils.StringNonEmpty())
+	cfg.Method = op.OptString(opts, "method", "", utils.StringOneOf("GET", "POST", "PUT"))
+	cfg.Timeout = op.OptDuration(opts, "timeout", targets.DefaultTimeout)
+	if err := op.Error(); err != nil {
+		return nil, err
 	}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
-	}
-	if v, ok := opts["path"].(string); ok {
-		cfg.Path = v
-	}
-	if v, ok := opts["method"].(string); ok {
-		cfg.Method = v
-	}
-	if v, ok := opts["timeout"].(int); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(int64); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(float64); ok {
-		cfg.Timeout = time.Duration(int64(v))
-	}
-	return NewTarget(cfg)
+	return cfg, nil
 }
 
-func NewTarget(cfg *TargetConfig) (targets.Target, error) {
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = targets.DefaultTimeout
+// NewTarget creates a CoAP target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 	t := &CoAPTarget{
 		config:  cfg,
-		timeout: timeout,
 		slog:    slog.Default().With("context", "COAP"),
 		stopped: false,
 		stopCh:  make(chan struct{}),
@@ -75,7 +61,6 @@ func NewTarget(cfg *TargetConfig) (targets.Target, error) {
 type CoAPTarget struct {
 	slog    *slog.Logger
 	config  *TargetConfig
-	timeout time.Duration
 	stopped bool
 	stopCh  chan struct{}
 }
@@ -97,54 +82,14 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 	protocol := string(t.config.Protocol)
 	t.slog.Debug("sending coap message", "protocol", protocol, "address", address, "path", path, "method", method)
 
-	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), t.config.Timeout)
 	defer cancel()
 
 	switch protocol {
 	case "udp":
-		client, e := coapudp.Dial(address)
-		if e != nil {
-			return fmt.Errorf("failed to dial coap server: %w", e)
-		}
-
-		defer func() {
-			err = client.Close()
-			if err != nil {
-				t.slog.Error("error closing coap client", "err", err)
-			}
-		}()
-		switch method {
-		case "POST":
-			_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
-		case "PUT":
-			_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
-		case "GET":
-			_, err = client.Get(ctx, path)
-		default:
-			return fmt.Errorf(errUnsupportedCoapMethod, method)
-		}
+		err = t.sendUDP(ctx, method, path, address, contentFormat, data)
 	case "tcp":
-		client, e := coaptcp.Dial(address)
-		if e != nil {
-			return fmt.Errorf("failed to dial coap server: %w", e)
-		}
-
-		defer func() {
-			err = client.Close()
-			if err != nil {
-				t.slog.Error("error closing coap client", "err", err)
-			}
-		}()
-		switch method {
-		case "POST":
-			_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
-		case "PUT":
-			_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
-		case "GET":
-			_, err = client.Get(ctx, path)
-		default:
-			return fmt.Errorf(errUnsupportedCoapMethod, method)
-		}
+		err = t.sendTCP(ctx, method, path, address, contentFormat, data)
 	default:
 		return fmt.Errorf("unsupported coap protocol: %s", protocol)
 	}
@@ -155,6 +100,52 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 
 	t.slog.Debug("coap message sent")
 	return nil
+}
+
+func (t *CoAPTarget) sendUDP(ctx context.Context, method, path, address string, contentFormat coapmessage.MediaType, data []byte) error {
+	client, err := coapudp.Dial(address)
+	if err != nil {
+		return fmt.Errorf("failed to dial coap server: %w", err)
+	}
+	defer func() {
+		if e := client.Close(); e != nil {
+			t.slog.Error("error closing coap client", "err", e)
+		}
+	}()
+	switch method {
+	case "POST":
+		_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
+	case "PUT":
+		_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
+	case "GET":
+		_, err = client.Get(ctx, path)
+	default:
+		return fmt.Errorf(errUnsupportedCoapMethod, method)
+	}
+	return err
+}
+
+func (t *CoAPTarget) sendTCP(ctx context.Context, method, path, address string, contentFormat coapmessage.MediaType, data []byte) error {
+	client, err := coaptcp.Dial(address)
+	if err != nil {
+		return fmt.Errorf("failed to dial coap server: %w", err)
+	}
+	defer func() {
+		if e := client.Close(); e != nil {
+			t.slog.Error("error closing coap client", "err", e)
+		}
+	}()
+	switch method {
+	case "POST":
+		_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
+	case "PUT":
+		_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
+	case "GET":
+		_, err = client.Get(ctx, path)
+	default:
+		return fmt.Errorf(errUnsupportedCoapMethod, method)
+	}
+	return err
 }
 
 func (t *CoAPTarget) Close() error {

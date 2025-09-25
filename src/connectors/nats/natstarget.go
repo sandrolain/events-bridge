@@ -19,42 +19,29 @@ type TargetConfig struct {
 }
 
 // parseTargetOptions builds a NATS target config from options map.
-// Expected keys: address, subject, subjectFromMetadataKey, timeout (ns).
-func parseTargetOptions(opts map[string]any) *TargetConfig {
+// Expected keys: address, subject, subjectFromMetadataKey, timeout.
+func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
 	cfg := &TargetConfig{}
-	if v, ok := opts["address"].(string); ok {
-		cfg.Address = v
+	op := &utils.OptsParser{}
+	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
+	cfg.Subject = op.OptString(opts, "subject", "", utils.StringNonEmpty())
+	cfg.SubjectFromMetadataKey = op.OptString(opts, "subjectFromMetadataKey", "")
+	cfg.Timeout = op.OptDuration(opts, "timeout", targets.DefaultTimeout)
+	if err := op.Error(); err != nil {
+		return nil, err
 	}
-	if v, ok := opts["subject"].(string); ok {
-		cfg.Subject = v
-	}
-	if v, ok := opts["subjectFromMetadataKey"].(string); ok {
-		cfg.SubjectFromMetadataKey = v
-	}
-	if v, ok := opts["timeout"].(int); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(int64); ok {
-		cfg.Timeout = time.Duration(v)
-	}
-	if v, ok := opts["timeout"].(float64); ok {
-		cfg.Timeout = time.Duration(int64(v))
-	}
-	return cfg
+	return cfg, nil
 }
 
-func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
-	if cfg.Address == "" || cfg.Subject == "" {
-		return nil, fmt.Errorf("address and subject are required for NATS target")
-	}
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = targets.DefaultTimeout
+// NewTarget creates the NATS target from options map.
+func NewTarget(opts map[string]any) (targets.Target, error) {
+	cfg, err := parseTargetOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 
 	l := slog.Default().With("context", "NATS")
 
-	var err error
 	conn, err := nats.Connect(cfg.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS server: %w", err)
@@ -62,24 +49,16 @@ func newTargetFromConfig(cfg *TargetConfig) (targets.Target, error) {
 	l.Info("NATS target connected", "address", cfg.Address, "subject", cfg.Subject)
 
 	return &NATSTarget{
-		config:  cfg,
-		timeout: timeout,
-		slog:    l,
-		conn:    conn,
+		config: cfg,
+		slog:   l,
+		conn:   conn,
 	}, nil
 }
 
-// NewTarget creates the NATS target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg := parseTargetOptions(opts)
-	return newTargetFromConfig(cfg)
-}
-
 type NATSTarget struct {
-	slog    *slog.Logger
-	config  *TargetConfig
-	timeout time.Duration
-	conn    *nats.Conn
+	slog   *slog.Logger
+	config *TargetConfig
+	conn   *nats.Conn
 }
 
 func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {

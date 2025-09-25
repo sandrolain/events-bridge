@@ -7,6 +7,8 @@ import (
 	natsc "github.com/nats-io/nats.go"
 )
 
+const errUnexpected = "unexpected error: %v"
+
 func TestNATSSourceNewSourceValidation(t *testing.T) {
 	if _, err := NewSource(map[string]any{"address": "", "subject": "s"}); err == nil {
 		t.Fatal("expected error when address is empty")
@@ -19,7 +21,7 @@ func TestNATSSourceNewSourceValidation(t *testing.T) {
 func TestNATSSourceCloseWithoutStart(t *testing.T) {
 	src, err := NewSource(map[string]any{"address": "nats://127.0.0.1:4222", "subject": "s"})
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(errUnexpected, err)
 	}
 	if err := src.Close(); err != nil {
 		t.Fatalf("unexpected close error: %v", err)

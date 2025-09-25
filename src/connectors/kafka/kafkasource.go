@@ -21,17 +21,18 @@ type SourceConfig struct {
 
 // parseSourceOptions builds a Kafka source config from options map.
 // Expected keys: brokers ([]string), topic, group_id, partitions, replication_factor.
-func parseSourceOptions(opts map[string]any) *SourceConfig {
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
 	op := &utils.OptsParser{}
-
 	cfg.Brokers = op.OptStringArray(opts, "brokers", nil, utils.StringNonEmpty())
 	cfg.GroupID = op.OptString(opts, "group_id", "")
 	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
 	cfg.Partitions = op.OptInt(opts, "partitions", 1, utils.IntGreaterThan(0))
 	cfg.ReplicationFactor = op.OptInt(opts, "replication_factor", 1, utils.IntGreaterThan(0))
-
-	return cfg
+	if err := op.Error(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 type KafkaSource struct {
@@ -44,9 +45,9 @@ type KafkaSource struct {
 
 // NewSource creates a Kafka source from options map.
 func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg := parseSourceOptions(opts)
-	if len(cfg.Brokers) == 0 || cfg.Topic == "" {
-		return nil, fmt.Errorf("brokers and topic are required for Kafka source")
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 	return &KafkaSource{
 		config: cfg,

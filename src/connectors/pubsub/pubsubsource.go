@@ -29,7 +29,6 @@ type SourceConfig struct {
 // Expected keys: project_id, subscription, create_if_not_exists, topic, ack_deadline, retain_acked, retention_duration.
 func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
-
 	op := &utils.OptsParser{}
 	cfg.ProjectID = op.OptString(opts, "project_id", "", utils.StringNonEmpty())
 	cfg.Subscription = op.OptString(opts, "subscription", "", utils.StringNonEmpty())
@@ -38,7 +37,6 @@ func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg.AckDeadline = op.OptInt(opts, "ack_deadline", 10)
 	cfg.RetainAcked = op.OptBool(opts, "retain_acked", false)
 	cfg.RetentionDuration = op.OptInt(opts, "retention_duration", 24*3600)
-
 	if err := op.Error(); err != nil {
 		return nil, err
 	}
@@ -59,9 +57,6 @@ func NewSource(opts map[string]any) (sources.Source, error) {
 	cfg, err := parseSourceOptions(opts)
 	if err != nil {
 		return nil, err
-	}
-	if cfg.ProjectID == "" || cfg.Subscription == "" {
-		return nil, fmt.Errorf("projectID and subscription are required for PubSub source")
 	}
 	return &PubSubSource{
 		config: cfg,

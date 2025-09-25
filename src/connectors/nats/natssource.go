@@ -21,15 +21,18 @@ type SourceConfig struct {
 
 // parseSourceOptions builds a NATS source config from options map.
 // Expected keys: address, subject, stream, consumer, queueGroup.
-func parseSourceOptions(opts map[string]any) *SourceConfig {
+func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
 	cfg := &SourceConfig{}
 	op := &utils.OptsParser{}
 	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
 	cfg.Subject = op.OptString(opts, "subject", "", utils.StringNonEmpty())
-	cfg.Stream = op.OptString(opts, "stream", "", utils.StringNonEmpty())
-	cfg.Consumer = op.OptString(opts, "consumer", "", utils.StringNonEmpty())
+	cfg.Stream = op.OptString(opts, "stream", "")
+	cfg.Consumer = op.OptString(opts, "consumer", "")
 	cfg.QueueGroup = op.OptString(opts, "queueGroup", "", utils.StringNonEmpty())
-	return cfg
+	if err := op.Error(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
 type NATSSource struct {
@@ -44,9 +47,9 @@ type NATSSource struct {
 
 // NewSource creates the NATS source from options map.
 func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg := parseSourceOptions(opts)
-	if cfg.Address == "" || cfg.Subject == "" {
-		return nil, fmt.Errorf("address and subject are required for NATS source")
+	cfg, err := parseSourceOptions(opts)
+	if err != nil {
+		return nil, err
 	}
 	return &NATSSource{
 		config: cfg,

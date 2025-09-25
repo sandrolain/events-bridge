@@ -34,59 +34,39 @@ func (m *mockMessage) Reply(data *message.ReplyData) error           { return ni
 const addrLocal = "localhost:5683"
 
 func TestSendUnsupportedProtocol(t *testing.T) {
-	cfg := &TargetConfig{
-		Protocol: "invalid",
-		Address:  addrLocal,
-		Path:     "/test",
-		Method:   "POST",
-	}
-	target, err := NewTarget(cfg)
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
-	msg := &mockMessage{data: []byte("test")}
-	err = target.(*CoAPTarget).Consume(message.NewRunnerMessage(msg))
-	if err == nil || !strings.Contains(err.Error(), "unsupported coap protocol") {
-		t.Errorf("expected unsupported protocol error, got: %v", err)
+	_, err := NewTarget(map[string]any{
+		"protocol": "invalid",
+		"address":  addrLocal,
+		"path":     "/test",
+		"method":   "POST",
+	})
+	if err == nil || !strings.Contains(err.Error(), "option protocol") {
+		t.Fatalf("expected validation error for protocol, got: %v", err)
 	}
 }
 
 func TestSendUnsupportedMethod(t *testing.T) {
-	cfg := &TargetConfig{
-		Protocol: "udp",
-		Address:  addrLocal,
-		Path:     "/test",
-		Method:   "DELETE",
-	}
-	target, err := NewTarget(cfg)
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
-	msg := &mockMessage{data: []byte("test")}
-
-	// Patch coapudp.Dial to return a dummy client that implements Close
-	// and methods returning error for unsupported method
-	// This is a placeholder for a more advanced mocking framework
-	// For now, just check the error from send
-	err = target.(*CoAPTarget).Consume(message.NewRunnerMessage(msg))
-	if err == nil || !strings.Contains(err.Error(), "unsupported coap method") {
-		t.Errorf("expected unsupported method error, got: %v", err)
+	_, err := NewTarget(map[string]any{
+		"protocol": "udp",
+		"address":  addrLocal,
+		"path":     "/test",
+		"method":   "DELETE",
+	})
+	if err == nil || !strings.Contains(err.Error(), "option method") {
+		t.Fatalf("expected validation error for method, got: %v", err)
 	}
 }
 
 func TestSendErrorGettingData(t *testing.T) {
-	cfg := &TargetConfig{
-		Protocol: "udp",
-		Address:  addrLocal,
-		Path:     "/test",
-		Method:   "POST",
-	}
-	target, err := NewTarget(cfg)
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
+	target := mustNewTarget(t, map[string]any{
+		"protocol": "udp",
+		"address":  addrLocal,
+		"path":     "/test",
+		"method":   "POST",
+		"timeout":  "1s",
+	})
 	msg := &mockMessageWithError{}
-	err = target.(*CoAPTarget).Consume(message.NewRunnerMessage(msg))
+	err := target.Consume(message.NewRunnerMessage(msg))
 	if err == nil || !strings.Contains(err.Error(), "error getting data") {
 		t.Errorf("expected error getting data, got: %v", err)
 	}
@@ -94,37 +74,44 @@ func TestSendErrorGettingData(t *testing.T) {
 
 const errUnexpected = "unexpected error: %v"
 
-func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
-	cfg := &TargetConfig{
-		Protocol: "udp",
-		Address:  "127.0.0.1:9999", // unused port, no server
-		Path:     "/test",
-		Method:   "POST",
-	}
-	target, err := NewTarget(cfg)
+func mustNewTarget(t *testing.T, opts map[string]any) *CoAPTarget {
+	t.Helper()
+	tgt, err := NewTarget(opts)
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}
+	coapTarget, ok := tgt.(*CoAPTarget)
+	if !ok {
+		t.Fatalf("expected *CoAPTarget, got %T", tgt)
+	}
+	return coapTarget
+}
+
+func TestSendSuccessUnsupportedNetworkUDP(t *testing.T) {
+	target := mustNewTarget(t, map[string]any{
+		"protocol": "udp",
+		"address":  "127.0.0.1:9999",
+		"path":     "/test",
+		"method":   "POST",
+		"timeout":  "1s",
+	})
 	msg := &mockMessage{data: []byte("test-data")}
-	err = target.(*CoAPTarget).Consume(message.NewRunnerMessage(msg))
+	err := target.Consume(message.NewRunnerMessage(msg))
 	if err == nil {
 		t.Error("expected error dialing coap server, got nil")
 	}
 }
 
 func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
-	cfg := &TargetConfig{
-		Protocol: "tcp",
-		Address:  "127.0.0.1:9999", // unused port, no server
-		Path:     "/test",
-		Method:   "POST",
-	}
-	target, err := NewTarget(cfg)
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
+	target := mustNewTarget(t, map[string]any{
+		"protocol": "tcp",
+		"address":  "127.0.0.1:9999",
+		"path":     "/test",
+		"method":   "POST",
+		"timeout":  "1s",
+	})
 	msg := &mockMessage{data: []byte("test-data")}
-	err = target.(*CoAPTarget).Consume(message.NewRunnerMessage(msg))
+	err := target.Consume(message.NewRunnerMessage(msg))
 	if err == nil {
 		t.Error("expected error dialing coap server, got nil")
 	}
@@ -221,18 +208,15 @@ func TestIntegrationSendUDP(t *testing.T) {
 		default:
 		}
 	})
-	cfg := &TargetConfig{
-		Protocol: "udp",
-		Address:  addr,
-		Path:     "/test",
-		Method:   "POST",
-	}
-	target, err := NewTarget(cfg)
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
+	target := mustNewTarget(t, map[string]any{
+		"protocol": "udp",
+		"address":  addr,
+		"path":     "/test",
+		"method":   "POST",
+		"timeout":  "2s",
+	})
 	msg := &dummyMessage{data: []byte("hello udp")}
-	err = sendTest(target.(*CoAPTarget), msg)
+	err := sendTest(target, msg)
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
@@ -253,18 +237,15 @@ func TestIntegrationSendTCP(t *testing.T) {
 		default:
 		}
 	})
-	cfg := &TargetConfig{
-		Protocol: "tcp",
-		Address:  addr,
-		Path:     "/test",
-		Method:   "POST",
-	}
-	target, err := NewTarget(cfg)
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
+	target := mustNewTarget(t, map[string]any{
+		"protocol": "tcp",
+		"address":  addr,
+		"path":     "/test",
+		"method":   "POST",
+		"timeout":  "2s",
+	})
 	msg := &dummyMessage{data: []byte("hello tcp")}
-	err = sendTest(target.(*CoAPTarget), msg)
+	err := sendTest(target, msg)
 	if err != nil {
 		t.Fatalf("send failed: %v", err)
 	}
