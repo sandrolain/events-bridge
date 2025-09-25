@@ -204,6 +204,18 @@ func (p *OptsParser) OptBool(opts map[string]any, key string, defaultVal bool, v
 	if !ok || raw == nil {
 		return defaultVal
 	}
+	vs, ok := raw.(string)
+	if ok {
+		vs = strings.ToLower(strings.TrimSpace(vs))
+		if vs == "true" || vs == "1" || vs == "yes" {
+			return true
+		}
+		if vs == "false" || vs == "0" || vs == "no" {
+			return false
+		}
+		p.errors = append(p.errors, fmt.Errorf("option %s has invalid bool string %q", key, raw))
+		return false
+	}
 	v, ok := raw.(bool)
 	if !ok {
 		p.errors = append(p.errors, fmt.Errorf("option %s has invalid type %T, expected bool", key, raw))
