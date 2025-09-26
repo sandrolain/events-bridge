@@ -24,7 +24,6 @@ type RedisStreamSource struct {
 	slog           *slog.Logger
 	c              chan *message.RunnerMessage
 	client         *redis.Client
-	started        bool
 	lastID         string
 	useConsumerGrp bool
 }
@@ -46,7 +45,6 @@ func (s *RedisStreamSource) Produce(buffer int) (<-chan *message.RunnerMessage, 
 	}
 	go s.consume()
 
-	s.started = true
 	return s.c, nil
 }
 

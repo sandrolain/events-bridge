@@ -54,11 +54,10 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 }
 
 type MQTTTarget struct {
-	cfg     *TargetConfig
-	slog    *slog.Logger
-	client  mqtt.Client
-	stopped bool
-	stopCh  chan struct{}
+	cfg    *TargetConfig
+	slog   *slog.Logger
+	client mqtt.Client
+	stopCh chan struct{}
 }
 
 func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
@@ -89,7 +88,6 @@ func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
 }
 
 func (t *MQTTTarget) Close() error {
-	t.stopped = true
 	if t.stopCh != nil {
 		close(t.stopCh)
 	}
