@@ -114,7 +114,7 @@ func TestAwaitReplyOrStatusTimeout(t *testing.T) {
 }
 
 func TestLoadPluginMissingFile(t *testing.T) {
-	value, err := utils.LoadPlugin[int]("/non/existent/plugin.so", "Constructor", nil)
+	value, err := utils.LoadPlugin[map[string]any, int]("/non/existent/plugin.so", "Constructor", nil)
 	if err == nil {
 		t.Fatal("expected error when plugin file is missing")
 	}

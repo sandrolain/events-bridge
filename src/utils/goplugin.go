@@ -7,7 +7,7 @@ import (
 	goplugin "plugin"
 )
 
-func LoadPlugin[R any](relPath string, method string, options map[string]any) (R, error) {
+func LoadPlugin[A any, R any](relPath string, method string, options A) (R, error) {
 	exePath, err := os.Executable()
 	if err != nil {
 		var zero R
@@ -26,7 +26,7 @@ func LoadPlugin[R any](relPath string, method string, options map[string]any) (R
 	}
 
 	if sym, err := p.Lookup(method); err == nil {
-		if constructor, ok := sym.(func(map[string]any) (R, error)); ok {
+		if constructor, ok := sym.(func(A) (R, error)); ok {
 			return constructor(options)
 		}
 	}

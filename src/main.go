@@ -210,7 +210,7 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 
 	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
 
-	source, err = utils.LoadPlugin[sources.Source](path, sources.NewMethodName, cfg.Options)
+	source, err = utils.LoadPlugin[map[string]any, sources.Source](path, sources.NewMethodName, cfg.Options)
 
 	return
 }
@@ -236,7 +236,7 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 
 	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
 
-	target, err = utils.LoadPlugin[targets.Target](path, targets.NewMethodName, cfg.Options)
+	target, err = utils.LoadPlugin[map[string]any, targets.Target](path, targets.NewMethodName, cfg.Options)
 
 	return
 }
@@ -262,7 +262,7 @@ func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 
 	path := fmt.Sprintf("./runners/%s.so", strings.ToLower(cfg.Type))
 
-	runner, err = utils.LoadPlugin[runners.Runner](path, runners.NewMethodName, cfg.Options)
+	runner, err = utils.LoadPlugin[map[string]any, runners.Runner](path, runners.NewMethodName, cfg.Options)
 
 	return
 }
