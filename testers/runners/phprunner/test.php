@@ -19,7 +19,7 @@ $data = json_decode($json, true);
 
 
 if (json_last_error() !== JSON_ERROR_NONE) {
-  echo "Invalid JSON input.\n"; 
+  echo "Invalid JSON input.\n";
   exit(1);
 }
 

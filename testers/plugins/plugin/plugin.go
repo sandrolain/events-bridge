@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"runtime"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
@@ -30,6 +31,7 @@ func main() {
 
 var source plugin.SourceFn = func(req *proto.SourceReq, stream proto.PluginService_SourceServer) error {
 	timer := time.NewTicker(time.Second)
+	var mem runtime.MemStats
 
 	for {
 		select {
@@ -37,14 +39,14 @@ var source plugin.SourceFn = func(req *proto.SourceReq, stream proto.PluginServi
 		case <-stream.Context().Done():
 			return nil
 		case <-timer.C:
+			runtime.ReadMemStats(&mem)
 
 			slog.Info("sending hardware stats")
 
 			dataMap := map[string]interface{}{
-				"cpu":    "Intel Core i7",
-				"memory": "16GB",
-				"disk":   "512GB SSD",
-				"time":   time.Now().Format(time.RFC3339),
+				"cpu":  runtime.NumCPU(),
+				"mem":  map[string]uint64{"Alloc": mem.Alloc, "TotalAlloc": mem.TotalAlloc, "Sys": mem.Sys, "NumGC": uint64(mem.NumGC)},
+				"time": time.Now().String(),
 			}
 
 			data, err := json.Marshal(&dataMap)

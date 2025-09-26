@@ -1,0 +1,35 @@
+commands:
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "plugin"
+          options:
+            name: "example-plugin"
+            plugin:
+              name: "example-plugin"
+              exec: "./testers/bin/plugin"
+              protocol: "tcp"
+              output: true
+              delay: 1000ms
+              retry: 3
+        runner:
+          type: "cli"
+          options:
+            command: "php"
+            args:
+              - "./testers/runners/phprunner/test.php"
+        target:
+          type: "plugin"
+          options:
+            plugin:
+              name: "example-plugin"
+              exec: "./testers/bin/plugin"
+              protocol: "tcp"
+              output: true
+              delay: 1000ms
+              retry: 3
+    args: []
+    restartTries: 0
+killOthers: true

@@ -157,4 +157,4 @@ tasks:
     vars:
       CONFIG_NAME: "{{index .MATCH 0}}"
     cmds:
-      - cat ./testers/config/goncurrently/{{.CONFIG_NAME}}.yaml | ./testers/bin/goncurrently
+      - cat ./testers/config/{{.CONFIG_NAME}}.yaml | ./testers/bin/goncurrently
