@@ -19,11 +19,11 @@ type TargetConfig struct {
 	ChannelFromMetadataKey string `mapstructure:"channelFromMetadataKey"`
 	// Stream
 	Stream                string        `mapstructure:"stream" validate:"required"`
-	StreamFromMetadataKey string        `mapstructure:"streamFromMetadataKey" validate:"required"`
-	ConsumerGroup         string        `mapstructure:"consumerGroup,omitempty" validate:"required"`
-	ConsumerName          string        `mapstructure:"consumerName,omitempty" validate:"required"`
-	Timeout               time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
-	StreamDataKey         string        `mapstructure:"streamDataKey" validate:"required"`
+	StreamFromMetadataKey string        `mapstructure:"streamFromMetadataKey"`
+	ConsumerGroup         string        `mapstructure:"consumerGroup,omitempty" validate:"required_with=ConsumerName,omitempty"`
+	ConsumerName          string        `mapstructure:"consumerName,omitempty" validate:"required_with=ConsumerGroup,omitempty"`
+	Timeout               time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	StreamDataKey         string        `mapstructure:"streamDataKey"`
 }
 
 func NewTargetConfig() any {
