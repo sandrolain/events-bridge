@@ -12,7 +12,7 @@ import (
 	"github.com/TylerBrock/colorjson"
 	"github.com/fatih/color"
 	"github.com/fxamacker/cbor/v2"
-	testpayload "github.com/sandrolain/events-bridge/testers/tools/testpayload"
+	"github.com/sandrolain/events-bridge/testers/toolutil/testpayload"
 	"github.com/spf13/cobra"
 )
 

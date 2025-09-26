@@ -14,11 +14,11 @@ commands:
               output: true
               delay: 1000ms
               retry: 3
-        runner:
-          type: "wasm"
-          options:
-            path: "./testers/bin/wasmrunner.wasm"
-          routines: 8
+        runners:
+          - type: "wasm"
+            options:
+              path: "./testers/bin/wasmrunner.wasm"
+            routines: 8
         target:
           type: "plugin"
           options:

@@ -36,20 +36,20 @@ commands:
             stream: "test.stream.out"
             streamDataKey: "data"
 
-        runner:
-          type: "jsonlogic"
-          options:
-            logic: |
-              {
-                "and": [
-                  { ">=": [ { "var": "temperature" }, 20 ] },
-                  { "<=": [ { "var": "temperature" }, 30 ] },
-                  { ">=": [ { "var": "humidity" }, 30 ] },
-                  { "<=": [ { "var": "humidity" }, 70 ] }
-                ]
-              }
-            preservePayload: true
-            timeout: "5s"
+        runners:
+          - type: "jsonlogic"
+            options:
+              logic: |
+                {
+                  "and": [
+                    { ">=": [ { "var": "temperature" }, 20 ] },
+                    { "<=": [ { "var": "temperature" }, 30 ] },
+                    { ">=": [ { "var": "humidity" }, 30 ] },
+                    { "<=": [ { "var": "humidity" }, 70 ] }
+                  ]
+                }
+              preservePayload: true
+              timeout: "5s"
     args: []
     restartTries: 0
   - name: redissource-stream

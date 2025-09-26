@@ -23,6 +23,9 @@ if (json_last_error() !== JSON_ERROR_NONE) {
   exit(1);
 }
 
-echo $head . "\n";
-// Output as query string
-echo http_build_query($data);
+$data['php_runner'] = "Processed by PHP runner";
+
+$body = json_encode($data);
+
+echo "$head\n$body";
+exit(0);

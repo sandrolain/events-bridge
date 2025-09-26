@@ -21,12 +21,12 @@ commands:
             group_id: "test-group"
             topic: "test.topic.out"
 
-        runner:
-          type: "jsonlogic"
-          options:
-            logic: |
-              {"+":[{"var":"a"},{"var":"b"}]}
-            preservePayload: true
+        runners:
+          - type: "jsonlogic"
+            options:
+              logic: |
+                {"+":[{"var":"a"},{"var":"b"}]}
+              preservePayload: true
     args: []
     restartTries: 0
   - name: kafka-source

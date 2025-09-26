@@ -19,13 +19,18 @@ commands:
             address: "localhost:4222"
             subject: "test.subject.out"
           routines: 8
-        runner:
-          type: "jsonlogic"
-          options:
-            logic: |
-              {"+":[{"var":"a"},{"var":"b"}]}
-            preservePayload: true
-          routines: 8
+        runners:
+          - type: "jsonlogic"
+            options:
+              logic: |
+                {"+":[{"var":"data.a"},{"var":"data.b"}]}
+              preservePayload: true
+            routines: 8
+          - type: "cli"
+            options:
+              command: "php"
+              args: ["./testers/runners/phprunner/test.php"]
+            routines: 8
     args: []
     restartTries: 0
   - name: nats-source
@@ -38,12 +43,11 @@ commands:
         "--subject",
         "test.subject.in",
         "--interval",
-        "1000us",
+        "100000us",
         "--payload",
         '{"a":10, "b":20, "date": "{nowtime}", "count": {counter}}',
       ]
     restartTries: 0
     startAfter: "2s"
     duration: "3s"
-    silent: true
 killOthers: true

@@ -13,17 +13,17 @@ commands:
             path: "/event"
             buffer: 10
 
-        runner:
-          type: gpt
-          options:
-            action: "Give sentimental analysis of the text: positive, negative, or neutral."
-            model: "google/gemma-3-4b"
-            batch_size: 2
-            batch_wait: 2s
-            max_tokens: 256
-            timeout: 15s
-            api_url: "http://localhost:1234/v1"
-            # api_key: "${OPENAI_API_KEY}"
+        runners:
+          - type: gpt
+            options:
+              action: "Give sentimental analysis of the text: positive, negative, or neutral."
+              model: "google/gemma-3-4b"
+              batch_size: 2
+              batch_wait: 2s
+              max_tokens: 256
+              timeout: 15s
+              api_url: "http://localhost:1234/v1"
+              # api_key: "${OPENAI_API_KEY}"
 
         target:
           type: http

@@ -22,11 +22,11 @@ commands:
             url: "http://localhost:8080/api/data"
           routines: 8
 
-        runner:
-          type: "wasm"
-          options:
-            path: "./testers/bin/wasmrunner.wasm"
-          routines: 8
+        runners:
+          - type: "wasm"
+            options:
+              path: "./testers/bin/wasmrunner.wasm"
+            routines: 8
     args: []
     restartTries: 0
   - name: mqtt-source

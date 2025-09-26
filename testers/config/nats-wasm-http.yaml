@@ -19,10 +19,10 @@ commands:
             method: "POST"
             url: "http://localhost:8080/api/data"
 
-        runner:
-          type: "wasm"
-          options:
-            path: "./testers/bin/wasmrunner.wasm"
+        runners:
+          - type: "wasm"
+            options:
+              path: "./testers/bin/wasmrunner.wasm"
     args: []
     restartTries: 0
   - name: nats-source

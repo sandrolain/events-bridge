@@ -14,12 +14,12 @@ commands:
               output: true
               delay: 1000ms
               retry: 3
-        runner:
-          type: "cli"
-          options:
-            command: "php"
-            args:
-              - "./testers/runners/phprunner/test.php"
+        runners:
+          - type: "cli"
+            options:
+              command: "php"
+              args:
+                - "./testers/runners/phprunner/test.php"
         target:
           type: "plugin"
           options:

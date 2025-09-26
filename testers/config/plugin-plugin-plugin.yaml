@@ -14,16 +14,16 @@ commands:
               output: true
               delay: 1000ms
               retry: 3
-        runner:
-          type: "plugin"
-          options:
-            plugin:
-              name: "example-plugin"
-              exec: "./testers/bin/plugin"
-              protocol: "tcp"
-              output: true
-              delay: 1000ms
-              retry: 3
+        runners:
+          - type: "plugin"
+            options:
+              plugin:
+                name: "example-plugin"
+                exec: "./testers/bin/plugin"
+                protocol: "tcp"
+                output: true
+                delay: 1000ms
+                retry: 3
         target:
           type: "plugin"
           options:

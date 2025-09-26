@@ -18,8 +18,8 @@ import (
 	coaptcp "github.com/plgd-dev/go-coap/v3/tcp"
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
-	testpayload "github.com/sandrolain/events-bridge/testers/tools/testpayload"
 	toolutil "github.com/sandrolain/events-bridge/testers/toolutil"
+	testpayload "github.com/sandrolain/events-bridge/testers/toolutil/testpayload"
 )
 
 func main() {
