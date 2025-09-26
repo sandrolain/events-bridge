@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
@@ -19,11 +18,15 @@ type TargetConfig struct {
 	Timeout time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 }
 
+func NewTargetConfig() any {
+	return new(TargetConfig)
+}
+
 // NewTarget creates an HTTP target from options map.
-func NewTarget(opts map[string]any) (connectors.Target, error) {
-	cfg, err := common.ParseConfig[TargetConfig](opts)
-	if err != nil {
-		return nil, err
+func NewTarget(anyCfg any) (connectors.Target, error) {
+	cfg, ok := anyCfg.(*TargetConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
 	client := &fasthttp.Client{

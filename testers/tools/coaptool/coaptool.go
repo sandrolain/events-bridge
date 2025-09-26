@@ -19,7 +19,7 @@ import (
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
 	testpayload "github.com/sandrolain/events-bridge/testers/tools/testpayload"
-	toolutil "github.com/sandrolain/events-bridge/testers/tools/toolutil"
+	toolutil "github.com/sandrolain/events-bridge/testers/toolutil"
 )
 
 func main() {

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
 )
@@ -25,11 +24,15 @@ type PluginRunner struct {
 	plg  *plugin.Plugin
 }
 
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
+}
+
 // New creates a new instance of PluginRunner
-func NewRunner(opts map[string]any) (connectors.Runner, error) {
-	cfg, err := common.ParseConfig[RunnerConfig](opts)
-	if err != nil {
-		return nil, err
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
 	mgr, err := plugin.GetPluginManager()

@@ -8,7 +8,6 @@ import (
 
 	"cloud.google.com/go/pubsub/v2"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -17,14 +16,16 @@ type TargetConfig struct {
 	Topic     string `mapstructure:"topic" validate:"required"`
 }
 
-// NewTarget creates a PubSub target from options map.
-func NewTarget(opts map[string]any) (connectors.Target, error) {
-	cfg, err := common.ParseConfig[TargetConfig](opts)
-	if err != nil {
-		return nil, err
-	}
+func NewTargetConfig() any {
+	return new(TargetConfig)
+}
 
-	l := slog.Default().With("context", "PubSub Target")
+// NewTarget creates a PubSub target from options map.
+func NewTarget(anyCfg any) (connectors.Target, error) {
+	cfg, ok := anyCfg.(*TargetConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
+	}
 
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, cfg.ProjectID)
@@ -33,6 +34,7 @@ func NewTarget(opts map[string]any) (connectors.Target, error) {
 	}
 	publisher := client.Publisher(cfg.Topic)
 
+	l := slog.Default().With("context", "PubSub Target")
 	l.Info("PubSub target connected", "projectID", cfg.ProjectID, "topic", cfg.Topic)
 
 	return &PubSubTarget{

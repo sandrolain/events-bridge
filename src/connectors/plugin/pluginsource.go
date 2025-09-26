@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
 )
@@ -28,10 +27,14 @@ type PluginSource struct {
 	close func()
 }
 
-func NewSource(opts map[string]any) (connectors.Source, error) {
-	cfg, err := common.ParseConfig[SourceConfig](opts)
-	if err != nil {
-		return nil, err
+func NewSourceConfig() any {
+	return new(SourceConfig)
+}
+
+func NewSource(anyCfg any) (connectors.Source, error) {
+	cfg, ok := anyCfg.(*SourceConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
 	mgr, err := plugin.GetPluginManager()

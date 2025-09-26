@@ -5,6 +5,7 @@ import (
 )
 
 const NewSourceMethodName = "NewSource"
+const NewSourceConfigName = "NewSourceConfig"
 
 type Source interface {
 	Produce(int) (<-chan *message.RunnerMessage, error)

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	toolutil "github.com/sandrolain/events-bridge/testers/tools/toolutil"
+	toolutil "github.com/sandrolain/events-bridge/testers/toolutil"
 	"github.com/spf13/cobra"
 )
 

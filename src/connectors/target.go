@@ -5,6 +5,7 @@ import (
 )
 
 const NewTargetMethodName = "NewTarget"
+const NewTargetConfigName = "NewTargetConfig"
 
 type Target interface {
 	Consume(*message.RunnerMessage) error

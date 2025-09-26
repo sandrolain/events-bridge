@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/segmentio/kafka-go"
 )
@@ -26,11 +25,15 @@ type KafkaSource struct {
 	reader *kafka.Reader
 }
 
+func NewSourceConfig() any {
+	return new(SourceConfig)
+}
+
 // NewSource creates a Kafka source from options map.
-func NewSource(opts map[string]any) (connectors.Source, error) {
-	cfg, err := common.ParseConfig[SourceConfig](opts)
-	if err != nil {
-		return nil, err
+func NewSource(anyCfg any) (connectors.Source, error) {
+	cfg, ok := anyCfg.(*SourceConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 	return &KafkaSource{
 		cfg:  cfg,

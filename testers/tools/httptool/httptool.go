@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	toolutil "github.com/sandrolain/events-bridge/testers/tools/toolutil"
+	toolutil "github.com/sandrolain/events-bridge/testers/toolutil"
 	"github.com/spf13/cobra"
 	"github.com/valyala/fasthttp"
 )

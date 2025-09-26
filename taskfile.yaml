@@ -100,24 +100,24 @@ tasks:
       - rm -f security-report.json
       - rm -f trivy-results.json
 
+  rebuild:
+    desc: Clean and then build everything
+    cmds:
+      - task: clean
+      - task: build
+
   build:
     cmds:
-      - rm -rf ./bin
       - mkdir -p ./bin/connectors
       - mkdir -p ./bin/runners
-      - go build -buildmode=plugin -o ./bin/connectors/plugin.so ./src/connectors/plugin && du -h ./bin/connectors/plugin.so
-      - go build -buildmode=plugin -o ./bin/connectors/http.so ./src/connectors/http && du -h ./bin/connectors/http.so
-      - go build -buildmode=plugin -o ./bin/connectors/coap.so ./src/connectors/coap && du -h ./bin/connectors/coap.so
-      - go build -buildmode=plugin -o ./bin/connectors/nats.so ./src/connectors/nats && du -h ./bin/connectors/nats.so
-      - go build -buildmode=plugin -o ./bin/connectors/mqtt.so ./src/connectors/mqtt && du -h ./bin/connectors/mqtt.so
-      - go build -buildmode=plugin -o ./bin/connectors/pgsql.so ./src/connectors/pgsql && du -h ./bin/connectors/pgsql.so
-      - go build -buildmode=plugin -o ./bin/connectors/kafka.so ./src/connectors/kafka && du -h ./bin/connectors/kafka.so
-      - go build -buildmode=plugin -o ./bin/connectors/redis.so ./src/connectors/redis && du -h ./bin/connectors/redis.so
-      - go build -buildmode=plugin -o ./bin/connectors/git.so ./src/connectors/git && du -h ./bin/connectors/git.so
-      - go build -buildmode=plugin -o ./bin/connectors/es5.so ./src/connectors/es5 && du -h ./bin/connectors/es5.so
-      - go build -buildmode=plugin -o ./bin/connectors/wasm.so ./src/connectors/wasm && du -h ./bin/connectors/wasm.so
-      - go build -buildmode=plugin -o ./bin/connectors/gpt.so ./src/connectors/gpt && du -h ./bin/connectors/gpt.so
-      - go build -buildmode=plugin -o ./bin/connectors/jsonlogic.so ./src/connectors/jsonlogic && du -h ./bin/connectors/jsonlogic.so
+      - |
+        echo "Building connector plugins..."
+        for d in ./src/connectors/*; do
+          [ -d "$d" ] || continue
+        name="$(basename "$d")"
+        out="./bin/connectors/${name}.so"
+        go build -buildmode=plugin -o "$out" "$d" && du -h "$out"
+        done
       - go build -o ./bin/events-bridge ./src  && du -h ./bin/events-bridge
 
   gen-plugin-proto:
@@ -125,20 +125,31 @@ tasks:
     cmds:
       - protoc --proto_path=. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./plugin.proto
 
+  rebuild-testers:
+    desc: Clean and then build testers and tools
+    dir: ./testers
+    cmds:
+      - rm -rf ./bin
+      - task: build-testers
+
   build-testers:
     dir: ./testers
     cmds:
       - mkdir -p ./bin
+      - echo "Building goncurrently..."
       - go build -o ./bin/goncurrently ./goncurrently && du -h ./bin/goncurrently
-      - go build -o ./bin/natstool ./tools/natstool && du -h ./bin/natstool
-      - go build -o ./bin/coaptool ./tools/coaptool && du -h ./bin/coaptool
-      - go build -o ./bin/pgsqltool ./tools/pgsqltool && du -h ./bin/pgsqltool
-      - go build -o ./bin/mqtttool ./tools/mqtttool && du -h ./bin/mqtttool
-      - go build -o ./bin/httptool ./tools/httptool && du -h ./bin/httptool
-      - go build -o ./bin/kafkatool ./tools/kafkatool && du -h ./bin/kafkatool
-      - go build -o ./bin/redistool ./tools/redistool && du -h ./bin/redistool
-      - go build -o ./bin/gittool ./tools/gittool && du -h ./bin/gittool
+      - echo "Building testers..."
+      - |
+        echo "Building tools..."
+        for d in ./tools/*; do
+          [ -d "$d" ] || continue
+          name="$(basename "$d")"
+          out="./bin/${name}"
+          go build -o "$out" "$d" && du -h "$out"
+        done
+      - echo "Building test plugin..."
       - go build -o ./bin/plugin ./plugins/plugin && du -h ./bin/plugin
+      - echo "Building test wasm..."
       - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
 
   run:*:

@@ -11,7 +11,6 @@ import (
 
 	jsonlogic "github.com/diegoholiveira/jsonlogic"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -32,12 +31,17 @@ type JSONLogicRunner struct {
 	stopCh chan struct{}
 }
 
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
+}
+
 // New creates a new instance of JSONLogicRunner
-func NewRunner(opts map[string]any) (connectors.Runner, error) {
-	cfg, err := common.ParseConfig[RunnerConfig](opts)
-	if err != nil {
-		return nil, err
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
+
 	log := slog.Default().With("context", "JSONLogic Runner")
 	log.Info("loading jsonlogic rule", "path", cfg.Path)
 

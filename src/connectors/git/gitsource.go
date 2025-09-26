@@ -15,7 +15,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -38,10 +37,14 @@ type GitSource struct {
 	lastHash plumbing.Hash
 }
 
-func NewSource(opts map[string]any) (connectors.Source, error) {
-	cfg, err := common.ParseConfig[SourceConfig](opts)
-	if err != nil {
-		return nil, err
+func NewSourceConfig() any {
+	return new(SourceConfig)
+}
+
+func NewSource(anyCfg any) (connectors.Source, error) {
+	cfg, ok := anyCfg.(*SourceConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 	return &GitSource{
 		cfg:  cfg,

@@ -10,7 +10,6 @@ import (
 	"cloud.google.com/go/pubsub/v2"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -33,11 +32,15 @@ type PubSubSource struct {
 	sub    *pubsub.Subscriber
 }
 
+func NewSourceConfig() any {
+	return new(SourceConfig)
+}
+
 // NewSource creates a PubSub source from options map.
-func NewSource(opts map[string]any) (connectors.Source, error) {
-	cfg, err := common.ParseConfig[SourceConfig](opts)
-	if err != nil {
-		return nil, err
+func NewSource(anyCfg any) (connectors.Source, error) {
+	cfg, ok := anyCfg.(*SourceConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 	return &PubSubSource{
 		cfg:  cfg,

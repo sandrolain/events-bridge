@@ -5,6 +5,7 @@ import (
 )
 
 const NewRunnerMethodName = "NewRunner"
+const NewRunnerConfigName = "NewRunnerConfig"
 
 type Runner interface {
 	Process(*message.RunnerMessage) (*message.RunnerMessage, error)

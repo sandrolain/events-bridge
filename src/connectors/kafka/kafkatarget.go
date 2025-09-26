@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/segmentio/kafka-go"
 )
@@ -19,17 +18,21 @@ type TargetConfig struct {
 	ReplicationFactor int      `mapstructure:"replicationFactor" validate:"required,gt=0"`
 }
 
+func NewTargetConfig() any {
+	return new(TargetConfig)
+}
+
 // NewTarget creates a Kafka target from options map.
-func NewTarget(opts map[string]any) (connectors.Target, error) {
-	cfg, err := common.ParseConfig[TargetConfig](opts)
-	if err != nil {
-		return nil, err
+func NewTarget(anyCfg any) (connectors.Target, error) {
+	cfg, ok := anyCfg.(*TargetConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
 	l := slog.Default().With("context", "Kafka Target")
 
 	// Create the topic if it does not exist
-	err = ensureKafkaTopic(l, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor)
+	err := ensureKafkaTopic(l, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor)
 	if err != nil {
 		return nil, fmt.Errorf("error creating/verifying topic: %w", err)
 	}

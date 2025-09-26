@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/sandrolain/events-bridge/src/connectors/common"
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )

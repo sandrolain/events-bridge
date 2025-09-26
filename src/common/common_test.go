@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sandrolain/events-bridge/src/connectors/common"
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 

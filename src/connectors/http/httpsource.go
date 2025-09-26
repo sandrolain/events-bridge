@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
@@ -19,11 +19,14 @@ type SourceConfig struct {
 	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
 }
 
-// NewSource creates an HTTP source from options map.
-func NewSource(opts map[string]any) (connectors.Source, error) {
-	cfg, err := common.ParseConfig[SourceConfig](opts)
-	if err != nil {
-		return nil, err
+func NewSourceConfig() any {
+	return new(SourceConfig)
+}
+
+func NewSource(anyCfg any) (connectors.Source, error) {
+	cfg, ok := anyCfg.(*SourceConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 	return &HTTPSource{
 		cfg:  cfg,

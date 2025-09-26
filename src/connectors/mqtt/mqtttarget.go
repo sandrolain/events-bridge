@@ -7,8 +7,8 @@ import (
 	"log/slog"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -20,14 +20,15 @@ type TargetConfig struct {
 	TopicFromMetadataKey string `mapstructure:"topicFromMetadataKey" validate:"required"`
 }
 
+func NewTargetConfig() any {
+	return new(TargetConfig)
+}
+
 // NewTarget creates an MQTT target from options map.
-func NewTarget(opts map[string]any) (connectors.Target, error) {
-	cfg, err := common.ParseConfig[TargetConfig](opts)
-	if err != nil {
-		return nil, err
-	}
-	if cfg.Address == "" || cfg.Topic == "" {
-		return nil, fmt.Errorf("address and topic are required for MQTT target")
+func NewTarget(anyCfg any) (connectors.Target, error) {
+	cfg, ok := anyCfg.(*TargetConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
 	copts := mqtt.NewClientOptions().AddBroker("tcp://" + cfg.Address)

@@ -26,9 +26,11 @@ func main() {
 		}),
 	))
 
+	l := slog.Default().With("context", "main")
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fatal(err, "failed to load configuration file")
+		fatal(l, err, "failed to load configuration file")
 	}
 
 	runnerRoutines := cfg.Runner.Routines
@@ -46,112 +48,136 @@ func main() {
 	var target connectors.Target
 
 	// Setup source, runner, and target
+	l.Info("creating source", "type", cfg.Source.Type, "buffer", cfg.Source.Buffer)
 
-	source, err = createSource(cfg.Source)
+	source, err = utils.LoadPluginAndConfig[connectors.Source](
+		connectorPath(cfg.Source.Type),
+		connectors.NewSourceMethodName,
+		connectors.NewSourceConfigName,
+		cfg.Source.Options,
+	)
 	if err != nil {
-		fatal(err, "failed to create source")
+		fatal(l, err, "failed to create source")
 	}
 	defer func() {
 		if err := source.Close(); err != nil {
-			slog.Error("failed to close source", "error", err)
+			l.Error("failed to close source", "error", err)
 		}
 	}()
 
-	runner, err = createRunner(cfg.Runner)
+	l.Info("creating runner", "type", cfg.Runner.Type)
+
+	runner, err = utils.LoadPluginAndConfig[connectors.Runner](
+		connectorPath(cfg.Runner.Type),
+		connectors.NewRunnerMethodName,
+		connectors.NewRunnerConfigName,
+		cfg.Runner.Options,
+	)
 	if err != nil {
-		fatal(err, "failed to create runner")
+		fatal(l, err, "failed to create runner")
 	}
 	if runner != nil {
-		slog.Info("runner created, deferring close")
+		l.Info("runner created, deferring close")
 		defer func() {
 			if err := runner.Close(); err != nil {
-				slog.Error("failed to close runner", "error", err)
+				l.Error("failed to close runner", "error", err)
 			}
 		}()
+	} else {
+		l.Info("no runner configured, messages will be passed through without processing")
 	}
 
-	target, err = createTarget(cfg.Target)
+	l.Info("creating target", "type", cfg.Target.Type)
+
+	target, err = utils.LoadPluginAndConfig[connectors.Target](
+		connectorPath(cfg.Target.Type),
+		connectors.NewTargetMethodName,
+		connectors.NewTargetConfigName,
+		cfg.Target.Options,
+	)
 	if err != nil {
-		fatal(err, "failed to create target")
+		fatal(l, err, "failed to create target")
 	}
 	if target != nil {
-		slog.Info("target created, deferring close")
+		l.Info("target created, deferring close")
 		defer func() {
 			if err := target.Close(); err != nil {
-				slog.Error("failed to close target", "error", err)
+				l.Error("failed to close target", "error", err)
 			}
 		}()
+	} else {
+		l.Info("no target configured, messages will be replied back to source if supported")
 	}
 
 	// Start the event incoming loop
 
 	c, err := source.Produce(cfg.Source.Buffer)
 	if err != nil {
-		fatal(err, "failed to produce messages from source")
+		fatal(l, err, "failed to produce messages from source")
 	}
 	defer func() {
 		if err := source.Close(); err != nil {
-			slog.Error("failed to close source", "error", err)
+			l.Error("failed to close source", "error", err)
 		}
 	}()
 
 	out := rill.FromChan(c, nil)
 
 	if runner != nil {
-		slog.Info("runner starting to consume messages from source")
+		l.Info("runner starting to consume messages from source")
 
 		out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
 			res, err := runner.Process(msg)
 			if err != nil {
-				slog.Error("error processing message", "error", err)
+				l.Error("error processing message", "error", err)
 				err = msg.Nak()
 				if err != nil {
-					slog.Error("failed to nak message after processing error", "error", err)
+					l.Error("failed to nak message after processing error", "error", err)
 				}
 				return nil, false, nil
 			}
 			return res, true, nil
 		})
 	} else {
-		slog.Info("no runner configured, passing messages through without processing")
+		l.Info("no runner configured, passing messages through without processing")
 	}
 
 	if target != nil {
-		slog.Info("target starting to consume messages")
+		l.Info("target starting to consume messages")
 
 		err = rill.ForEach(out, targetRoutines, func(msg *message.RunnerMessage) error {
 			err := target.Consume(msg)
 			if err != nil {
-				slog.Error("failed to consume message", "error", err)
+				l.Error("failed to consume message", "error", err)
 				err = msg.Nak()
 				if err != nil {
-					slog.Error("failed to nak message after consume failure", "error", err)
+					l.Error("failed to nak message after consume failure", "error", err)
 				}
 			} else {
 				err = msg.Ack()
 				if err != nil {
-					slog.Error("failed to ack message after consume", "error", err)
+					l.Error("failed to ack message after consume", "error", err)
 				}
 			}
 			return nil
 		})
 		if err != nil {
-			fatal(err, "failed to process messages with target")
+			fatal(l, err, "failed to process messages with target")
 		}
 	} else {
 		err = rill.ForEach(out, 1, func(msg *message.RunnerMessage) error {
 			err := msg.Reply()
 			if err != nil {
-				slog.Error("failed to reply message", "error", err)
+				l.Error("failed to reply message", "error", err)
 				err = msg.Nak()
 				if err != nil {
-					slog.Error("failed to nak message after reply", "error", err)
+					l.Error("failed to nak message after reply", "error", err)
 				}
 			}
 			return nil
 		})
 		if err != nil {
-			fatal(err, "failed to process messages without target")
+			fatal(l, err, "failed to process messages without target")
 		}
 	}
 
@@ -160,54 +186,11 @@ func main() {
 	select {}
 }
 
-func createSource(cfg connectors.SourceConfig) (source connectors.Source, err error) {
-	slog.Info("creating source", "type", cfg.Type, "buffer", cfg.Buffer)
-
-	if cfg.Type == "" || cfg.Type == "none" {
-		err = fmt.Errorf("no source configured, cannot proceed")
-		return
-	}
-
-	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
-
-	source, err = utils.LoadPlugin[map[string]any, connectors.Source](path, connectors.NewSourceMethodName, cfg.Options)
-
-	return
+func connectorPath(connectorType string) string {
+	return fmt.Sprintf("./connectors/%s.so", strings.ToLower(connectorType))
 }
 
-func createTarget(cfg connectors.TargetConfig) (target connectors.Target, err error) {
-	slog.Info("creating target", "type", cfg.Type)
-
-	if cfg.Type == "" || cfg.Type == "none" {
-		slog.Info("no target configured, messages will be replyed to source if supported")
-		target = nil
-		return
-	}
-
-	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
-
-	target, err = utils.LoadPlugin[map[string]any, connectors.Target](path, connectors.NewTargetMethodName, cfg.Options)
-
-	return
-}
-
-func createRunner(cfg connectors.RunnerConfig) (runner connectors.Runner, err error) {
-	slog.Info("creating runner", "type", cfg.Type)
-
-	if cfg.Type == "" || cfg.Type == "none" {
-		slog.Info("no runner configured, messages will be passed through without processing")
-		runner = nil
-		return
-	}
-
-	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
-
-	runner, err = utils.LoadPlugin[map[string]any, connectors.Runner](path, connectors.NewRunnerMethodName, cfg.Options)
-
-	return
-}
-
-func fatal(err error, log string) {
+func fatal(l *slog.Logger, err error, log string) {
 	slog.Error(log, "error", err)
 	os.Exit(1)
 }

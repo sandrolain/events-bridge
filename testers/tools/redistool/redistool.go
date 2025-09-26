@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	toolutil "github.com/sandrolain/events-bridge/testers/tools/toolutil"
+	toolutil "github.com/sandrolain/events-bridge/testers/toolutil"
 	"github.com/spf13/cobra"
 )
 

@@ -13,8 +13,8 @@ import (
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 	coapnet "github.com/plgd-dev/go-coap/v3/net"
 
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -26,11 +26,15 @@ type SourceConfig struct {
 	Timeout  time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 }
 
+func NewSourceConfig() any {
+	return new(SourceConfig)
+}
+
 // NewSource creates a CoAP source from options map.
-func NewSource(opts map[string]any) (connectors.Source, error) {
-	cfg, err := common.ParseConfig[SourceConfig](opts)
-	if err != nil {
-		return nil, err
+func NewSource(anyCfg any) (connectors.Source, error) {
+	cfg, ok := anyCfg.(*SourceConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 	return &CoAPSource{
 		cfg:  cfg,

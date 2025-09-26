@@ -1,4 +1,4 @@
-package clirunner
+package main
 
 import (
 	"bytes"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/cliformat"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -30,16 +29,18 @@ type RunnerConfig struct {
 	Envs    map[string]string `mapstructure:"envs"`
 }
 
-func NewRunner(opts map[string]any) (connectors.Runner, error) {
-	cfg, err := common.ParseConfig[RunnerConfig](opts)
-	if err != nil {
-		return nil, err
-	}
-	log := slog.Default().With("context", "CLI Runner")
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
+}
 
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
+	}
 	return &CLIRunner{
 		cfg:     cfg,
-		slog:    log,
+		slog:    slog.Default().With("context", "CLI Runner"),
 		timeout: cfg.Timeout,
 	}, nil
 }
@@ -52,6 +53,7 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
+
 	data, err := msg.GetSourceData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)

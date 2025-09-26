@@ -6,7 +6,7 @@ import (
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
 )
@@ -27,10 +26,14 @@ type PluginTarget struct {
 	stopCh chan struct{}
 }
 
-func NewTarget(opts map[string]any) (connectors.Target, error) {
-	cfg, err := common.ParseConfig[TargetConfig](opts)
-	if err != nil {
-		return nil, err
+func NewTargetConfig() any {
+	return new(TargetConfig)
+}
+
+func NewTarget(anyCfg any) (connectors.Target, error) {
+	cfg, ok := anyCfg.(*TargetConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
 	mgr, err := plugin.GetPluginManager()

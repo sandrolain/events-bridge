@@ -13,7 +13,7 @@ import (
 	"github.com/segmentio/kafka-go"
 	"github.com/spf13/cobra"
 
-	toolutil "github.com/sandrolain/events-bridge/testers/tools/toolutil"
+	toolutil "github.com/sandrolain/events-bridge/testers/toolutil"
 )
 
 func main() {
