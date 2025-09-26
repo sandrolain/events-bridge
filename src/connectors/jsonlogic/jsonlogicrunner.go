@@ -75,14 +75,24 @@ func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) (*message.RunnerMe
 	ctx, cancel := context.WithTimeout(context.Background(), j.cfg.Timeout)
 	defer cancel()
 
-	data, err := msg.GetSourceData()
+	meta, err := msg.GetTargetMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metadata: %w", err)
+	}
+
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}
 
-	var input map[string]interface{}
-	if err := json.Unmarshal(data, &input); err != nil {
+	var dataMap map[string]interface{}
+	if err := json.Unmarshal(data, &dataMap); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal input data: %w", err)
+	}
+
+	input := map[string]interface{}{
+		"meta": meta,
+		"data": dataMap,
 	}
 
 	var result interface{}

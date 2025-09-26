@@ -49,12 +49,12 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	meta, err := msg.GetSourceMetadata()
+	meta, err := msg.GetTargetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
 
-	data, err := msg.GetSourceData()
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}

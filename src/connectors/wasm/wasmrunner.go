@@ -88,12 +88,12 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 
 // Process handles the logic for a single message
 func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
-	data, err := msg.GetSourceData()
+	data, err := msg.GetTargetData()
 	if err != nil {
 		return nil, fmt.Errorf("error getting data from message: %w", err)
 	}
 
-	metadata, err := msg.GetSourceMetadata()
+	meta, err := msg.GetTargetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("error getting metadata from message: %w", err)
 	}
@@ -101,7 +101,7 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	inData, err := cliformat.Encode(metadata, data)
+	inData, err := cliformat.Encode(meta, data)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding input data: %w", err)
 	}

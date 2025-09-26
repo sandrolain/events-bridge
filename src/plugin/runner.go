@@ -12,14 +12,14 @@ import (
 func (p *Plugin) Runner(ctx context.Context, msg *message.RunnerMessage) (res *message.RunnerMessage, err error) {
 	uid := uuid.New().String()
 
-	data, err := msg.GetSourceData()
+	data, err := msg.GetTargetData()
 	if err != nil {
 		err = fmt.Errorf("failed to get message data: %w", err)
 		return
 	}
 
 	var metadata []*proto.Metadata
-	meta, e := msg.GetSourceMetadata()
+	meta, e := msg.GetTargetMetadata()
 	if e != nil {
 		err = fmt.Errorf("failed to get message metadata: %w", e)
 		return

@@ -33,18 +33,8 @@ func main() {
 		fatal(l, err, "failed to load configuration file")
 	}
 
-	runnerRoutines := cfg.Runner.Routines
-	if runnerRoutines < 1 {
-		runnerRoutines = 1
-	}
-
-	targetRoutines := cfg.Target.Routines
-	if targetRoutines < 1 {
-		targetRoutines = 1
-	}
-
 	var source connectors.Source
-	var runner connectors.Runner
+	var runners = make([]RunnerItem, len(cfg.Runners))
 	var target connectors.Target
 
 	// Setup source, runner, and target
@@ -65,24 +55,32 @@ func main() {
 		}
 	}()
 
-	l.Info("creating runner", "type", cfg.Runner.Type)
+	if len(cfg.Runners) > 0 {
+		l.Info("creating runners", "count", len(cfg.Runners))
 
-	runner, err = utils.LoadPluginAndConfig[connectors.Runner](
-		connectorPath(cfg.Runner.Type),
-		connectors.NewRunnerMethodName,
-		connectors.NewRunnerConfigName,
-		cfg.Runner.Options,
-	)
-	if err != nil {
-		fatal(l, err, "failed to create runner")
-	}
-	if runner != nil {
-		l.Info("runner created, deferring close")
-		defer func() {
-			if err := runner.Close(); err != nil {
-				l.Error("failed to close runner", "error", err)
+		for i, runnerConfig := range cfg.Runners {
+			l.Info("creating runner", "type", runnerConfig.Type)
+
+			runner, err := utils.LoadPluginAndConfig[connectors.Runner](
+				connectorPath(runnerConfig.Type),
+				connectors.NewRunnerMethodName,
+				connectors.NewRunnerConfigName,
+				runnerConfig.Options,
+			)
+			if err != nil {
+				fatal(l, err, "failed to create runner")
 			}
-		}()
+			l.Info("runner created, deferring close")
+			defer func() {
+				if err := runner.Close(); err != nil {
+					l.Error("failed to close runner", "error", err)
+				}
+			}()
+			runners[i] = RunnerItem{
+				Config: runnerConfig,
+				Runner: runner,
+			}
+		}
 	} else {
 		l.Info("no runner configured, messages will be passed through without processing")
 	}
@@ -110,7 +108,6 @@ func main() {
 	}
 
 	// Start the event incoming loop
-
 	c, err := source.Produce(cfg.Source.Buffer)
 	if err != nil {
 		fatal(l, err, "failed to produce messages from source")
@@ -123,27 +120,41 @@ func main() {
 
 	out := rill.FromChan(c, nil)
 
-	if runner != nil {
+	if len(runners) > 0 {
 		l.Info("runner starting to consume messages from source")
 
-		out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
-			res, err := runner.Process(msg)
-			if err != nil {
-				l.Error("error processing message", "error", err)
-				err = msg.Nak()
-				if err != nil {
-					l.Error("failed to nak message after processing error", "error", err)
-				}
-				return nil, false, nil
+		for _, runnerItem := range runners {
+			runner := runnerItem.Runner
+
+			runnerRoutines := runnerItem.Config.Routines
+			if runnerRoutines < 1 {
+				runnerRoutines = 1
 			}
-			return res, true, nil
-		})
+
+			out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
+				res, err := runner.Process(msg)
+				if err != nil {
+					l.Error("error processing message", "error", err)
+					err = msg.Nak()
+					if err != nil {
+						l.Error("failed to nak message after processing error", "error", err)
+					}
+					return nil, false, nil
+				}
+				return res, true, nil
+			})
+		}
 	} else {
 		l.Info("no runner configured, passing messages through without processing")
 	}
 
 	if target != nil {
-		l.Info("target starting to consume messages")
+		targetRoutines := cfg.Target.Routines
+		if targetRoutines < 1 {
+			targetRoutines = 1
+		}
+
+		l.Info("target starting to consume messages", "routines", targetRoutines)
 
 		err = rill.ForEach(out, targetRoutines, func(msg *message.RunnerMessage) error {
 			err := target.Consume(msg)
@@ -193,4 +204,9 @@ func connectorPath(connectorType string) string {
 func fatal(l *slog.Logger, err error, log string) {
 	slog.Error(log, "error", err)
 	os.Exit(1)
+}
+
+type RunnerItem struct {
+	Config connectors.RunnerConfig
+	Runner connectors.Runner
 }

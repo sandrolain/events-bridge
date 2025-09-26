@@ -50,7 +50,7 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		data, _ := got.GetSourceData()
+		data, _ := got.GetTargetData()
 		if string(data) != "ping" {
 			t.Fatalf("unexpected payload: %s", string(data))
 		}
@@ -88,7 +88,7 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		data, _ := got.GetSourceData()
+		data, _ := got.GetTargetData()
 		if string(data) != "dyn" {
 			t.Fatalf("unexpected payload: %s", string(data))
 		}
