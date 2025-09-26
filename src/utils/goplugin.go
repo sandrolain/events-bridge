@@ -8,7 +8,7 @@ import (
 
 	"github.com/creasty/defaults"
 	"github.com/go-playground/validator/v10"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 func LoadPlugin[A any, R any](relPath string, method string, options A) (R, error) {
@@ -100,7 +100,23 @@ func ParseConfig(opts map[string]any, res any) (err error) {
 		return
 	}
 
-	if e := mapstructure.Decode(opts, res); e != nil {
+	decoderConfig := &mapstructure.DecoderConfig{
+		Metadata:         nil,
+		Result:           res,
+		WeaklyTypedInput: true,
+		TagName:          "mapstructure",
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+		),
+	}
+
+	decoder, e := mapstructure.NewDecoder(decoderConfig)
+	if e != nil {
+		err = fmt.Errorf("failed to create decoder: %w", e)
+		return
+	}
+
+	if e := decoder.Decode(opts); e != nil {
 		err = fmt.Errorf("failed to decode options: %w", e)
 		return
 	}
