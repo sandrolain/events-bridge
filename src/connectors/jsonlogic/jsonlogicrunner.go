@@ -18,7 +18,8 @@ import (
 var _ connectors.Runner = &JSONLogicRunner{}
 
 type RunnerConfig struct {
-	Path            string        `mapstructure:"path" validate:"required"`
+	Path            string        `mapstructure:"path" validate:"excluded_with=Logic|required_without=Logic"`
+	Logic           string        `mapstructure:"logic" validate:"excluded_with=Path|required_without=Path"`
 	PreservePayload bool          `mapstructure:"preservePayload"`
 	Timeout         time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
 }
@@ -45,9 +46,15 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	log := slog.Default().With("context", "JSONLogic Runner")
 	log.Info("loading jsonlogic rule", "path", cfg.Path)
 
-	logicBytes, err := os.ReadFile(cfg.Path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read jsonlogic file: %w", err)
+	var logicBytes []byte
+	var err error
+	if cfg.Logic != "" {
+		logicBytes = []byte(cfg.Logic)
+	} else {
+		logicBytes, err = os.ReadFile(cfg.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read jsonlogic file: %w", err)
+		}
 	}
 
 	var logic map[string]interface{}

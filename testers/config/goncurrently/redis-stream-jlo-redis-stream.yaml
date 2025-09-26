@@ -25,21 +25,31 @@ commands:
           options:
             address: "localhost:6379"
             stream: "test.stream.in"
-            consumer_group: "bridge-consumer-group"
-            consumer_name: "bridge-consumer-1"
-            stream_data_key: "data"
+            consumerGroup: "bridge-consumer-group"
+            consumerName: "bridge-consumer-1"
+            streamDataKey: "data"
 
         target:
           type: "redis"
           options:
             address: "localhost:6379"
             stream: "test.stream.out"
-            stream_data_key: "data"
+            streamDataKey: "data"
 
         runner:
           type: "jsonlogic"
           options:
-            path: "./testers/config/bridge/jsonlogic-stream-rule.json"
+            logic: |
+              {
+                "and": [
+                  { ">=": [ { "var": "temperature" }, 20 ] },
+                  { "<=": [ { "var": "temperature" }, 30 ] },
+                  { ">=": [ { "var": "humidity" }, 30 ] },
+                  { "<=": [ { "var": "humidity" }, 70 ] }
+                ]
+              }
+            preservePayload: true
+            timeout: "5s"
     args: []
     restartTries: 0
   - name: redissource-stream

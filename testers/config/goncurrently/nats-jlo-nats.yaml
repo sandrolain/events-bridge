@@ -22,7 +22,8 @@ commands:
         runner:
           type: "jsonlogic"
           options:
-            path: "./testers/config/bridge/jsonlogic-rule.json"
+            logic: |
+              {"+":[{"var":"a"},{"var":"b"}]}
             preservePayload: true
           routines: 8
     args: []

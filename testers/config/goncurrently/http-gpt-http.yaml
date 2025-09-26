@@ -5,8 +5,6 @@ commands:
   - cmd: "./bin/events-bridge"
     env:
       EB_CONFIG_CONTENT: |
-        # Example configuration for events-bridge with GPT runner
-
         source:
           type: http
           options:

@@ -22,8 +22,9 @@ commands:
         runner:
           type: "jsonlogic"
           options:
-            path: "./testers/config/bridge/jsonlogic-rule.json"
-          # you can change the path or the rule as needed
+            logic: |
+              {"+":[{"var":"a"},{"var":"b"}]}
+            preservePayload: true
     args: []
     restartTries: 0
   - name: nats-source
