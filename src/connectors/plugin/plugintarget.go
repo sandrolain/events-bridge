@@ -14,7 +14,7 @@ import (
 var _ connectors.Target = &PluginTarget{}
 
 type TargetConfig struct {
-	Plugin  plugin.PluginConfig `mapstructure:"plugin" validate:"required,dive"`
+	Plugin  plugin.PluginConfig `mapstructure:"plugin" validate:"required"`
 	Config  map[string]string   `mapstructure:"config"`
 	Timeout time.Duration       `mapstructure:"timeout" default:"5s" validate:"required,gt=0"`
 }
@@ -41,7 +41,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		return nil, fmt.Errorf("cannot get plugin manager: %w", err)
 	}
 
-	plg, err := mgr.GetOrCreatePlugin(cfg.Plugin)
+	plg, err := mgr.GetOrCreatePlugin(cfg.Plugin, true)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Plugin.Name, err)
 	}

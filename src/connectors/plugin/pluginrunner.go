@@ -44,7 +44,7 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 		return nil, fmt.Errorf("plugin manager cannot be nil")
 	}
 
-	plg, err := mgr.GetOrCreatePlugin(cfg.Plugin)
+	plg, err := mgr.GetOrCreatePlugin(cfg.Plugin, true)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Plugin.Name, err)
 	}

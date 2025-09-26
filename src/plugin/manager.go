@@ -54,10 +54,13 @@ func (p *PluginManager) Stop() (err error) {
 	return
 }
 
-func (p *PluginManager) GetOrCreatePlugin(cfg PluginConfig) (plg *Plugin, err error) {
+func (p *PluginManager) GetOrCreatePlugin(cfg PluginConfig, start bool) (plg *Plugin, err error) {
 	plg, ok := p.plugins[cfg.Name]
 	if !ok {
 		plg, err = p.CreatePlugin(cfg)
+		if start {
+			err = plg.Start()
+		}
 	}
 	return
 }

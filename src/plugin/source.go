@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
@@ -41,6 +42,11 @@ func (p *Plugin) Source(ctx context.Context, buffer int, config map[string]strin
 				}
 				streamRes, e := stream.Recv()
 				if e != nil {
+					if e == io.EOF {
+						close(resChan)
+						return
+					}
+
 					time.Sleep(100 * time.Millisecond) // Wait a bit before retrying
 					p.slog.Error("failed to receive input", "error", e)
 					continue
