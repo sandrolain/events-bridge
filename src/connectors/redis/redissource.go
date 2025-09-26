@@ -6,44 +6,28 @@ import (
 	"log/slog"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
-	Address       string `yaml:"address" json:"address"`
-	Channel       string `yaml:"channel" json:"channel"`
-	Stream        string `yaml:"stream" json:"stream"`
-	ConsumerGroup string `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
-	ConsumerName  string `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
-	StreamDataKey string `yaml:"stream_data_key" json:"stream_data_key"`
-}
-
-// parseSourceOptions builds a Redis source config from options map.
-// For PubSub: address, channel. For Stream: address, stream, consumer_group, consumer_name, stream_data_key.
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	cfg := &SourceConfig{}
-	op := &utils.OptsParser{}
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Channel = op.OptString(opts, "channel", "")
-	cfg.Stream = op.OptString(opts, "stream", "")
-	cfg.ConsumerGroup = op.OptString(opts, "consumer_group", "")
-	cfg.ConsumerName = op.OptString(opts, "consumer_name", "")
-	cfg.StreamDataKey = op.OptString(opts, "stream_data_key", "")
-	if err := op.Error(); err != nil {
-		return nil, fmt.Errorf("invalid Redis source options: %w", err)
-	}
-	return cfg, nil
+	Address string `mapstructure:"address" validate:"required"`
+	// PubSub
+	Channel string `mapstructure:"channel"`
+	// Stream
+	Stream        string `mapstructure:"stream"`
+	ConsumerGroup string `mapstructure:"consumerGroup"`
+	ConsumerName  string `mapstructure:"consumerName"`
+	StreamDataKey string `mapstructure:"streamDataKey"`
 }
 
 type RedisSource struct {
-	config  *SourceConfig
-	slog    *slog.Logger
-	c       chan *message.RunnerMessage
-	client  *redis.Client
-	pubsub  *redis.PubSub
-	started bool
+	cfg    *SourceConfig
+	slog   *slog.Logger
+	c      chan *message.RunnerMessage
+	client *redis.Client
+	pubsub *redis.PubSub
 }
 
 type RedisStreamSource struct {
@@ -57,8 +41,8 @@ type RedisStreamSource struct {
 }
 
 // NewSource creates a Redis source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
@@ -66,14 +50,14 @@ func NewSource(opts map[string]any) (sources.Source, error) {
 		useConsumerGrp := cfg.ConsumerGroup != "" && cfg.ConsumerName != ""
 		return &RedisStreamSource{
 			config:         cfg,
-			slog:           slog.Default().With("context", "RedisStream"),
+			slog:           slog.Default().With("context", "RedisStream Source"),
 			useConsumerGrp: useConsumerGrp,
 		}, nil
 	}
 	if cfg.Channel != "" {
 		return &RedisSource{
-			config: cfg,
-			slog:   slog.Default().With("context", "Redis"),
+			cfg:  cfg,
+			slog: slog.Default().With("context", "RedisChannel Source"),
 		}, nil
 	}
 	return nil, fmt.Errorf("invalid config for Redis source")
@@ -82,16 +66,15 @@ func NewSource(opts map[string]any) (sources.Source, error) {
 func (s *RedisSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting Redis source", "address", s.config.Address, "channel", s.config.Channel)
+	s.slog.Info("starting Redis source", "address", s.cfg.Address, "channel", s.cfg.Channel)
 
 	s.client = redis.NewClient(&redis.Options{
-		Addr: s.config.Address,
+		Addr: s.cfg.Address,
 	})
 
-	s.pubsub = s.client.Subscribe(context.Background(), s.config.Channel)
+	s.pubsub = s.client.Subscribe(context.Background(), s.cfg.Channel)
 	go s.consume()
 
-	s.started = true
 	return s.c, nil
 }
 

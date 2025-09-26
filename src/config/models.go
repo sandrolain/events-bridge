@@ -1,10 +1,7 @@
 package config
 
 import (
-	"github.com/sandrolain/events-bridge/src/plugin"
-	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/targets"
+	"github.com/sandrolain/events-bridge/src/connectors"
 )
 
 type EnvConfig struct {
@@ -16,8 +13,7 @@ type EnvConfig struct {
 }
 
 type Config struct {
-	Source  sources.SourceConfig  `yaml:"source" json:"source" validate:"required"`
-	Runner  runners.RunnerConfig  `yaml:"runner" json:"runner"`
-	Target  targets.TargetConfig  `yaml:"target" json:"target"`
-	Plugins []plugin.PluginConfig `yaml:"plugins" json:"plugins" validate:"dive"`
+	Source connectors.SourceConfig `yaml:"source" json:"source" validate:"required"`
+	Runner connectors.RunnerConfig `yaml:"runner" json:"runner"`
+	Target connectors.TargetConfig `yaml:"target" json:"target"`
 }

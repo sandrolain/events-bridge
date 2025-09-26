@@ -10,23 +10,23 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/cliformat"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
-// Ensure WasmRunner implements runners.Runner
-var _ runners.Runner = &WasmRunner{}
+// Ensure WasmRunner implements connectors.Runner
+var _ connectors.Runner = &WasmRunner{}
 
-type Config struct {
-	Path    string
-	Timeout time.Duration
+type RunnerConfig struct {
+	Path    string        `mapstructure:"path" validate:"required"`
+	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
 }
 
 type WasmRunner struct {
-	cfg       *Config
+	cfg       *RunnerConfig
 	timeout   time.Duration // Timeout for processing messages
 	slog      *slog.Logger
 	rt        wazero.Runtime
@@ -37,25 +37,14 @@ type WasmRunner struct {
 	stopCh    chan struct{}         // stop channel
 }
 
-func parseConfig(opts map[string]any) (*Config, error) {
-	cfg := &Config{}
-	parser := &utils.OptsParser{}
-	cfg.Path = parser.OptString(opts, "path", "", utils.StringNonEmpty())
-	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
-	if err := parser.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
-}
-
 // New creates a new instance of WasmRunner
-func New(opts map[string]any) (runners.Runner, error) {
-	cfg, err := parseConfig(opts)
+func NewRunner(opts map[string]any) (connectors.Runner, error) {
+	cfg, err := common.ParseConfig[RunnerConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 
-	log := slog.Default().With("context", "WASM")
+	log := slog.Default().With("context", "WASM Runner")
 	log.Info("loading wasm module", "path", cfg.Path)
 
 	ctx := context.Background()

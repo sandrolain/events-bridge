@@ -1,4 +1,4 @@
-package pluginconn
+package main
 
 import (
 	"context"
@@ -6,51 +6,60 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
-	"github.com/sandrolain/events-bridge/src/sources"
 )
 
-type PluginSource struct {
-	config  *sources.SourcePluginConfig
-	slog    *slog.Logger
-	mgr     *plugin.PluginManager
-	plg     *plugin.Plugin
-	c       <-chan *message.RunnerMessage
-	timeout time.Duration
-	close   func()
+var _ connectors.Source = &PluginSource{}
+
+type SourceConfig struct {
+	Plugin  plugin.PluginConfig `mapstructure:"plugin" validate:"required,dive"`
+	Config  map[string]string   `mapstructure:"config"`
+	Timeout time.Duration       `mapstructure:"timeout" default:"5s" validate:"required,gt=0"`
 }
 
-func NewSource(mgr *plugin.PluginManager, cfg *sources.SourcePluginConfig) (sources.Source, error) {
-	if mgr == nil {
-		return nil, fmt.Errorf("plugin manager cannot be nil")
-	}
-	if cfg == nil {
-		return nil, fmt.Errorf("plugin source config cannot be nil")
+type PluginSource struct {
+	cfg   *SourceConfig
+	slog  *slog.Logger
+	c     <-chan *message.RunnerMessage
+	plg   *plugin.Plugin
+	close func()
+}
+
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
+	if err != nil {
+		return nil, err
 	}
 
-	plg, err := mgr.GetPlugin(cfg.Name)
+	mgr, err := plugin.GetPluginManager()
 	if err != nil {
-		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
+		return nil, fmt.Errorf("cannot get plugin manager: %w", err)
+	}
+
+	plg, err := mgr.GetOrCreatePlugin(cfg.Plugin)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Plugin.Name, err)
 	}
 
 	ps := &PluginSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "Plugin Source", "name", cfg.Name),
-		mgr:    mgr,
-		plg:    plg,
+		cfg:  cfg,
+		slog: slog.Default().With("context", "Plugin Source", "id", cfg.Plugin.Name),
+		plg:  plg,
 	}
 	return ps, nil
 }
 
 func (s *PluginSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
-	s.slog.Info("starting plugin source", "id", s.config.Name)
+	s.slog.Info("starting plugin source", "id", s.cfg.Plugin.Name, "exec", s.cfg.Plugin.Exec)
 
-	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.Timeout)
 	defer cancel()
 
 	var err error
-	s.c, s.close, err = s.plg.Source(ctx, buffer, s.config.Config)
+	s.c, s.close, err = s.plg.Source(ctx, buffer, s.cfg.Config)
 	if err != nil {
 		return nil, err
 	}

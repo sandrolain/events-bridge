@@ -7,37 +7,24 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub/v2"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type TargetConfig struct {
-	ProjectID string `yaml:"project_id" json:"project_id"`
-	Topic     string `yaml:"topic" json:"topic"`
-}
-
-// parseTargetOptions builds a PubSub target config from options map.
-// Expected keys: project_id, topic.
-func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
-	cfg := &TargetConfig{}
-	op := &utils.OptsParser{}
-	cfg.ProjectID = op.OptString(opts, "project_id", "", utils.StringNonEmpty())
-	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
-	if op.Error() != nil {
-		return nil, op.Error()
-	}
-	return cfg, nil
+	ProjectID string `mapstructure:"projectId" validate:"required"`
+	Topic     string `mapstructure:"topic" validate:"required"`
 }
 
 // NewTarget creates a PubSub target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 
-	l := slog.Default().With("context", "PubSub")
+	l := slog.Default().With("context", "PubSub Target")
 
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, cfg.ProjectID)
@@ -49,7 +36,7 @@ func NewTarget(opts map[string]any) (targets.Target, error) {
 	l.Info("PubSub target connected", "projectID", cfg.ProjectID, "topic", cfg.Topic)
 
 	return &PubSubTarget{
-		config:    cfg,
+		cfg:       cfg,
 		slog:      l,
 		client:    client,
 		publisher: publisher,
@@ -57,12 +44,11 @@ func NewTarget(opts map[string]any) (targets.Target, error) {
 }
 
 type PubSubTarget struct {
+	cfg       *TargetConfig
 	slog      *slog.Logger
-	config    *TargetConfig
-	stopped   bool
-	stopCh    chan struct{}
 	client    *pubsub.Client
 	publisher *pubsub.Publisher
+	stopCh    chan struct{}
 }
 
 func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
@@ -92,12 +78,11 @@ func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
 	if err != nil {
 		return fmt.Errorf("error publishing to PubSub: %w", err)
 	}
-	t.slog.Debug("PubSub message published", "topic", t.config.Topic)
+	t.slog.Debug("PubSub message published", "topic", t.cfg.Topic)
 	return nil
 }
 
 func (t *PubSubTarget) Close() error {
-	t.stopped = true
 	if t.stopCh != nil {
 		close(t.stopCh)
 	}

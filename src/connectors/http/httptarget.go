@@ -6,37 +6,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/valyala/fasthttp"
 )
 
 type TargetConfig struct {
-	Method  string            `yaml:"method" json:"method"`
-	URL     string            `yaml:"url" json:"url"`
-	Headers map[string]string `yaml:"headers" json:"headers"`
-	Timeout time.Duration     `yaml:"timeout" json:"timeout"`
-}
-
-// parseTargetOptions decodes a generic options map into the connector-specific config.
-// Expected keys: url, method, headers (map[string]string), timeout.
-func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
-	cfg := &TargetConfig{}
-	op := &utils.OptsParser{}
-	cfg.URL = op.OptString(opts, "url", "")
-	cfg.Method = op.OptString(opts, "method", "POST", utils.StringOneOf("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"))
-	cfg.Headers = op.OptStringMap(opts, "headers", map[string]string{})
-	cfg.Timeout = op.OptDuration(opts, "timeout", targets.DefaultTimeout)
-	if op.Error() != nil {
-		return nil, op.Error()
-	}
-	return cfg, nil
+	Method  string            `mapstructure:"method" default:"POST" validate:"required,oneof=GET POST PUT DELETE PATCH HEAD OPTIONS"`
+	URL     string            `mapstructure:"url" validate:"required,url"`
+	Headers map[string]string `mapstructure:"headers"`
+	Timeout time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 }
 
 // NewTarget creates an HTTP target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
 		return nil, err
 	}
@@ -54,19 +39,18 @@ func NewTarget(opts map[string]any) (targets.Target, error) {
 	}
 
 	return &HTTPTarget{
-		config: cfg,
-		slog:   slog.Default().With("context", "HTTP"),
+		cfg:    cfg,
+		slog:   slog.Default().With("context", "HTTP Target"),
 		client: client,
 		stopCh: make(chan struct{}),
 	}, nil
 }
 
 type HTTPTarget struct {
-	slog    *slog.Logger
-	config  *TargetConfig
-	stopped bool
-	stopCh  chan struct{}
-	client  *fasthttp.Client
+	cfg    *TargetConfig
+	slog   *slog.Logger
+	client *fasthttp.Client
+	stopCh chan struct{}
 }
 
 func (s *HTTPTarget) Consume(result *message.RunnerMessage) (err error) {
@@ -82,8 +66,8 @@ func (s *HTTPTarget) Consume(result *message.RunnerMessage) (err error) {
 		return
 	}
 
-	method := strings.ToUpper(s.config.Method)
-	url := s.config.URL
+	method := strings.ToUpper(s.cfg.Method)
+	url := s.cfg.URL
 
 	s.slog.Debug("publishing", "method", method, "url", url, "metadata", metadata, "bodysize", len(data))
 
@@ -91,7 +75,7 @@ func (s *HTTPTarget) Consume(result *message.RunnerMessage) (err error) {
 	defer fasthttp.ReleaseRequest(req)
 
 	req.Header.SetMethod(method)
-	for k, v := range s.config.Headers {
+	for k, v := range s.cfg.Headers {
 		req.Header.Set(k, v)
 	}
 	req.SetRequestURI(url)
@@ -121,7 +105,6 @@ func (s *HTTPTarget) Consume(result *message.RunnerMessage) (err error) {
 }
 
 func (s *HTTPTarget) Close() (err error) {
-	s.stopped = true
 	if s.stopCh != nil {
 		close(s.stopCh)
 	}

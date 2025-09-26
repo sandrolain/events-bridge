@@ -79,7 +79,7 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 		Remote:       "origin",
 		PollInterval: 0,
 	}
-	src := &GitSource{config: cfg, slog: slog.Default()}
+	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.c = make(chan *message.RunnerMessage, 1)
 	src.lastHash = plumbing.Hash{}
 
@@ -133,7 +133,7 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 		SubDir:       "notfound/",
 		PollInterval: 0,
 	}
-	src := &GitSource{config: cfg, slog: slog.Default()}
+	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.lastHash = plumbing.Hash{}
 	src.c = make(chan *message.RunnerMessage, 1)
 	done := make(chan struct{})
@@ -191,7 +191,7 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 		Remote:       "origin",
 		PollInterval: 0,
 	}
-	src := &GitSource{config: cfg, slog: slog.Default()}
+	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.lastHash = plumbing.Hash{} // force detection
 	src.c = make(chan *message.RunnerMessage, 1)
 
@@ -249,7 +249,7 @@ func TestGitSourceCheckForChangesNoRepo(t *testing.T) {
 		RemoteURL: "",
 		Branch:    "main",
 	}
-	src := &GitSource{config: cfg, slog: slog.Default()}
+	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.checkForChanges() // should not panic, just log error
 }
 
@@ -258,7 +258,7 @@ func TestGitSourceCheckForChangesSameHash(t *testing.T) {
 		RemoteURL: "https://github.com/sandrolain/events-bridge.git",
 		Branch:    "main",
 	}
-	src := &GitSource{config: cfg, slog: slog.Default()}
+	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.lastHash = plumbing.NewHash("abc123")
 	src.mu.Lock()
 	src.lastHash = plumbing.NewHash("abc123")
@@ -284,7 +284,7 @@ func TestGitSourceCheckForChangesTempDirError(t *testing.T) {
 		Branch:    "main",
 		Path:      "", // triggers temp dir creation
 	}
-	src := &GitSource{config: cfg, slog: slog.Default()}
+	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.checkForChanges() // Should log error, not panic
 }
 
@@ -294,6 +294,6 @@ func TestGitSourceCheckForChangesOpenRepoError(t *testing.T) {
 		Branch:    "main",
 		Path:      "/dev/null/doesnotexist",
 	}
-	src := &GitSource{config: cfg, slog: slog.Default()}
+	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.checkForChanges() // Should log error, not panic
 }

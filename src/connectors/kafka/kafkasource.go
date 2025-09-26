@@ -5,59 +5,42 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/segmentio/kafka-go"
 )
 
 type SourceConfig struct {
-	Brokers           []string `yaml:"brokers" json:"brokers"`
-	GroupID           string   `yaml:"group_id" json:"group_id"`
-	Topic             string   `yaml:"topic" json:"topic"`
-	Partitions        int      `yaml:"partitions" json:"partitions"`
-	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
-}
-
-// parseSourceOptions builds a Kafka source config from options map.
-// Expected keys: brokers ([]string), topic, group_id, partitions, replication_factor.
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	cfg := &SourceConfig{}
-	op := &utils.OptsParser{}
-	cfg.Brokers = op.OptStringArray(opts, "brokers", nil, utils.StringNonEmpty())
-	cfg.GroupID = op.OptString(opts, "group_id", "")
-	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
-	cfg.Partitions = op.OptInt(opts, "partitions", 1, utils.IntGreaterThan(0))
-	cfg.ReplicationFactor = op.OptInt(opts, "replication_factor", 1, utils.IntGreaterThan(0))
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Brokers           []string `mapstructure:"brokers" validate:"required,min=1"`
+	GroupID           string   `mapstructure:"groupId"`
+	Topic             string   `mapstructure:"topic" validate:"required"`
+	Partitions        int      `mapstructure:"partitions" validate:"required,gt=0"`
+	ReplicationFactor int      `mapstructure:"replicationFactor" validate:"required,gt=0"`
 }
 
 type KafkaSource struct {
-	config  *SourceConfig
-	slog    *slog.Logger
-	c       chan *message.RunnerMessage
-	reader  *kafka.Reader
-	started bool
+	cfg    *SourceConfig
+	slog   *slog.Logger
+	c      chan *message.RunnerMessage
+	reader *kafka.Reader
 }
 
 // NewSource creates a Kafka source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	return &KafkaSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "Kafka"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "Kafka Source"),
 	}, nil
 }
 
 func (s *KafkaSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	// Create the topic if it does not exist
-	err := ensureKafkaTopic(s.slog, s.config.Brokers, s.config.Topic, s.config.Partitions, s.config.ReplicationFactor)
+	err := ensureKafkaTopic(s.slog, s.cfg.Brokers, s.cfg.Topic, s.cfg.Partitions, s.cfg.ReplicationFactor)
 	if err != nil {
 		s.slog.Error("error creating/verifying topic", "err", err)
 		return nil, err
@@ -65,12 +48,12 @@ func (s *KafkaSource) Produce(buffer int) (<-chan *message.RunnerMessage, error)
 
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting Kafka source", "brokers", s.config.Brokers, "topic", s.config.Topic, "groupID", s.config.GroupID)
+	s.slog.Info("starting Kafka source", "brokers", s.cfg.Brokers, "topic", s.cfg.Topic, "groupID", s.cfg.GroupID)
 
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  s.config.Brokers,
-		Topic:    s.config.Topic,
-		GroupID:  s.config.GroupID,
+		Brokers:  s.cfg.Brokers,
+		Topic:    s.cfg.Topic,
+		GroupID:  s.cfg.GroupID,
 		MinBytes: 1,
 		MaxBytes: 10e6, // 10MB
 	})
@@ -91,7 +74,6 @@ func (s *KafkaSource) Produce(buffer int) (<-chan *message.RunnerMessage, error)
 		}
 	}()
 
-	s.started = true
 	return s.c, nil
 }
 

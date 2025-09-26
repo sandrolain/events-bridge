@@ -13,56 +13,37 @@ import (
 	coaptcp "github.com/plgd-dev/go-coap/v3/tcp"
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type TargetConfig struct {
-	Protocol CoAPProtocol  `yaml:"protocol" json:"protocol"`
-	Address  string        `yaml:"address" json:"address"`
-	Path     string        `yaml:"path" json:"path"`
-	Method   string        `yaml:"method" json:"method"`
-	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
-}
-
-// parseTargetOptions builds a CoAP target config from options map with validation.
-// Expected keys: protocol (udp|tcp), address, path, method (GET|POST|PUT), timeout.
-func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
-	// Local minimal parser to avoid extra deps; integrates simple validations.
-	cfg := &TargetConfig{}
-	op := &utils.OptsParser{}
-	cfg.Protocol = CoAPProtocol(op.OptString(opts, "protocol", "udp", utils.StringOneOf("udp", "tcp")))
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Path = op.OptString(opts, "path", "", utils.StringNonEmpty())
-	cfg.Method = op.OptString(opts, "method", "", utils.StringOneOf("GET", "POST", "PUT"))
-	cfg.Timeout = op.OptDuration(opts, "timeout", targets.DefaultTimeout)
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Protocol CoAPProtocol  `mapstructure:"protocol" default:"udp" validate:"oneof=udp tcp"`
+	Address  string        `mapstructure:"address" validate:"required"`
+	Path     string        `mapstructure:"path" validate:"required"`
+	Method   string        `mapstructure:"method" validate:"required,oneof=GET POST PUT"`
+	Timeout  time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 }
 
 // NewTarget creates a CoAP target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	t := &CoAPTarget{
-		config:  cfg,
-		slog:    slog.Default().With("context", "COAP"),
-		stopped: false,
-		stopCh:  make(chan struct{}),
+		cfg:    cfg,
+		slog:   slog.Default().With("context", "CoAP Target"),
+		stopCh: make(chan struct{}),
 	}
 	return t, nil
 }
 
 type CoAPTarget struct {
-	slog    *slog.Logger
-	config  *TargetConfig
-	stopped bool
-	stopCh  chan struct{}
+	cfg    *TargetConfig
+	slog   *slog.Logger
+	stopCh chan struct{}
 }
 
 func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
@@ -76,13 +57,13 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 		contentFormat = coapTypeFromMetadata(meta)
 	}
 
-	method := strings.ToUpper(t.config.Method)
-	path := t.config.Path
-	address := t.config.Address
-	protocol := string(t.config.Protocol)
+	method := strings.ToUpper(t.cfg.Method)
+	path := t.cfg.Path
+	address := t.cfg.Address
+	protocol := string(t.cfg.Protocol)
 	t.slog.Debug("sending coap message", "protocol", protocol, "address", address, "path", path, "method", method)
 
-	ctx, cancel := context.WithTimeout(context.Background(), t.config.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), t.cfg.Timeout)
 	defer cancel()
 
 	switch protocol {
@@ -149,7 +130,6 @@ func (t *CoAPTarget) sendTCP(ctx context.Context, method, path, address string, 
 }
 
 func (t *CoAPTarget) Close() error {
-	t.stopped = true
 	if t.stopCh != nil {
 		close(t.stopCh)
 	}

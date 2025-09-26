@@ -7,49 +7,28 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type TargetConfig struct {
-	Address string `yaml:"address" json:"address"`
+	Address string `mapstructure:"address" validate:"required"`
 	// PubSub
-	Channel                string `yaml:"channel" json:"channel"`
-	ChannelFromMetadataKey string `yaml:"channelFromMetadataKey" json:"channelFromMetadataKey"`
+	Channel                string `mapstructure:"channel"`
+	ChannelFromMetadataKey string `mapstructure:"channelFromMetadataKey"`
 	// Stream
-	Stream                string        `yaml:"stream" json:"stream"`
-	StreamFromMetadataKey string        `yaml:"streamFromMetadataKey" json:"streamFromMetadataKey"`
-	ConsumerGroup         string        `yaml:"consumer_group,omitempty" json:"consumer_group,omitempty"`
-	ConsumerName          string        `yaml:"consumer_name,omitempty" json:"consumer_name,omitempty"`
-	Timeout               time.Duration `yaml:"timeout" json:"timeout"`
-	StreamDataKey         string        `yaml:"stream_data_key" json:"stream_data_key"`
-}
-
-// parseTargetOptions builds a Redis target config from options map with validation.
-// For PubSub: address, channel, channelFromMetadataKey.
-// For Stream: address, stream, streamFromMetadataKey, consumer_group, consumer_name, timeout, stream_data_key.
-func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
-	op := &utils.OptsParser{}
-	cfg := &TargetConfig{}
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Channel = op.OptString(opts, "channel", "")
-	cfg.ChannelFromMetadataKey = op.OptString(opts, "channelFromMetadataKey", "")
-	cfg.Stream = op.OptString(opts, "stream", "")
-	cfg.StreamFromMetadataKey = op.OptString(opts, "streamFromMetadataKey", "")
-	cfg.ConsumerGroup = op.OptString(opts, "consumer_group", "")
-	cfg.ConsumerName = op.OptString(opts, "consumer_name", "")
-	cfg.Timeout = op.OptDuration(opts, "timeout", 0)
-	cfg.StreamDataKey = op.OptString(opts, "stream_data_key", "")
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Stream                string        `mapstructure:"stream" validate:"required"`
+	StreamFromMetadataKey string        `mapstructure:"streamFromMetadataKey" validate:"required"`
+	ConsumerGroup         string        `mapstructure:"consumerGroup,omitempty" validate:"required"`
+	ConsumerName          string        `mapstructure:"consumerName,omitempty" validate:"required"`
+	Timeout               time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
+	StreamDataKey         string        `mapstructure:"streamDataKey" validate:"required"`
 }
 
 // NewTarget creates a Redis target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
 		return nil, err
 	}
@@ -62,23 +41,23 @@ func NewTarget(opts map[string]any) (targets.Target, error) {
 	return nil, fmt.Errorf("invalid config for Redis target")
 }
 
-func NewChannelTarget(cfg *TargetConfig) (targets.Target, error) {
-	l := slog.Default().With("context", "Redis")
+func NewChannelTarget(cfg *TargetConfig) (connectors.Target, error) {
+	l := slog.Default().With("context", "RedisChannel Target")
 	client := redis.NewClient(&redis.Options{
 		Addr: cfg.Address,
 	})
 	l.Info("Redis target connected", "address", cfg.Address, "channel", cfg.Channel)
 
 	return &RedisTarget{
-		config: cfg,
+		cfg:    cfg,
 		slog:   l,
 		client: client,
 	}, nil
 }
 
 type RedisTarget struct {
+	cfg    *TargetConfig
 	slog   *slog.Logger
-	config *TargetConfig
 	client *redis.Client
 }
 
@@ -88,7 +67,7 @@ func (t *RedisTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	channel := utils.ResolveFromMetadata(msg, t.config.ChannelFromMetadataKey, t.config.Channel)
+	channel := common.ResolveFromMetadata(msg, t.cfg.ChannelFromMetadataKey, t.cfg.Channel)
 	t.slog.Debug("publishing Redis message", "channel", channel, "bodysize", len(data))
 
 	err = t.client.Publish(context.Background(), channel, data).Err()

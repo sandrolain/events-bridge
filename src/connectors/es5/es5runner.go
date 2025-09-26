@@ -11,44 +11,33 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/dop251/goja"
 	"github.com/fxamacker/cbor/v2"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 // Ensure ES5Runner implements models.Runner
-var _ runners.Runner = &ES5Runner{}
+var _ connectors.Runner = &ES5Runner{}
 
-type Config struct {
-	Path    string
-	Timeout time.Duration
+type RunnerConfig struct {
+	Path    string        `mapstructure:"path" validate:"required"`
+	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 }
 
 type ES5Runner struct {
-	cfg     *Config
+	cfg     *RunnerConfig
 	slog    *slog.Logger
 	program *goja.Program
 }
 
-func parseConfig(opts map[string]any) (*Config, error) {
-	cfg := &Config{}
-	parser := &utils.OptsParser{}
-	cfg.Path = parser.OptString(opts, "path", "", utils.StringNonEmpty())
-	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
-	if err := parser.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
-}
-
 // New creates a new instance of ES5Runner
-func New(opts map[string]any) (runners.Runner, error) {
-	cfg, err := parseConfig(opts)
+func NewRunner(opts map[string]any) (connectors.Runner, error) {
+	cfg, err := common.ParseConfig[RunnerConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 
-	log := slog.Default().With("context", "ES5")
+	log := slog.Default().With("context", "ES5 Runner")
 	log.Info("loading es5 program", "path", cfg.Path)
 
 	src, err := os.ReadFile(cfg.Path)

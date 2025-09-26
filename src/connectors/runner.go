@@ -1,14 +1,10 @@
-package runners
+package connectors
 
 import (
-	"time"
-
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-var DefaultTimeout = 5 * time.Second
-
-const NewMethodName = "New"
+const NewRunnerMethodName = "NewRunner"
 
 type Runner interface {
 	Process(*message.RunnerMessage) (*message.RunnerMessage, error)

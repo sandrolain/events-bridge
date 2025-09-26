@@ -14,82 +14,59 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
-	Path         string `yaml:"path" json:"path"`
-	RemoteURL    string `yaml:"remote_url" json:"remote_url"`
-	Remote       string `yaml:"remote" json:"remote"`
-	Branch       string `yaml:"branch" json:"branch"`
-	Username     string `yaml:"username" json:"username"`
-	Password     string `yaml:"password" json:"password"`
-	SubDir       string `yaml:"subdir" json:"subdir"`
-	PollInterval int    `yaml:"poll_interval" json:"poll_interval"`
-}
-
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	cfg := &SourceConfig{}
-	op := &utils.OptsParser{}
-	cfg.Path = op.OptString(opts, "path", "")
-	cfg.RemoteURL = op.OptString(opts, "remote_url", "", utils.StringNonEmpty())
-	cfg.Remote = op.OptString(opts, "remote", "origin")
-	cfg.Branch = op.OptString(opts, "branch", "", utils.StringNonEmpty())
-	cfg.Username = op.OptString(opts, "username", "")
-	cfg.Password = op.OptString(opts, "password", "")
-	cfg.SubDir = op.OptString(opts, "subdir", "")
-	cfg.PollInterval = op.OptInt(opts, "poll_interval", 10, utils.IntMin(0))
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Path         string        `mapstructure:"path" validate:"required"`
+	RemoteURL    string        `mapstructure:"remoteUrl" validate:"required"`
+	Remote       string        `mapstructure:"remote" default:"origin" validate:"required"`
+	Branch       string        `mapstructure:"branch" validate:"required"`
+	Username     string        `mapstructure:"username"`
+	Password     string        `mapstructure:"password"`
+	SubDir       string        `mapstructure:"subdir"`
+	PollInterval time.Duration `mapstructure:"pollInterval" default:"10s" validate:"gte=0"` // in seconds, 0 means no polling
 }
 
 type GitSource struct {
-	config   *SourceConfig
+	cfg      *SourceConfig
 	slog     *slog.Logger
 	c        chan *message.RunnerMessage
-	started  bool
 	mu       sync.Mutex
 	lastHash plumbing.Hash
 }
 
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	return &GitSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "GIT"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "Git Source"),
 	}, nil
 }
 
 func (s *GitSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
-	s.slog.Info("starting GIT source", "repo", s.config.Path, "remote", s.config.Remote, "branch", s.config.Branch, "subdir", s.config.SubDir)
-
+	s.slog.Info("starting GIT source", "repo", s.cfg.Path, "remote", s.cfg.Remote, "branch", s.cfg.Branch, "subdir", s.cfg.SubDir)
 	go s.pollLoop()
-	s.started = true
 	return s.c, nil
 }
 
 func (s *GitSource) pollLoop() {
-	pollInterval := s.config.PollInterval
-	if pollInterval == 0 {
-		pollInterval = 10 // default 10s
-	}
+	pollInterval := s.cfg.PollInterval
 	for {
 		s.checkForChanges()
-		time.Sleep(time.Duration(pollInterval) * time.Second)
+		time.Sleep(pollInterval)
 	}
 }
 
 func (s *GitSource) checkForChanges() {
 	// Prepare temp dir if Path is empty
-	repoPath := s.config.Path
+	repoPath := s.cfg.Path
 	if repoPath == "" {
 		tmpDir, err := os.MkdirTemp("", "gitsource-*")
 		if err != nil {
@@ -104,15 +81,15 @@ func (s *GitSource) checkForChanges() {
 	if _, err = os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
 		// Clone if not present
 		cloneOpts := &git.CloneOptions{
-			URL:           s.config.RemoteURL,
+			URL:           s.cfg.RemoteURL,
 			Progress:      nil,
 			SingleBranch:  true,
-			ReferenceName: plumbing.NewBranchReferenceName(s.config.Branch),
+			ReferenceName: plumbing.NewBranchReferenceName(s.cfg.Branch),
 		}
-		if s.config.Username != "" && s.config.Password != "" {
+		if s.cfg.Username != "" && s.cfg.Password != "" {
 			cloneOpts.Auth = &http.BasicAuth{
-				Username: s.config.Username,
-				Password: s.config.Password,
+				Username: s.cfg.Username,
+				Password: s.cfg.Password,
 			}
 		}
 		repo, err = git.PlainClone(repoPath, false, cloneOpts)
@@ -128,25 +105,25 @@ func (s *GitSource) checkForChanges() {
 		}
 		// fetch
 		fetchOpts := &git.FetchOptions{
-			RemoteName: s.config.Remote,
+			RemoteName: s.cfg.Remote,
 			Progress:   nil,
 			Force:      true,
 			Tags:       git.AllTags,
 		}
-		if s.config.Username != "" && s.config.Password != "" {
+		if s.cfg.Username != "" && s.cfg.Password != "" {
 			fetchOpts.Auth = &http.BasicAuth{
-				Username: s.config.Username,
-				Password: s.config.Password,
+				Username: s.cfg.Username,
+				Password: s.cfg.Password,
 			}
 		}
 		_ = repo.Fetch(fetchOpts)
 	}
 
-	remoteName := s.config.Remote
+	remoteName := s.cfg.Remote
 	if remoteName == "" {
 		remoteName = "origin"
 	}
-	refName := fmt.Sprintf("refs/remotes/%s/%s", remoteName, s.config.Branch)
+	refName := fmt.Sprintf("refs/remotes/%s/%s", remoteName, s.cfg.Branch)
 	newRef, err := repo.Reference(plumbing.ReferenceName(refName), true)
 	if err != nil {
 		s.slog.Error("cannot get ref", "err", err)
@@ -177,7 +154,7 @@ func (s *GitSource) checkForChanges() {
 		}
 		files, _ := c.Files()
 		_ = files.ForEach(func(f *object.File) error {
-			if s.config.SubDir == "" || strings.HasPrefix(f.Name, s.config.SubDir) {
+			if s.cfg.SubDir == "" || strings.HasPrefix(f.Name, s.cfg.SubDir) {
 				found = true
 				changes = append(changes, map[string]interface{}{
 					"commit":  c.Hash.String(),

@@ -6,89 +6,71 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
-	Address    string `yaml:"address" json:"address"`
-	Stream     string `yaml:"stream" json:"stream"`
-	Subject    string `yaml:"subject" json:"subject"`
-	Consumer   string `yaml:"consumer" json:"consumer"`
-	QueueGroup string `yaml:"queueGroup" json:"queueGroup"`
-}
-
-// parseSourceOptions builds a NATS source config from options map.
-// Expected keys: address, subject, stream, consumer, queueGroup.
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	cfg := &SourceConfig{}
-	op := &utils.OptsParser{}
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Subject = op.OptString(opts, "subject", "", utils.StringNonEmpty())
-	cfg.Stream = op.OptString(opts, "stream", "")
-	cfg.Consumer = op.OptString(opts, "consumer", "")
-	cfg.QueueGroup = op.OptString(opts, "queueGroup", "", utils.StringNonEmpty())
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Address    string `mapstructure:"address" validate:"required"`
+	Subject    string `mapstructure:"subject" validate:"required"`
+	Stream     string `mapstructure:"stream"`
+	Consumer   string `mapstructure:"consumer"`
+	QueueGroup string `mapstructure:"queueGroup"`
 }
 
 type NATSSource struct {
-	config  *SourceConfig
-	slog    *slog.Logger
-	c       chan *message.RunnerMessage
-	nc      *nats.Conn
-	js      nats.JetStreamContext
-	sub     *nats.Subscription
-	started bool
+	cfg  *SourceConfig
+	slog *slog.Logger
+	c    chan *message.RunnerMessage
+	nc   *nats.Conn
+	js   nats.JetStreamContext
+	sub  *nats.Subscription
 }
 
 // NewSource creates the NATS source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	return &NATSSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "NATS"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "NATS Source"),
 	}, nil
 }
 
 func (s *NATSSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting NATS source", "address", s.config.Address, "subject", s.config.Subject, "stream", s.config.Stream, "consumer", s.config.Consumer, "queueGroup", s.config.QueueGroup)
+	s.slog.Info("starting NATS source", "address", s.cfg.Address, "subject", s.cfg.Subject, "stream", s.cfg.Stream, "consumer", s.cfg.Consumer, "queueGroup", s.cfg.QueueGroup)
 
-	nc, err := nats.Connect(s.config.Address)
+	nc, err := nats.Connect(s.cfg.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
 	}
 	s.nc = nc
 
 	// If both stream and consumer are specified, use JetStream
-	if s.config.Stream != "" && s.config.Consumer != "" {
+	if s.cfg.Stream != "" && s.cfg.Consumer != "" {
 		js, err := nc.JetStream()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get JetStream context: %w", err)
 		}
 		s.js = js
-		s.slog.Info("using JetStream", "stream", s.config.Stream, "consumer", s.config.Consumer)
+		s.slog.Info("using JetStream", "stream", s.cfg.Stream, "consumer", s.cfg.Consumer)
 
 		if err := s.consumeJetStream(); err != nil {
 			return nil, fmt.Errorf("failed to start JetStream consumer: %w", err)
 		}
 	} else {
 		// NATS core (o JetStream senza consumer)
-		queue := s.config.QueueGroup
+		queue := s.cfg.QueueGroup
 		if err := s.consumeCore(queue); err != nil {
 			return nil, fmt.Errorf("failed to start NATS core consumer: %w", err)
 		}
 	}
 
-	s.started = true
 	return s.c, nil
 }
 
@@ -101,9 +83,9 @@ func (s *NATSSource) consumeCore(queue string) (err error) {
 	}
 	var e error
 	if queue != "" {
-		s.sub, e = s.nc.QueueSubscribe(s.config.Subject, queue, handler)
+		s.sub, e = s.nc.QueueSubscribe(s.cfg.Subject, queue, handler)
 	} else {
-		s.sub, e = s.nc.Subscribe(s.config.Subject, handler)
+		s.sub, e = s.nc.Subscribe(s.cfg.Subject, handler)
 	}
 	if e != nil {
 		err = fmt.Errorf("failed to subscribe to subject: %w", e)
@@ -113,9 +95,9 @@ func (s *NATSSource) consumeCore(queue string) (err error) {
 
 func (s *NATSSource) consumeJetStream() (err error) {
 	js := s.js
-	stream := s.config.Stream
-	consumer := s.config.Consumer
-	sub, e := js.PullSubscribe(s.config.Subject, consumer, nats.Bind(stream, consumer))
+	stream := s.cfg.Stream
+	consumer := s.cfg.Consumer
+	sub, e := js.PullSubscribe(s.cfg.Subject, consumer, nats.Bind(stream, consumer))
 	if e != nil {
 		err = fmt.Errorf("failed to create JetStream pull subscription: %w", e)
 		return

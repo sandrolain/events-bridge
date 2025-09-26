@@ -10,7 +10,7 @@ import (
 )
 
 func NewStreamTarget(cfg *TargetConfig) (*RedisStreamTarget, error) {
-	l := slog.Default().With("context", "RedisStream")
+	l := slog.Default().With("context", "RedisStream Target")
 
 	client := redis.NewClient(&redis.Options{
 		Addr: cfg.Address,
@@ -18,15 +18,15 @@ func NewStreamTarget(cfg *TargetConfig) (*RedisStreamTarget, error) {
 	l.Info("Redis stream target connected", "address", cfg.Address, "stream", cfg.Stream)
 
 	return &RedisStreamTarget{
-		config: cfg,
+		cfg:    cfg,
 		slog:   l,
 		client: client,
 	}, nil
 }
 
 type RedisStreamTarget struct {
+	cfg    *TargetConfig
 	slog   *slog.Logger
-	config *TargetConfig
 	client *redis.Client
 }
 
@@ -35,14 +35,14 @@ func (t *RedisStreamTarget) Consume(msg *message.RunnerMessage) error {
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
-	stream := t.config.Stream
-	if t.config.StreamFromMetadataKey != "" {
+	stream := t.cfg.Stream
+	if t.cfg.StreamFromMetadataKey != "" {
 		metadata, _ := msg.GetTargetMetadata()
-		if v, ok := metadata[t.config.StreamFromMetadataKey]; ok && len(v) > 0 {
+		if v, ok := metadata[t.cfg.StreamFromMetadataKey]; ok && len(v) > 0 {
 			stream = v
 		}
 	}
-	dataKey := t.config.StreamDataKey
+	dataKey := t.cfg.StreamDataKey
 	if dataKey == "" {
 		dataKey = "data"
 	}

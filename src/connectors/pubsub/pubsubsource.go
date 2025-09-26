@@ -9,100 +9,81 @@ import (
 
 	"cloud.google.com/go/pubsub/v2"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 type SourceConfig struct {
-	ProjectID         string `yaml:"project_id" json:"project_id"`
-	Subscription      string `yaml:"subscription" json:"subscription"`
-	CreateIfNotExists bool   `yaml:"create_if_not_exists" json:"create_if_not_exists"`
-	Topic             string `yaml:"topic" json:"topic"`
-	AckDeadline       int    `yaml:"ack_deadline" json:"ack_deadline"`
-	RetainAcked       bool   `yaml:"retain_acked" json:"retain_acked"`
-	RetentionDuration int    `yaml:"retention_duration" json:"retention_duration"`
-}
-
-// parseSourceOptions builds a PubSub source config from options map.
-// Expected keys: project_id, subscription, create_if_not_exists, topic, ack_deadline, retain_acked, retention_duration.
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	cfg := &SourceConfig{}
-	op := &utils.OptsParser{}
-	cfg.ProjectID = op.OptString(opts, "project_id", "", utils.StringNonEmpty())
-	cfg.Subscription = op.OptString(opts, "subscription", "", utils.StringNonEmpty())
-	cfg.CreateIfNotExists = op.OptBool(opts, "create_if_not_exists", false)
-	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
-	cfg.AckDeadline = op.OptInt(opts, "ack_deadline", 10)
-	cfg.RetainAcked = op.OptBool(opts, "retain_acked", false)
-	cfg.RetentionDuration = op.OptInt(opts, "retention_duration", 24*3600)
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	ProjectID         string `mapstructure:"projectId" validate:"required"`
+	Subscription      string `mapstructure:"subscription" validate:"required"`
+	CreateIfNotExists bool   `mapstructure:"createIfNotExists"`
+	Topic             string `mapstructure:"topic" validate:"required"`
+	AckDeadline       int    `mapstructure:"ackDeadline" default:"10" validate:"required"`
+	RetainAcked       bool   `mapstructure:"retainAcked"`
+	RetentionDuration int    `mapstructure:"retentionDuration" default:"86400" validate:"required,gt=0"`
 }
 
 type PubSubSource struct {
-	config  *SourceConfig
-	slog    *slog.Logger
-	c       chan *message.RunnerMessage
-	client  *pubsub.Client
-	sub     *pubsub.Subscriber
-	started bool
+	cfg    *SourceConfig
+	slog   *slog.Logger
+	c      chan *message.RunnerMessage
+	client *pubsub.Client
+	sub    *pubsub.Subscriber
 }
 
 // NewSource creates a PubSub source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	return &PubSubSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "PubSub"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "PubSub Source"),
 	}, nil
 }
 
 func (s *PubSubSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, s.config.ProjectID)
+	client, err := pubsub.NewClient(ctx, s.cfg.ProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("error creating PubSub client: %w", err)
 	}
 	s.client = client
 
 	// Automatically create subscription if requested
-	if s.config.CreateIfNotExists {
-		if s.config.Topic == "" {
+	if s.cfg.CreateIfNotExists {
+		if s.cfg.Topic == "" {
 			return nil, fmt.Errorf("topic is required to automatically create the subscription")
 		}
 		// Optional parameters
 		ackDeadline := int32(10)
-		if s.config.AckDeadline > 0 {
-			ackDeadline = int32(s.config.AckDeadline)
+		if s.cfg.AckDeadline > 0 {
+			ackDeadline = int32(s.cfg.AckDeadline)
 		}
 		retention := int64(24 * 3600)
-		if s.config.RetentionDuration > 0 {
-			retention = int64(s.config.RetentionDuration)
+		if s.cfg.RetentionDuration > 0 {
+			retention = int64(s.cfg.RetentionDuration)
 		}
 		// Create subscription via admin client
 		_, err := client.SubscriptionAdminClient.CreateSubscription(ctx, &pubsubpb.Subscription{
-			Name:                     fmt.Sprintf("projects/%s/subscriptions/%s", s.config.ProjectID, s.config.Subscription),
-			Topic:                    fmt.Sprintf("projects/%s/topics/%s", s.config.ProjectID, s.config.Topic),
+			Name:                     fmt.Sprintf("projects/%s/subscriptions/%s", s.cfg.ProjectID, s.cfg.Subscription),
+			Topic:                    fmt.Sprintf("projects/%s/topics/%s", s.cfg.ProjectID, s.cfg.Topic),
 			AckDeadlineSeconds:       ackDeadline,
-			RetainAckedMessages:      s.config.RetainAcked,
+			RetainAckedMessages:      s.cfg.RetainAcked,
 			MessageRetentionDuration: durationpb.New(time.Duration(retention) * time.Second),
 		})
 		if err != nil && !strings.Contains(err.Error(), "AlreadyExists") {
 			return nil, fmt.Errorf("error creating subscription: %w", err)
 		}
 	}
-	s.sub = client.Subscriber(s.config.Subscription)
+	s.sub = client.Subscriber(s.cfg.Subscription)
 
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting PubSub source", "projectID", s.config.ProjectID, "subscription", s.config.Subscription)
+	s.slog.Info("starting PubSub source", "projectID", s.cfg.ProjectID, "subscription", s.cfg.Subscription)
 
 	go func() {
 		err := s.sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
@@ -113,7 +94,6 @@ func (s *PubSubSource) Produce(buffer int) (<-chan *message.RunnerMessage, error
 		}
 	}()
 
-	s.started = true
 	return s.c, nil
 }
 

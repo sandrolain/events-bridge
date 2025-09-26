@@ -6,42 +6,27 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/segmentio/kafka-go"
 )
 
 type TargetConfig struct {
-	Brokers           []string `yaml:"brokers" json:"brokers"`
-	Topic             string   `yaml:"topic" json:"topic"`
-	Partitions        int      `yaml:"partitions" json:"partitions"`
-	ReplicationFactor int      `yaml:"replication_factor" json:"replication_factor"`
-}
-
-// parseTargetOptions builds a Kafka target config from options map.
-// Expected keys: brokers ([]string), topic, partitions, replication_factor.
-func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
-	cfg := &TargetConfig{}
-	op := &utils.OptsParser{}
-	cfg.Brokers = op.OptStringArray(opts, "brokers", nil, utils.StringNonEmpty())
-	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
-	cfg.Partitions = op.OptInt(opts, "partitions", 1, utils.IntMin(1))
-	cfg.ReplicationFactor = op.OptInt(opts, "replication_factor", 1, utils.IntMin(1))
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Brokers           []string `mapstructure:"brokers" validate:"required,min=1"`
+	Topic             string   `mapstructure:"topic" validate:"required"`
+	Partitions        int      `mapstructure:"partitions" validate:"required,gt=0"`
+	ReplicationFactor int      `mapstructure:"replicationFactor" validate:"required,gt=0"`
 }
 
 // NewTarget creates a Kafka target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 
-	l := slog.Default().With("context", "Kafka")
+	l := slog.Default().With("context", "Kafka Target")
 
 	// Create the topic if it does not exist
 	err = ensureKafkaTopic(l, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor)
@@ -56,15 +41,15 @@ func NewTarget(opts map[string]any) (targets.Target, error) {
 	l.Info("Kafka target connected", "brokers", cfg.Brokers, "topic", cfg.Topic)
 
 	return &KafkaTarget{
-		config: cfg,
+		cfg:    cfg,
 		slog:   l,
 		writer: writer,
 	}, nil
 }
 
 type KafkaTarget struct {
+	cfg    *TargetConfig
 	slog   *slog.Logger
-	config *TargetConfig
 	writer *kafka.Writer
 }
 
@@ -79,7 +64,7 @@ func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	t.slog.Debug("publishing Kafka message", "topic", t.config.Topic, "bodysize", len(data))
+	t.slog.Debug("publishing Kafka message", "topic", t.cfg.Topic, "bodysize", len(data))
 
 	kmsg := kafka.Message{
 		Key:   msg.GetID(),
@@ -104,7 +89,7 @@ func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
 	if err != nil {
 		return fmt.Errorf("error publishing to Kafka: %w", err)
 	}
-	t.slog.Debug("Kafka message published", "topic", t.config.Topic)
+	t.slog.Debug("Kafka message published", "topic", t.cfg.Topic)
 	return nil
 }
 

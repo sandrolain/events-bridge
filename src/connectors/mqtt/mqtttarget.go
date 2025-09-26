@@ -7,38 +7,22 @@ import (
 	"log/slog"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type TargetConfig struct {
-	Address              string `yaml:"address" json:"address"`
-	Topic                string `yaml:"topic" json:"topic"`
-	ClientID             string `yaml:"clientID" json:"clientID"`
-	QoS                  int    `yaml:"qos" json:"qos"`
-	TopicFromMetadataKey string `yaml:"topicFromMetadataKey" json:"topicFromMetadataKey"`
-}
-
-// parseTargetOptions builds a config from options map with validation.
-// Expected keys: address, topic, clientID, qos, topicFromMetadataKey.
-func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
-	cfg := &TargetConfig{}
-	op := &utils.OptsParser{}
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
-	cfg.ClientID = op.OptString(opts, "clientID", "events-bridge-target-"+fmt.Sprint(time.Now().UnixNano()))
-	cfg.QoS = op.OptInt(opts, "qos", 0, utils.IntMin(0), utils.IntMax(2))
-	cfg.TopicFromMetadataKey = op.OptString(opts, "topicFromMetadataKey", "")
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Address              string `mapstructure:"address" validate:"required"`
+	Topic                string `mapstructure:"topic" validate:"required"`
+	ClientID             string `mapstructure:"clientId" validate:"required"`
+	QoS                  int    `mapstructure:"qos" default:"0" validate:"required,min=0,max=2"`
+	TopicFromMetadataKey string `mapstructure:"topicFromMetadataKey" validate:"required"`
 }
 
 // NewTarget creates an MQTT target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
 		return nil, err
 	}
@@ -57,23 +41,23 @@ func NewTarget(opts map[string]any) (targets.Target, error) {
 		return nil, fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
 	}
 
-	l := slog.Default().With("context", "MQTT")
+	l := slog.Default().With("context", "MQTT Target")
 
 	l.Info("MQTT target connected", "address", cfg.Address, "topic", cfg.Topic)
 
 	return &MQTTTarget{
-		config: cfg,
+		cfg:    cfg,
 		slog:   l,
 		client: client,
 	}, nil
 }
 
 type MQTTTarget struct {
+	cfg     *TargetConfig
 	slog    *slog.Logger
-	config  *TargetConfig
+	client  mqtt.Client
 	stopped bool
 	stopCh  chan struct{}
-	client  mqtt.Client
 }
 
 func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
@@ -82,10 +66,10 @@ func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	topic := t.config.Topic
-	topic = utils.ResolveFromMetadata(msg, t.config.TopicFromMetadataKey, topic)
+	topic := t.cfg.Topic
+	topic = common.ResolveFromMetadata(msg, t.cfg.TopicFromMetadataKey, topic)
 
-	qos := byte(t.config.QoS)
+	qos := byte(t.cfg.QoS)
 	if qos > 2 {
 		qos = 0
 	}

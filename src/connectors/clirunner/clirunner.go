@@ -9,46 +9,33 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/cliformat"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 // Ensure CLIRunner implements runner.Runner
-var _ runners.Runner = &CLIRunner{}
-
-type Config struct {
-	Command string
-	Timeout time.Duration
-	Args    []string
-	Envs    map[string]string
-}
+var _ connectors.Runner = &CLIRunner{}
 
 type CLIRunner struct {
-	cfg     *Config
+	cfg     *RunnerConfig
 	slog    *slog.Logger
 	timeout time.Duration
 }
 
-func parseConfig(opts map[string]any) (*Config, error) {
-	cfg := &Config{}
-	parser := &utils.OptsParser{}
-	cfg.Command = parser.OptString(opts, "command", "", utils.StringNonEmpty())
-	cfg.Args = parser.OptStringArray(opts, "args", nil)
-	cfg.Envs = parser.OptStringMap(opts, "envs", nil)
-	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
-	if err := parser.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+type RunnerConfig struct {
+	Command string            `mapstructure:"command" validate:"required"`
+	Timeout time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Args    []string          `mapstructure:"args"`
+	Envs    map[string]string `mapstructure:"envs"`
 }
 
-func New(opts map[string]any) (runners.Runner, error) {
-	cfg, err := parseConfig(opts)
+func NewRunner(opts map[string]any) (connectors.Runner, error) {
+	cfg, err := common.ParseConfig[RunnerConfig](opts)
 	if err != nil {
 		return nil, err
 	}
-	log := slog.Default().With("context", "CLI")
+	log := slog.Default().With("context", "CLI Runner")
 
 	return &CLIRunner{
 		cfg:     cfg,

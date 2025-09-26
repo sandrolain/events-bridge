@@ -54,6 +54,14 @@ func (p *PluginManager) Stop() (err error) {
 	return
 }
 
+func (p *PluginManager) GetOrCreatePlugin(cfg PluginConfig) (plg *Plugin, err error) {
+	plg, ok := p.plugins[cfg.Name]
+	if !ok {
+		plg, err = p.CreatePlugin(cfg)
+	}
+	return
+}
+
 func (p *PluginManager) CreatePlugin(cfg PluginConfig) (plg *Plugin, err error) {
 	p.slog.Info("creating plugin", "id", cfg.Name)
 

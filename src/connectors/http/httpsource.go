@@ -6,62 +6,46 @@ import (
 	"net"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/valyala/fasthttp"
 )
 
 type SourceConfig struct {
-	Address string        `yaml:"address" json:"address"`
-	Method  string        `yaml:"method" json:"method"`
-	Path    string        `yaml:"path" json:"path"`
-	Timeout time.Duration `yaml:"timeout" json:"timeout"`
-}
-
-// parseSourceOptions decodes a generic options map into the connector-specific config.
-// Expected keys: address, method, path, timeout.
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	op := &utils.OptsParser{}
-	cfg := &SourceConfig{}
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Method = op.OptString(opts, "method", "", utils.StringNonEmpty())
-	cfg.Path = op.OptString(opts, "path", "", utils.StringNonEmpty())
-	cfg.Timeout = op.OptDuration(opts, "timeout", sources.DefaultTimeout)
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Address string        `mapstructure:"address" validate:"required"`
+	Method  string        `mapstructure:"method" validate:"required"`
+	Path    string        `mapstructure:"path" validate:"required"`
+	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
 }
 
 // NewSource creates an HTTP source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	return &HTTPSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "HTTP"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "HTTP Source"),
 	}, nil
 }
 
 type HTTPSource struct {
-	config   *SourceConfig
+	cfg      *SourceConfig
 	slog     *slog.Logger
-	listener net.Listener
 	c        chan *message.RunnerMessage
-	started  bool
+	listener net.Listener
 }
 
 func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting HTTP server", "addr", s.config.Address, "method", s.config.Method, "path", s.config.Path)
+	s.slog.Info("starting HTTP server", "addr", s.cfg.Address, "method", s.cfg.Method, "path", s.cfg.Path)
 
 	// TODO: manage TLS?
 	var e error
-	s.listener, e = net.Listen("tcp", s.config.Address)
+	s.listener, e = net.Listen("tcp", s.cfg.Address)
 	if e != nil {
 		err = fmt.Errorf("failed to listen: %w", e)
 		return
@@ -69,8 +53,8 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 
 	go func() {
 
-		reqMethod := s.config.Method
-		reqPath := s.config.Path
+		reqMethod := s.cfg.Method
+		reqPath := s.cfg.Path
 
 		e = fasthttp.Serve(s.listener, func(ctx *fasthttp.RequestCtx) {
 			method := string(ctx.Method())
@@ -100,7 +84,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 			s.c <- message.NewRunnerMessage(msg)
 
 			// Wait for Ack/Nak or reply using helper
-			r, status, timeout := utils.AwaitReplyOrStatus(s.config.Timeout, done, reply)
+			r, status, timeout := common.AwaitReplyOrStatus(s.cfg.Timeout, done, reply)
 			if timeout {
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 				return
@@ -129,8 +113,6 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 			err = fmt.Errorf("failed to start HTTP server: %w", e)
 		}
 	}()
-
-	s.started = true
 
 	res = s.c
 

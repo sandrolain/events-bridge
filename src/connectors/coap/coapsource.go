@@ -13,77 +13,58 @@ import (
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 	coapnet "github.com/plgd-dev/go-coap/v3/net"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
-	Protocol CoAPProtocol  `yaml:"protocol" json:"protocol"`
-	Address  string        `yaml:"address" json:"address"`
-	Path     string        `yaml:"path" json:"path"`
-	Method   string        `yaml:"method" json:"method"`
-	Timeout  time.Duration `yaml:"timeout" json:"timeout"`
-}
-
-// parseSourceOptions builds a CoAP source config from options map.
-// Expected keys: protocol ("udp"|"tcp"), address, path, method, timeout (ns).
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	cfg := &SourceConfig{}
-	var p utils.OptsParser
-	cfg.Protocol = CoAPProtocol(p.OptString(opts, "protocol", string(CoAPProtocolUDP), utils.StringOneOf(string(CoAPProtocolUDP), string(CoAPProtocolTCP))))
-	cfg.Address = p.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Path = p.OptString(opts, "path", "", utils.StringNonEmpty())
-	cfg.Method = p.OptString(opts, "method", "", utils.StringNonEmpty())
-	cfg.Timeout = p.OptDuration(opts, "timeout", sources.DefaultTimeout)
-	if err := p.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Protocol CoAPProtocol  `mapstructure:"protocol" default:"udp" validate:"oneof=udp tcp"`
+	Address  string        `mapstructure:"address" validate:"required"`
+	Path     string        `mapstructure:"path" validate:"required"`
+	Method   string        `mapstructure:"method" validate:"required"`
+	Timeout  time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 }
 
 // NewSource creates a CoAP source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
-
 	return &CoAPSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "CoAP"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "CoAP Source"),
 	}, nil
 }
 
 type CoAPSource struct {
-	config  *SourceConfig
-	slog    *slog.Logger
-	c       chan *message.RunnerMessage
-	started bool
-	conn    *coapnet.UDPConn
+	cfg  *SourceConfig
+	slog *slog.Logger
+	c    chan *message.RunnerMessage
+	conn *coapnet.UDPConn
 }
 
 func (s *CoAPSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting CoAP server", "protocol", s.config.Protocol, "addr", s.config.Address, "method", s.config.Method, "path", s.config.Path)
+	s.slog.Info("starting CoAP server", "protocol", s.cfg.Protocol, "addr", s.cfg.Address, "method", s.cfg.Method, "path", s.cfg.Path)
 
 	router := coapmux.NewRouter()
 	router.Use(loggingMiddleware)
-	e := router.Handle(s.config.Path, coapmux.HandlerFunc(s.handleCoAP))
+	e := router.Handle(s.cfg.Path, coapmux.HandlerFunc(s.handleCoAP))
 	if e != nil {
-		err := fmt.Errorf("failed to handle CoAP path %q: %w", s.config.Path, e)
+		err := fmt.Errorf("failed to handle CoAP path %q: %w", s.cfg.Path, e)
 		return nil, err
 	}
 
 	go func() {
-		err := coap.ListenAndServe(string(s.config.Protocol), s.config.Address, router)
+		err := coap.ListenAndServe(string(s.cfg.Protocol), s.cfg.Address, router)
 		if err != nil {
 			s.slog.Error("failed to start CoAP server", "err", err)
 		}
 	}()
 
-	s.started = true
 	return s.c, nil
 }
 
@@ -95,7 +76,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 
 	s.slog.Debug("received CoAP request", "method", method, "path", path)
 
-	if s.config.Method != "" && method != s.config.Method {
+	if s.cfg.Method != "" && method != s.cfg.Method {
 		err := w.SetResponse(coapcodes.MethodNotAllowed, coapmessage.TextPlain, nil)
 		if err != nil {
 			s.slog.Error(failResponseError, "err", err)
@@ -103,7 +84,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 		return
 	}
 
-	if path != s.config.Path {
+	if path != s.cfg.Path {
 		err := w.SetResponse(coapcodes.NotFound, coapmessage.TextPlain, nil)
 		if err != nil {
 			s.slog.Error(failResponseError, "err", err)
@@ -122,7 +103,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 
 	s.c <- message.NewRunnerMessage(msg)
 
-	r, status, timeout := utils.AwaitReplyOrStatus(s.config.Timeout, done, reply)
+	r, status, timeout := common.AwaitReplyOrStatus(s.cfg.Timeout, done, reply)
 	var err error
 	if timeout {
 		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)

@@ -6,41 +6,26 @@ import (
 	"time"
 
 	nats "github.com/nats-io/nats.go"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/targets"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type TargetConfig struct {
-	Address                string        `yaml:"address" json:"address"`
-	Subject                string        `yaml:"subject" json:"subject"`
-	SubjectFromMetadataKey string        `yaml:"subjectFromMetadataKey" json:"subjectFromMetadataKey"`
-	Timeout                time.Duration `yaml:"timeout" json:"timeout"`
-}
-
-// parseTargetOptions builds a NATS target config from options map.
-// Expected keys: address, subject, subjectFromMetadataKey, timeout.
-func parseTargetOptions(opts map[string]any) (*TargetConfig, error) {
-	cfg := &TargetConfig{}
-	op := &utils.OptsParser{}
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Subject = op.OptString(opts, "subject", "", utils.StringNonEmpty())
-	cfg.SubjectFromMetadataKey = op.OptString(opts, "subjectFromMetadataKey", "")
-	cfg.Timeout = op.OptDuration(opts, "timeout", targets.DefaultTimeout)
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Address                string        `mapstructure:"address" validate:"required"`
+	Subject                string        `mapstructure:"subject" validate:"required"`
+	SubjectFromMetadataKey string        `mapstructure:"subjectFromMetadataKey"`
+	Timeout                time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 }
 
 // NewTarget creates the NATS target from options map.
-func NewTarget(opts map[string]any) (targets.Target, error) {
-	cfg, err := parseTargetOptions(opts)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 
-	l := slog.Default().With("context", "NATS")
+	l := slog.Default().With("context", "NATS Target")
 
 	conn, err := nats.Connect(cfg.Address)
 	if err != nil {
@@ -49,16 +34,16 @@ func NewTarget(opts map[string]any) (targets.Target, error) {
 	l.Info("NATS target connected", "address", cfg.Address, "subject", cfg.Subject)
 
 	return &NATSTarget{
-		config: cfg,
-		slog:   l,
-		conn:   conn,
+		cfg:  cfg,
+		slog: l,
+		conn: conn,
 	}, nil
 }
 
 type NATSTarget struct {
-	slog   *slog.Logger
-	config *TargetConfig
-	conn   *nats.Conn
+	cfg  *TargetConfig
+	slog *slog.Logger
+	conn *nats.Conn
 }
 
 func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {
@@ -67,7 +52,7 @@ func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	subject := utils.ResolveFromMetadata(msg, t.config.SubjectFromMetadataKey, t.config.Subject)
+	subject := common.ResolveFromMetadata(msg, t.cfg.SubjectFromMetadataKey, t.cfg.Subject)
 
 	t.slog.Debug("publishing NATS message", "subject", subject, "bodysize", len(data))
 

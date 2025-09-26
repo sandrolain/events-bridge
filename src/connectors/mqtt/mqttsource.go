@@ -6,60 +6,44 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
-	Address       string `yaml:"address" json:"address"`
-	Topic         string `yaml:"topic" json:"topic"`
-	ClientID      string `yaml:"client_id" json:"client_id"`
-	ConsumerGroup string `yaml:"consumer_group" json:"consumer_group"`
-}
-
-// parseSourceOptions builds a config from options map with validation.
-// Expected keys: address, topic, client_id, consumer_group.
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	cfg := &SourceConfig{}
-	op := &utils.OptsParser{}
-	cfg.Address = op.OptString(opts, "address", "", utils.StringNonEmpty())
-	cfg.Topic = op.OptString(opts, "topic", "", utils.StringNonEmpty())
-	cfg.ClientID = op.OptString(opts, "client_id", "")
-	cfg.ConsumerGroup = op.OptString(opts, "consumer_group", "")
-	if err := op.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	Address       string `mapstructure:"address" validate:"required"`
+	Topic         string `mapstructure:"topic" validate:"required"`
+	ClientID      string `mapstructure:"clientId" validate:"required"`
+	ConsumerGroup string `mapstructure:"consumerGroup" validate:"required"`
 }
 
 type MQTTSource struct {
-	config  *SourceConfig
-	slog    *slog.Logger
-	c       chan *message.RunnerMessage
-	client  mqtt.Client
-	started bool
+	cfg    *SourceConfig
+	slog   *slog.Logger
+	c      chan *message.RunnerMessage
+	client mqtt.Client
 }
 
 // NewSource creates the MQTT source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	return &MQTTSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "MQTT"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "MQTT Source"),
 	}, nil
 }
 
 func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting MQTT source", "address", s.config.Address, "topic", s.config.Topic, "consumerGroup", s.config.ConsumerGroup)
+	s.slog.Info("starting MQTT source", "address", s.cfg.Address, "topic", s.cfg.Topic, "consumerGroup", s.cfg.ConsumerGroup)
 
-	opts := mqtt.NewClientOptions().AddBroker("tcp://" + s.config.Address)
-	clientID := s.config.ClientID
+	opts := mqtt.NewClientOptions().AddBroker("tcp://" + s.cfg.Address)
+	clientID := s.cfg.ClientID
 	if clientID == "" {
 		clientID = "events-bridge-" + fmt.Sprint(time.Now().UnixNano())
 	}
@@ -74,10 +58,10 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 	}
 	s.client = client
 
-	topic := s.config.Topic
+	topic := s.cfg.Topic
 
-	if s.config.ConsumerGroup != "" {
-		topic = fmt.Sprintf("$share/%s/%s", s.config.ConsumerGroup, topic)
+	if s.cfg.ConsumerGroup != "" {
+		topic = fmt.Sprintf("$share/%s/%s", s.cfg.ConsumerGroup, topic)
 	}
 
 	s.slog.Info("subscribing to topic", "topic", topic)
@@ -103,7 +87,6 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 		return nil, fmt.Errorf("failed to subscribe to topic: %w", token.Error())
 	}
 
-	s.started = true
 	return s.c, nil
 }
 

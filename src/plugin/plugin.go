@@ -18,16 +18,16 @@ import (
 )
 
 type PluginConfig struct {
-	Name           string        `yaml:"name" json:"name" validate:"required"`
-	Exec           string        `yaml:"exec" json:"exec" validate:"required"`
-	Args           []string      `yaml:"args" json:"args" validate:"omitempty"`
-	Env            []string      `yaml:"env" json:"env" validate:"omitempty"`
-	Protocol       string        `yaml:"protocol" json:"protocol" validate:"required,oneof=unix tcp"`
-	Delay          time.Duration `yaml:"delay" json:"delay" validate:"omitempty"`
-	Retry          int           `yaml:"retry" json:"retry" validate:"omitempty,gt=0"`
-	Output         bool          `yaml:"output" json:"output"`
-	StatusInterval time.Duration `yaml:"statusInterval" json:"statusInterval" validate:"omitempty"` // Interval to check status
-	Timeout        time.Duration `yaml:"timeout" json:"timeout" validate:"omitempty"`               // Timeout for plugin operations
+	Name           string        `mapstructure:"name" validate:"required"`
+	Exec           string        `mapstructure:"exec" validate:"required"`
+	Args           []string      `mapstructure:"args" validate:"omitempty"`
+	Env            []string      `mapstructure:"env" validate:"omitempty"`
+	Protocol       string        `mapstructure:"protocol" validate:"required,oneof=unix tcp"`
+	Delay          time.Duration `mapstructure:"delay" default:"500ms" validate:"omitempty"`
+	Retry          int           `mapstructure:"retry" default:"3" validate:"omitempty,gt=0"`
+	Output         bool          `mapstructure:"output"`
+	StatusInterval time.Duration `mapstructure:"statusInterval" default:"3s" validate:"omitempty"` // Interval to check status
+	Timeout        time.Duration `mapstructure:"timeout" default:"5s" validate:"omitempty"`        // Timeout for plugin operations
 }
 
 type Plugin struct {
@@ -180,11 +180,7 @@ func (p *Plugin) startCheckStatus() {
 		}
 		p.slog.Debug("Plugin status", "name", cfg.Name, "status", sts.Status)
 		// TODO: handle status
-		interval := p.Config.StatusInterval
-		if interval <= 0 {
-			interval = 5 * time.Second
-		}
-		time.Sleep(interval)
+		time.Sleep(cfg.StatusInterval)
 	}
 }
 

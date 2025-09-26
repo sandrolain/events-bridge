@@ -10,33 +10,33 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/utils"
 	openai "github.com/sashabaranov/go-openai"
 )
 
-// Ensure GPTRunner implements runners.Runner
-var _ runners.Runner = &GPTRunner{}
+// Ensure GPTRunner implements connectors.Runner
+var _ connectors.Runner = &GPTRunner{}
 
 const (
 	errNoChoicesFromOpenAI = "no choices from openai"
 	logNakMessage          = "error naking message"
 )
 
-type Config struct {
-	ApiURL    string
-	ApiKey    string
-	Action    string
-	Model     string
-	BatchSize int
-	BatchWait time.Duration
-	MaxTokens int
-	Timeout   time.Duration
+type RunnerConfig struct {
+	ApiURL    string        `mapstructure:"apiUrl" validate:"required"`
+	ApiKey    string        `mapstructure:"apiKey" validate:"required"`
+	Action    string        `mapstructure:"action" validate:"required"`
+	Model     string        `mapstructure:"model" validate:"required"`
+	BatchSize int           `mapstructure:"batchSize"`
+	BatchWait time.Duration `mapstructure:"batchWait"`
+	MaxTokens int           `mapstructure:"maxTokens"`
+	Timeout   time.Duration `mapstructure:"timeout" default:"10s" validate:"required"`
 }
 
 type GPTRunner struct {
-	cfg    *Config
+	cfg    *RunnerConfig
 	slog   *slog.Logger
 	client *openai.Client
 }
@@ -51,29 +51,12 @@ type resultItem struct {
 	Result string `json:"result"`
 }
 
-func parseConfig(opts map[string]any) (*Config, error) {
-	cfg := &Config{}
-	parser := &utils.OptsParser{}
-	cfg.ApiURL = parser.OptString(opts, "api_url", "", utils.StringNonEmpty())
-	cfg.ApiKey = parser.OptString(opts, "api_key", "", utils.StringNonEmpty())
-	cfg.Action = parser.OptString(opts, "action", "", utils.StringNonEmpty())
-	cfg.Model = parser.OptString(opts, "model", openai.GPT3Dot5Turbo)
-	cfg.BatchSize = parser.OptInt(opts, "batch_size", 0)
-	cfg.BatchWait = parser.OptDuration(opts, "batch_wait", 0)
-	cfg.MaxTokens = parser.OptInt(opts, "max_tokens", 0)
-	cfg.Timeout = parser.OptDuration(opts, "timeout", runners.DefaultTimeout, utils.DurationPositive())
-	if err := parser.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
-}
-
-func New(opts map[string]any) (runners.Runner, error) {
-	cfg, err := parseConfig(opts)
+func NewRunner(opts map[string]any) (connectors.Runner, error) {
+	cfg, err := common.ParseConfig[RunnerConfig](opts)
 	if err != nil {
 		return nil, err
 	}
-	log := slog.Default().With("context", "GPTRUNNER")
+	log := slog.Default().With("context", "GTP Runner")
 
 	clientConfig := openai.DefaultConfig(cfg.ApiKey)
 	if cfg.ApiURL != "" {

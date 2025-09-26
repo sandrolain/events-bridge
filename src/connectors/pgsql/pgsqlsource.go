@@ -7,65 +7,50 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type SourceConfig struct {
-	ConnString string `yaml:"conn_string" json:"conn_string"`
-	Table      string `yaml:"table" json:"table"`
-}
-
-// parseSourceOptions builds a PGSQL source config from options map.
-// Expected keys: conn_string, table.
-func parseSourceOptions(opts map[string]any) (*SourceConfig, error) {
-	var p utils.OptsParser
-	cfg := &SourceConfig{
-		ConnString: p.OptString(opts, "conn_string", "", utils.StringNonEmpty()),
-		Table:      p.OptString(opts, "table", "", utils.StringNonEmpty()),
-	}
-	if err := p.Error(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	ConnString string `mapstructure:"conn_string" validate:"required"`
+	Table      string `mapstructure:"table" validate:"required"`
 }
 
 type PGSQLSource struct {
-	config  *SourceConfig
-	slog    *slog.Logger
-	c       chan *message.RunnerMessage
-	conn    *pgx.Conn
-	started bool
+	cfg  *SourceConfig
+	slog *slog.Logger
+	c    chan *message.RunnerMessage
+	conn *pgx.Conn
 }
 
 // NewSource creates a PGSQL source from options map.
-func NewSource(opts map[string]any) (sources.Source, error) {
-	cfg, err := parseSourceOptions(opts)
+func NewSource(opts map[string]any) (connectors.Source, error) {
+	cfg, err := common.ParseConfig[SourceConfig](opts)
 	if err != nil {
 		return nil, err
 	}
 	return &PGSQLSource{
-		config: cfg,
-		slog:   slog.Default().With("context", "PGSQL"),
+		cfg:  cfg,
+		slog: slog.Default().With("context", "PGSQL Source"),
 	}, nil
 }
 
 func (s *PGSQLSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting PGSQL source", "connString", s.config.ConnString, "table", s.config.Table)
+	s.slog.Info("starting PGSQL source", "connString", s.cfg.ConnString, "table", s.cfg.Table)
 
 	ctx := context.Background()
-	conn, err := pgx.Connect(ctx, s.config.ConnString)
+	conn, err := pgx.Connect(ctx, s.cfg.ConnString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
 	s.conn = conn
 
-	query, err := s.setupTrigger(ctx, conn, s.config.Table)
+	query, err := s.setupTrigger(ctx, conn, s.cfg.Table)
 	if err != nil {
-		return nil, fmt.Errorf("failed to setup trigger for table %s: %w", s.config.Table, err)
+		return nil, fmt.Errorf("failed to setup trigger for table %s: %w", s.cfg.Table, err)
 	}
 
 	_, err = conn.Exec(ctx, query)
@@ -75,7 +60,6 @@ func (s *PGSQLSource) Produce(buffer int) (<-chan *message.RunnerMessage, error)
 
 	go s.listenLoop()
 
-	s.started = true
 	return s.c, nil
 }
 

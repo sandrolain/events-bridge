@@ -105,6 +105,7 @@ tasks:
       - rm -rf ./bin
       - mkdir -p ./bin/connectors
       - mkdir -p ./bin/runners
+      - go build -buildmode=plugin -o ./bin/connectors/plugin.so ./src/connectors/plugin && du -h ./bin/connectors/plugin.so
       - go build -buildmode=plugin -o ./bin/connectors/http.so ./src/connectors/http && du -h ./bin/connectors/http.so
       - go build -buildmode=plugin -o ./bin/connectors/coap.so ./src/connectors/coap && du -h ./bin/connectors/coap.so
       - go build -buildmode=plugin -o ./bin/connectors/nats.so ./src/connectors/nats && du -h ./bin/connectors/nats.so
@@ -113,10 +114,10 @@ tasks:
       - go build -buildmode=plugin -o ./bin/connectors/kafka.so ./src/connectors/kafka && du -h ./bin/connectors/kafka.so
       - go build -buildmode=plugin -o ./bin/connectors/redis.so ./src/connectors/redis && du -h ./bin/connectors/redis.so
       - go build -buildmode=plugin -o ./bin/connectors/git.so ./src/connectors/git && du -h ./bin/connectors/git.so
-      - go build -buildmode=plugin -o ./bin/runners/es5.so ./src/runners/es5runner && du -h ./bin/runners/es5.so
-      - go build -buildmode=plugin -o ./bin/runners/wasm.so ./src/runners/wasmrunner && du -h ./bin/runners/wasm.so
-      - go build -buildmode=plugin -o ./bin/runners/gtp.so ./src/runners/gptrunner && du -h ./bin/runners/gtp.so
-      - go build -buildmode=plugin -o ./bin/runners/jsonlogic.so ./src/runners/jlorunner && du -h ./bin/runners/jsonlogic.so
+      - go build -buildmode=plugin -o ./bin/connectors/es5.so ./src/connectors/es5 && du -h ./bin/connectors/es5.so
+      - go build -buildmode=plugin -o ./bin/connectors/wasm.so ./src/connectors/wasm && du -h ./bin/connectors/wasm.so
+      - go build -buildmode=plugin -o ./bin/connectors/gpt.so ./src/connectors/gpt && du -h ./bin/connectors/gpt.so
+      - go build -buildmode=plugin -o ./bin/connectors/jsonlogic.so ./src/connectors/jsonlogic && du -h ./bin/connectors/jsonlogic.so
       - go build -o ./bin/events-bridge ./src  && du -h ./bin/events-bridge
 
   gen-plugin-proto:

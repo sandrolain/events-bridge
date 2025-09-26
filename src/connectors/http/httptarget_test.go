@@ -96,7 +96,7 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 }
 
 func TestHTTPTargetSendErrorMetadata(t *testing.T) {
-	httpTgt := &HTTPTarget{config: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
+	httpTgt := &HTTPTarget{cfg: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &metaErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)
@@ -106,7 +106,7 @@ func TestHTTPTargetSendErrorMetadata(t *testing.T) {
 }
 
 func TestHTTPTargetSendErrorData(t *testing.T) {
-	httpTgt := &HTTPTarget{config: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
+	httpTgt := &HTTPTarget{cfg: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &dataErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)

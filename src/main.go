@@ -10,13 +10,8 @@ import (
 	"github.com/destel/rill"
 	"github.com/lmittmann/tint"
 	"github.com/sandrolain/events-bridge/src/config"
-	pluginconn "github.com/sandrolain/events-bridge/src/connectors/plugin"
+	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/plugin"
-	"github.com/sandrolain/events-bridge/src/runners"
-	"github.com/sandrolain/events-bridge/src/runners/pluginrunner"
-	"github.com/sandrolain/events-bridge/src/sources"
-	"github.com/sandrolain/events-bridge/src/targets"
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
@@ -46,34 +41,9 @@ func main() {
 		targetRoutines = 1
 	}
 
-	var source sources.Source
-	var runner runners.Runner
-	var target targets.Target
-
-	// Plugin manager initialization
-	plgMan, err := plugin.GetPluginManager()
-	if err != nil {
-		fatal(err, "failed to get plugin manager")
-	}
-
-	if cfg.Plugins != nil {
-		slog.Info("loading plugins", "count", len(cfg.Plugins))
-		for _, p := range cfg.Plugins {
-			slog.Info("loading plugin", "id", p.Name, "exec", p.Exec)
-			plg, err := plgMan.CreatePlugin(p)
-			if err != nil {
-				fatal(err, "failed to load plugin")
-			}
-
-			err = plg.Start()
-			if err != nil {
-				fatal(err, "failed to start plugin")
-				os.Exit(1)
-			}
-		}
-	} else {
-		slog.Info("no plugins configured")
-	}
+	var source connectors.Source
+	var runner connectors.Runner
+	var target connectors.Target
 
 	// Setup source, runner, and target
 
@@ -190,7 +160,7 @@ func main() {
 	select {}
 }
 
-func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
+func createSource(cfg connectors.SourceConfig) (source connectors.Source, err error) {
 	slog.Info("creating source", "type", cfg.Type, "buffer", cfg.Buffer)
 
 	if cfg.Type == "" || cfg.Type == "none" {
@@ -198,24 +168,14 @@ func createSource(cfg sources.SourceConfig) (source sources.Source, err error) {
 		return
 	}
 
-	if cfg.Type == "plugin" {
-		plgMan, e := plugin.GetPluginManager()
-		if e != nil {
-			err = fmt.Errorf("failed to get plugin manager: %w", e)
-			return
-		}
-		source, err = pluginconn.NewSource(plgMan, cfg.Plugin)
-		return
-	}
-
 	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
 
-	source, err = utils.LoadPlugin[map[string]any, sources.Source](path, sources.NewMethodName, cfg.Options)
+	source, err = utils.LoadPlugin[map[string]any, connectors.Source](path, connectors.NewSourceMethodName, cfg.Options)
 
 	return
 }
 
-func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
+func createTarget(cfg connectors.TargetConfig) (target connectors.Target, err error) {
 	slog.Info("creating target", "type", cfg.Type)
 
 	if cfg.Type == "" || cfg.Type == "none" {
@@ -224,24 +184,14 @@ func createTarget(cfg targets.TargetConfig) (target targets.Target, err error) {
 		return
 	}
 
-	if cfg.Type == "plugin" {
-		plgMan, e := plugin.GetPluginManager()
-		if e != nil {
-			err = fmt.Errorf("failed to get plugin manager: %w", e)
-			return
-		}
-		target, err = pluginconn.NewTarget(plgMan, cfg.Plugin)
-		return
-	}
-
 	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
 
-	target, err = utils.LoadPlugin[map[string]any, targets.Target](path, targets.NewMethodName, cfg.Options)
+	target, err = utils.LoadPlugin[map[string]any, connectors.Target](path, connectors.NewTargetMethodName, cfg.Options)
 
 	return
 }
 
-func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
+func createRunner(cfg connectors.RunnerConfig) (runner connectors.Runner, err error) {
 	slog.Info("creating runner", "type", cfg.Type)
 
 	if cfg.Type == "" || cfg.Type == "none" {
@@ -250,19 +200,9 @@ func createRunner(cfg runners.RunnerConfig) (runner runners.Runner, err error) {
 		return
 	}
 
-	if cfg.Type == "plugin" {
-		plgMan, e := plugin.GetPluginManager()
-		if e != nil {
-			err = fmt.Errorf("failed to get plugin manager: %w", e)
-			return
-		}
-		runner, err = pluginrunner.New(plgMan, cfg.Options)
-		return
-	}
+	path := fmt.Sprintf("./connectors/%s.so", strings.ToLower(cfg.Type))
 
-	path := fmt.Sprintf("./runners/%s.so", strings.ToLower(cfg.Type))
-
-	runner, err = utils.LoadPlugin[map[string]any, runners.Runner](path, runners.NewMethodName, cfg.Options)
+	runner, err = utils.LoadPlugin[map[string]any, connectors.Runner](path, connectors.NewRunnerMethodName, cfg.Options)
 
 	return
 }

@@ -1,4 +1,4 @@
-package pluginconn
+package main
 
 import (
 	"context"
@@ -6,58 +6,59 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/plugin"
-	"github.com/sandrolain/events-bridge/src/targets"
 )
 
-type PluginTarget struct {
-	config  *targets.TargetPluginConfig
-	timeout time.Duration
-	slog    *slog.Logger
-	mgr     *plugin.PluginManager
-	plg     *plugin.Plugin
-	stopped bool
-	stopCh  chan struct{}
+var _ connectors.Target = &PluginTarget{}
+
+type TargetConfig struct {
+	Plugin  plugin.PluginConfig `mapstructure:"plugin" validate:"required,dive"`
+	Config  map[string]string   `mapstructure:"config"`
+	Timeout time.Duration       `mapstructure:"timeout" default:"5s" validate:"required,gt=0"`
 }
 
-func NewTarget(mgr *plugin.PluginManager, cfg *targets.TargetPluginConfig) (targets.Target, error) {
-	if mgr == nil {
-		return nil, fmt.Errorf("plugin manager cannot be nil")
-	}
-	if cfg == nil {
-		return nil, fmt.Errorf("plugin target config cannot be nil")
-	}
+type PluginTarget struct {
+	cfg    *TargetConfig
+	slog   *slog.Logger
+	plg    *plugin.Plugin
+	stopCh chan struct{}
+}
 
-	plg, err := mgr.GetPlugin(cfg.Name)
+func NewTarget(opts map[string]any) (connectors.Target, error) {
+	cfg, err := common.ParseConfig[TargetConfig](opts)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Name, err)
+		return nil, err
 	}
 
-	timeout := cfg.Timeout
-	if timeout <= 0 {
-		timeout = targets.DefaultTimeout
+	mgr, err := plugin.GetPluginManager()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get plugin manager: %w", err)
+	}
+
+	plg, err := mgr.GetOrCreatePlugin(cfg.Plugin)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get plugin %s: %w", cfg.Plugin.Name, err)
 	}
 
 	t := &PluginTarget{
-		config:  cfg,
-		timeout: timeout,
-		slog:    slog.Default().With("context", "Plugin Target", "name", cfg.Name),
-		mgr:     mgr,
-		plg:     plg,
-		stopCh:  make(chan struct{}),
+		cfg:    cfg,
+		slog:   slog.Default().With("context", "Plugin Target", "id", cfg.Plugin.Name),
+		plg:    plg,
+		stopCh: make(chan struct{}),
 	}
 	return t, nil
 }
 
 func (t *PluginTarget) Consume(msg *message.RunnerMessage) error {
-	ctx, cancel := context.WithTimeout(context.Background(), t.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), t.cfg.Timeout)
 	defer cancel()
 	return t.plg.Target(ctx, msg)
 }
 
 func (t *PluginTarget) Close() error {
-	t.stopped = true
 	if t.stopCh != nil {
 		close(t.stopCh)
 	}
