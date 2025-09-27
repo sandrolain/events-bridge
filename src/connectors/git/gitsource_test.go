@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 const (
@@ -19,36 +20,53 @@ const (
 	errCheckTimeout = "checkForChanges did not return in time"
 
 	gitAuthorArg = "--author=Test <test@example.com>"
+	gitBranch    = "main"
 )
 
-func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
-	remoteDir, err := os.MkdirTemp("", "gitsource-remote-")
-	if err != nil {
-		t.Fatalf("failed to create remote dir: %v", err)
-	}
-	defer func() {
-		err := os.RemoveAll(remoteDir)
-		if err != nil {
-			t.Errorf("failed to remove remote dir: %v", err)
-		}
-	}()
-	cmd := exec.Command("git", "init", "--bare")
-	cmd.Dir = remoteDir
+func mustRunGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	env := os.Environ()
+	env = append(env,
+		"GIT_AUTHOR_NAME=Test",
+		"GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=Test",
+		"GIT_COMMITTER_EMAIL=test@example.com",
+	)
+	cmd.Env = env
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to init bare repo: %v", err)
+		t.Fatalf("failed to run git %v: %v", args, err)
 	}
+}
 
-	localDir, err := os.MkdirTemp("", "gitsource-local-")
-	if err != nil {
-		t.Fatalf("failed to create local dir: %v", err)
+func initBareRepo(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "init", "--bare", "--initial-branch", gitBranch)
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		mustRunGit(t, dir, "init", "--bare")
+		mustRunGit(t, dir, "symbolic-ref", "HEAD", "refs/heads/"+gitBranch)
 	}
-	defer func() {
-		err := os.RemoveAll(localDir)
-		if err != nil {
-			t.Errorf("failed to remove local dir: %v", err)
-		}
-	}()
-	cmd = exec.Command("git", "clone", remoteDir, localDir)
+}
+
+func initWorkRepo(t *testing.T, dir string) {
+	t.Helper()
+	cmd := exec.Command("git", "init", "-b", gitBranch)
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		mustRunGit(t, dir, "init")
+		mustRunGit(t, dir, "checkout", "-B", gitBranch)
+	}
+}
+
+func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
+	remoteDir := t.TempDir()
+	initBareRepo(t, remoteDir)
+
+	localParent := t.TempDir()
+	localDir := filepath.Join(localParent, "gitsource-local")
+	cmd := exec.Command("git", "clone", remoteDir, localDir)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to clone: %v", err)
 	}
@@ -56,25 +74,13 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 	if err := os.WriteFile(filePath, []byte("bar"), 0644); err != nil {
 		t.Fatalf(errWriteFile, err)
 	}
-	cmd = exec.Command("git", "add", ".")
-	cmd.Dir = localDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf(errGitAdd, err)
-	}
-	cmd = exec.Command("git", "commit", "-m", "add foo", gitAuthorArg)
-	cmd.Dir = localDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf(errGitCommit, err)
-	}
-	cmd = exec.Command("git", "push", "origin", "master")
-	cmd.Dir = localDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to git push: %v", err)
-	}
+	mustRunGit(t, localDir, "add", ".")
+	mustRunGit(t, localDir, "commit", "-m", "add foo", gitAuthorArg)
+	mustRunGit(t, localDir, "push", "origin", gitBranch)
 
 	cfg := &SourceConfig{
 		RemoteURL:    remoteDir,
-		Branch:       "master",
+		Branch:       gitBranch,
 		Path:         "",
 		Remote:       "origin",
 		PollInterval: 0,
@@ -105,29 +111,17 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 			t.Errorf("failed to remove temp dir: %v", err)
 		}
 	}()
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to init git repo: %v", err)
-	}
+	initWorkRepo(t, tmpDir)
 	filePath := filepath.Join(tmpDir, "test.txt")
 	if err := os.WriteFile(filePath, []byte("hello world"), 0644); err != nil {
 		t.Fatalf(errWriteFile, err)
 	}
-	cmd = exec.Command("git", "add", ".")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf(errGitAdd, err)
-	}
-	cmd = exec.Command("git", "commit", "-m", "initial commit", gitAuthorArg)
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf(errGitCommit, err)
-	}
+	mustRunGit(t, tmpDir, "add", ".")
+	mustRunGit(t, tmpDir, "commit", "-m", "initial commit", gitAuthorArg)
 
 	cfg := &SourceConfig{
 		RemoteURL:    tmpDir,
-		Branch:       "master",
+		Branch:       gitBranch,
 		Path:         tmpDir,
 		Remote:       "origin",
 		SubDir:       "notfound/",
@@ -161,32 +155,20 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 	}()
 
 	// Initialize a new git repository
-	cmd := exec.Command("git", "init")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to init git repo: %v", err)
-	}
+	initWorkRepo(t, tmpDir)
 
 	// Create a file and commit it
 	filePath := filepath.Join(tmpDir, "test.txt")
 	if err := os.WriteFile(filePath, []byte("hello world"), 0644); err != nil {
 		t.Fatalf(errWriteFile, err)
 	}
-	cmd = exec.Command("git", "add", ".")
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf(errGitAdd, err)
-	}
-	cmd = exec.Command("git", "commit", "-m", "initial commit", gitAuthorArg)
-	cmd.Dir = tmpDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf(errGitCommit, err)
-	}
+	mustRunGit(t, tmpDir, "add", ".")
+	mustRunGit(t, tmpDir, "commit", "-m", "initial commit", gitAuthorArg)
 
 	// Setup config for local repo
 	cfg := &SourceConfig{
 		RemoteURL:    tmpDir,
-		Branch:       "master",
+		Branch:       gitBranch,
 		Path:         tmpDir,
 		Remote:       "origin",
 		PollInterval: 0,
@@ -210,20 +192,44 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 }
 
 func TestNewSourceInvalidConfig(t *testing.T) {
-	_, err := NewSource(map[string]any{
-		"remote_url": 123,
-		"branch":     456,
-	})
+	cfg := new(SourceConfig)
+	err := utils.ParseConfig(map[string]any{
+		"remoteUrl": 123,
+		"branch":    456,
+	}, cfg)
 	if err == nil {
 		t.Error("expected error when options have invalid types")
 	}
 }
 
 func TestGitSourceProduceAndClose(t *testing.T) {
-	src, err := NewSource(map[string]any{
-		"remote_url": "https://github.com/sandrolain/events-bridge.git",
-		"branch":     "main",
-	})
+	remoteDir := t.TempDir()
+	initBareRepo(t, remoteDir)
+	localParent := t.TempDir()
+	localDir := filepath.Join(localParent, "gitsource-local")
+	cmd := exec.Command("git", "clone", remoteDir, localDir)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to clone: %v", err)
+	}
+	filePath := filepath.Join(localDir, "foo.txt")
+	if err := os.WriteFile(filePath, []byte("data"), 0644); err != nil {
+		t.Fatalf(errWriteFile, err)
+	}
+	mustRunGit(t, localDir, "add", ".")
+	mustRunGit(t, localDir, "commit", "-m", "seed", gitAuthorArg)
+	mustRunGit(t, localDir, "push", "origin", gitBranch)
+
+	clonePath := filepath.Join(t.TempDir(), "gitsource-clone")
+	cfg := new(SourceConfig)
+	if err := utils.ParseConfig(map[string]any{
+		"remoteUrl": remoteDir,
+		"branch":    gitBranch,
+		"path":      clonePath,
+		"remote":    "origin",
+	}, cfg); err != nil {
+		t.Fatalf("failed to parse config: %v", err)
+	}
+	src, err := NewSource(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -247,7 +253,8 @@ func TestGitSourceProduceAndClose(t *testing.T) {
 func TestGitSourceCheckForChangesNoRepo(t *testing.T) {
 	cfg := &SourceConfig{
 		RemoteURL: "",
-		Branch:    "main",
+		Branch:    gitBranch,
+		Remote:    "origin",
 	}
 	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.checkForChanges() // should not panic, just log error
@@ -256,7 +263,8 @@ func TestGitSourceCheckForChangesNoRepo(t *testing.T) {
 func TestGitSourceCheckForChangesSameHash(t *testing.T) {
 	cfg := &SourceConfig{
 		RemoteURL: "https://github.com/sandrolain/events-bridge.git",
-		Branch:    "main",
+		Branch:    gitBranch,
+		Remote:    "origin",
 	}
 	src := &GitSource{cfg: cfg, slog: slog.Default()}
 	src.lastHash = plumbing.NewHash("abc123")
@@ -281,7 +289,8 @@ func TestGitSourceCheckForChangesTempDirError(t *testing.T) {
 
 	cfg := &SourceConfig{
 		RemoteURL: "dummy",
-		Branch:    "main",
+		Branch:    gitBranch,
+		Remote:    "origin",
 		Path:      "", // triggers temp dir creation
 	}
 	src := &GitSource{cfg: cfg, slog: slog.Default()}
@@ -291,7 +300,8 @@ func TestGitSourceCheckForChangesTempDirError(t *testing.T) {
 func TestGitSourceCheckForChangesOpenRepoError(t *testing.T) {
 	cfg := &SourceConfig{
 		RemoteURL: "dummy",
-		Branch:    "main",
+		Branch:    gitBranch,
+		Remote:    "origin",
 		Path:      "/dev/null/doesnotexist",
 	}
 	src := &GitSource{cfg: cfg, slog: slog.Default()}

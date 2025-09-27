@@ -6,24 +6,23 @@ import (
 	"time"
 
 	mqttc "github.com/eclipse/paho.mqtt.golang"
+
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func TestMQTTSourceNewSourceValidation(t *testing.T) {
 	// missing address
-	if _, err := NewSource(map[string]any{"address": "", "topic": "t"}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "", "topic": "t", "clientId": "cid", "consumerGroup": "grp"}, new(SourceConfig)); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
 	// missing topic
-	if _, err := NewSource(map[string]any{"address": "localhost:1883", "topic": ""}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "localhost:1883", "topic": "", "clientId": "cid", "consumerGroup": "grp"}, new(SourceConfig)); err == nil {
 		t.Fatal("expected error when topic is empty")
 	}
 }
 
 func TestMQTTSourceCloseWithoutStart(t *testing.T) {
-	src, err := NewSource(map[string]any{"address": "localhost:1883", "topic": "t"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	src := mustNewMQTTSource(t, map[string]any{"address": "localhost:1883", "topic": "t", "clientId": "cid", "consumerGroup": "grp"})
 	if err := src.Close(); err != nil {
 		t.Fatalf("unexpected close error: %v", err)
 	}
@@ -33,14 +32,14 @@ func TestMQTTSharedSubscriptionBasic(t *testing.T) {
 	addr, cleanup := startMochi(t)
 	defer cleanup()
 
-	s1, _ := NewSource(map[string]any{"address": addr, "topic": "share/#", "client_id": "s1", "consumer_group": "grp"})
+	s1 := mustNewMQTTSource(t, map[string]any{"address": addr, "topic": "share/#", "clientId": "s1", "consumerGroup": "grp"})
 	ch1, err := s1.Produce(10)
 	if err != nil {
 		t.Fatalf("s1 produce: %v", err)
 	}
 	defer s1.Close()
 
-	s2, _ := NewSource(map[string]any{"address": addr, "topic": "share/#", "client_id": "s2", "consumer_group": "grp"})
+	s2 := mustNewMQTTSource(t, map[string]any{"address": addr, "topic": "share/#", "clientId": "s2", "consumerGroup": "grp"})
 	ch2, err := s2.Produce(10)
 	if err != nil {
 		t.Fatalf("s2 produce: %v", err)
@@ -84,4 +83,21 @@ func TestMQTTSharedSubscriptionBasic(t *testing.T) {
 	if got1 == 0 || got2 == 0 {
 		t.Fatalf("expected distribution across consumers, got1=%d got2=%d", got1, got2)
 	}
+}
+
+func mustNewMQTTSource(t *testing.T, opts map[string]any) *MQTTSource {
+	t.Helper()
+	cfg := new(SourceConfig)
+	if err := utils.ParseConfig(opts, cfg); err != nil {
+		t.Fatalf("failed to parse source config: %v", err)
+	}
+	src, err := NewSource(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mqttSrc, ok := src.(*MQTTSource)
+	if !ok {
+		t.Fatalf("expected *MQTTSource, got %T", src)
+	}
+	return mqttSrc
 }

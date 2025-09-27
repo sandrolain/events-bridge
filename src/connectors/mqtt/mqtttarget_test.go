@@ -5,15 +5,16 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func TestMQTTTargetNewTargetValidation(t *testing.T) {
 	// missing address
-	if _, err := NewTarget(map[string]any{"address": "", "topic": "t"}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "", "topic": "t", "clientId": "cid", "topicFromMetadataKey": "topic", "qos": 1}, new(TargetConfig)); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
 	// missing topic
-	if _, err := NewTarget(map[string]any{"address": "localhost:1883", "topic": ""}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "localhost:1883", "topic": "", "clientId": "cid", "topicFromMetadataKey": "topic", "qos": 1}, new(TargetConfig)); err == nil {
 		t.Fatal("expected error when topic is empty")
 	}
 }
@@ -31,10 +32,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	defer cleanup()
 
 	// Start source on topic
-	sIface, err := NewSource(map[string]any{"address": addr, "topic": "ab/#", "client_id": "src1"})
-	if err != nil {
-		t.Fatalf("NewSource: %v", err)
-	}
+	sIface := mustNewMQTTSource(t, map[string]any{"address": addr, "topic": "ab/#", "clientId": "src1", "consumerGroup": "grp"})
 	ch, err := sIface.Produce(1)
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
@@ -42,10 +40,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	defer sIface.Close()
 
 	// Target publishes to topic
-	tIface, err := NewTarget(map[string]any{"address": addr, "topic": "ab/cd", "clientID": "tgt1", "qos": 0})
-	if err != nil {
-		t.Fatalf("NewTarget: %v", err)
-	}
+	tIface := mustNewMQTTTarget(t, map[string]any{"address": addr, "topic": "ab/cd", "clientId": "tgt1", "topicFromMetadataKey": "topic", "qos": 1})
 	defer tIface.Close()
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: message.MessageMetadata{"topic": "ab/cd"}})
@@ -69,20 +64,14 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	addr, cleanup := startMochi(t)
 	defer cleanup()
 
-	sIface, err := NewSource(map[string]any{"address": addr, "topic": "dyn/+", "client_id": "src2"})
-	if err != nil {
-		t.Fatalf("NewSource: %v", err)
-	}
+	sIface := mustNewMQTTSource(t, map[string]any{"address": addr, "topic": "dyn/+", "clientId": "src2", "consumerGroup": "grp"})
 	ch, err := sIface.Produce(1)
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
 	}
 	defer sIface.Close()
 
-	tIface, err := NewTarget(map[string]any{"address": addr, "topic": "unused", "topicFromMetadataKey": "topic"})
-	if err != nil {
-		t.Fatalf("NewTarget: %v", err)
-	}
+	tIface := mustNewMQTTTarget(t, map[string]any{"address": addr, "topic": "unused", "clientId": "tgt2", "topicFromMetadataKey": "topic", "qos": 1})
 	defer tIface.Close()
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
@@ -101,4 +90,21 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("timeout waiting for message")
 	}
+}
+
+func mustNewMQTTTarget(t *testing.T, opts map[string]any) *MQTTTarget {
+	t.Helper()
+	cfg := new(TargetConfig)
+	if err := utils.ParseConfig(opts, cfg); err != nil {
+		t.Fatalf("failed to parse target config: %v", err)
+	}
+	tgt, err := NewTarget(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mqttTgt, ok := tgt.(*MQTTTarget)
+	if !ok {
+		t.Fatalf("expected *MQTTTarget, got %T", tgt)
+	}
+	return mqttTgt
 }

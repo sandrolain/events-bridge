@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 func TestNATSTargetNewTargetValidation(t *testing.T) {
-	if _, err := NewTarget(map[string]any{"address": "", "subject": "s"}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "", "subject": "s"}, new(TargetConfig)); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
-	if _, err := NewTarget(map[string]any{"address": "127.0.0.1:4222", "subject": ""}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "127.0.0.1:4222", "subject": ""}, new(TargetConfig)); err == nil {
 		t.Fatal("expected error when subject is empty")
 	}
 }
@@ -27,20 +28,14 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 	addr, cleanup := startNATSServer(t)
 	defer cleanup()
 
-	sIface, err := NewSource(map[string]any{"address": addr, "subject": "ab.*"})
-	if err != nil {
-		t.Fatalf("NewSource: %v", err)
-	}
+	sIface := mustNewNATSSource(t, map[string]any{"address": addr, "subject": "ab.*"})
 	ch, err := sIface.Produce(1)
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
 	}
 	defer sIface.Close()
 
-	tIface, err := NewTarget(map[string]any{"address": addr, "subject": "ab.cd"})
-	if err != nil {
-		t.Fatalf("NewTarget: %v", err)
-	}
+	tIface := mustNewNATSTarget(t, map[string]any{"address": addr, "subject": "ab.cd"})
 	defer tIface.Close()
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: message.MessageMetadata{"subject": "ab.cd"}})
@@ -64,20 +59,14 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	addr, cleanup := startNATSServer(t)
 	defer cleanup()
 
-	sIface, err := NewSource(map[string]any{"address": addr, "subject": "dyn.*"})
-	if err != nil {
-		t.Fatalf("NewSource: %v", err)
-	}
+	sIface := mustNewNATSSource(t, map[string]any{"address": addr, "subject": "dyn.*"})
 	ch, err := sIface.Produce(1)
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
 	}
 	defer sIface.Close()
 
-	tIface, err := NewTarget(map[string]any{"address": addr, "subject": "unused", "subjectFromMetadataKey": "subject"})
-	if err != nil {
-		t.Fatalf("NewTarget: %v", err)
-	}
+	tIface := mustNewNATSTarget(t, map[string]any{"address": addr, "subject": "unused", "subjectFromMetadataKey": "subject"})
 	defer tIface.Close()
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
@@ -96,4 +85,21 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("timeout waiting for message")
 	}
+}
+
+func mustNewNATSTarget(t *testing.T, opts map[string]any) *NATSTarget {
+	t.Helper()
+	cfg := new(TargetConfig)
+	if err := utils.ParseConfig(opts, cfg); err != nil {
+		t.Fatalf("failed to parse target config: %v", err)
+	}
+	tgt, err := NewTarget(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	natsTgt, ok := tgt.(*NATSTarget)
+	if !ok {
+		t.Fatalf("expected *NATSTarget, got %T", tgt)
+	}
+	return natsTgt
 }

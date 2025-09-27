@@ -12,6 +12,7 @@ import (
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 const (
@@ -33,9 +34,13 @@ func startCoAPSource(t *testing.T, protocol CoAPProtocol, addr string, method st
 		"address":  addr,
 		"path":     testPath,
 		"method":   method,
-		"timeout":  int(timeout),
+		"timeout":  timeout.String(),
 	}
-	src, err := NewSource(opts)
+	cfg := new(SourceConfig)
+	if err := utils.ParseConfig(opts, cfg); err != nil {
+		t.Fatalf("failed to parse source config: %v", err)
+	}
+	src, err := NewSource(cfg)
 	if err != nil {
 		t.Fatalf("failed to create source: %v", err)
 	}
@@ -74,7 +79,7 @@ func TestCoAPSourceUDPAckChanged(t *testing.T) {
 
 	rm := <-ch
 	if rm == nil {
-		t.Fatalf(errNilRunnerMsg)
+		t.Fatal(errNilRunnerMsg)
 	}
 	_ = rm.Ack()
 
@@ -114,7 +119,7 @@ func TestCoAPSourceUDPNakInternalError(t *testing.T) {
 
 	rm := <-ch
 	if rm == nil {
-		t.Fatalf(errNilRunnerMsg)
+		t.Fatal(errNilRunnerMsg)
 	}
 	_ = rm.Nak()
 
@@ -156,7 +161,7 @@ func TestCoAPSourceUDPReplyContentJSON(t *testing.T) {
 
 	rm := <-ch
 	if rm == nil {
-		t.Fatalf(errNilRunnerMsg)
+		t.Fatal(errNilRunnerMsg)
 	}
 	rm.SetData(expected)
 	rm.SetMetadata("Content-Type", "application/json")
@@ -200,7 +205,7 @@ func TestCoAPSourceUDPTimeoutGatewayTimeout(t *testing.T) {
 	// Read the message but do not respond to trigger timeout
 	rm := <-ch
 	if rm == nil {
-		t.Fatalf(errNilRunnerMsg)
+		t.Fatal(errNilRunnerMsg)
 	}
 
 	select {
@@ -282,7 +287,7 @@ func TestCoAPSourceTCPReplyContentJSON(t *testing.T) {
 
 	rm := <-ch
 	if rm == nil {
-		t.Fatalf("received nil runner message")
+		t.Fatal(errNilRunnerMsg)
 	}
 	rm.SetData(expected)
 	rm.SetMetadata("Content-Type", "application/json")

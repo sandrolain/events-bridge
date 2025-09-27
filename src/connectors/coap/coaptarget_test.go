@@ -15,6 +15,7 @@ import (
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 type mockMessage struct {
@@ -34,25 +35,27 @@ func (m *mockMessage) Reply(data *message.ReplyData) error           { return ni
 const addrLocal = "localhost:5683"
 
 func TestSendUnsupportedProtocol(t *testing.T) {
-	_, err := NewTarget(map[string]any{
+	cfg := new(TargetConfig)
+	err := utils.ParseConfig(map[string]any{
 		"protocol": "invalid",
 		"address":  addrLocal,
 		"path":     "/test",
 		"method":   "POST",
-	})
-	if err == nil || !strings.Contains(err.Error(), "option protocol") {
+	}, cfg)
+	if err == nil || !strings.Contains(err.Error(), "Protocol") {
 		t.Fatalf("expected validation error for protocol, got: %v", err)
 	}
 }
 
 func TestSendUnsupportedMethod(t *testing.T) {
-	_, err := NewTarget(map[string]any{
+	cfg := new(TargetConfig)
+	err := utils.ParseConfig(map[string]any{
 		"protocol": "udp",
 		"address":  addrLocal,
 		"path":     "/test",
 		"method":   "DELETE",
-	})
-	if err == nil || !strings.Contains(err.Error(), "option method") {
+	}, cfg)
+	if err == nil || !strings.Contains(err.Error(), "Method") {
 		t.Fatalf("expected validation error for method, got: %v", err)
 	}
 }
@@ -76,7 +79,11 @@ const errUnexpected = "unexpected error: %v"
 
 func mustNewTarget(t *testing.T, opts map[string]any) *CoAPTarget {
 	t.Helper()
-	tgt, err := NewTarget(opts)
+	cfg := new(TargetConfig)
+	if err := utils.ParseConfig(opts, cfg); err != nil {
+		t.Fatalf(errUnexpected, err)
+	}
+	tgt, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}

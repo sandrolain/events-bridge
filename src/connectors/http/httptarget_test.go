@@ -7,7 +7,12 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/utils"
 	"github.com/valyala/fasthttp"
+)
+
+const (
+	httpTargetLocalURL = "http://localhost"
 )
 
 // metaErrorMock returns an error from GetMetadata
@@ -44,12 +49,20 @@ func (m *mockMessage) Reply(data *message.ReplyData) error           { return ni
 
 func TestNewTargetDefaultTimeout(t *testing.T) {
 	const errMsg = "unexpected error: %v"
-	tgt, err := NewTarget(map[string]any{"timeout": 0})
+	cfg := mustParseTargetConfig(t, map[string]any{"url": httpTargetLocalURL, "method": "POST"})
+	tgt, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errMsg, err)
 	}
 	if tgt == nil {
 		t.Fatal("expected non-nil target")
+	}
+	httpTgt, ok := tgt.(*HTTPTarget)
+	if !ok {
+		t.Fatalf("expected *HTTPTarget, got %T", tgt)
+	}
+	if httpTgt.cfg.Timeout <= 0 {
+		t.Fatalf("expected timeout to be set, got %v", httpTgt.cfg.Timeout)
 	}
 }
 
@@ -74,7 +87,8 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	}()
 
 	url := "http://" + ln.Addr().String() + "/test"
-	tgt, err := NewTarget(map[string]any{"url": url, "method": "POST", "headers": map[string]string{}, "timeout": int64(250 * time.Millisecond)})
+	cfg := mustParseTargetConfig(t, map[string]any{"url": url, "method": "POST", "headers": map[string]string{}, "timeout": int64(250 * time.Millisecond)})
+	tgt, err := NewTarget(cfg)
 	if err != nil {
 		t.Fatalf(errMsg, err)
 	}
@@ -95,8 +109,17 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	}
 }
 
+func mustParseTargetConfig(t *testing.T, opts map[string]any) *TargetConfig {
+	t.Helper()
+	cfg := new(TargetConfig)
+	if err := utils.ParseConfig(opts, cfg); err != nil {
+		t.Fatalf("failed to parse target config: %v", err)
+	}
+	return cfg
+}
+
 func TestHTTPTargetSendErrorMetadata(t *testing.T) {
-	httpTgt := &HTTPTarget{cfg: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
+	httpTgt := &HTTPTarget{cfg: &TargetConfig{URL: httpTargetLocalURL, Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &metaErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)
@@ -106,7 +129,7 @@ func TestHTTPTargetSendErrorMetadata(t *testing.T) {
 }
 
 func TestHTTPTargetSendErrorData(t *testing.T) {
-	httpTgt := &HTTPTarget{cfg: &TargetConfig{URL: "http://localhost", Method: "POST", Headers: map[string]string{}}, client: nil}
+	httpTgt := &HTTPTarget{cfg: &TargetConfig{URL: httpTargetLocalURL, Method: "POST", Headers: map[string]string{}}, client: nil}
 	msg := &dataErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)

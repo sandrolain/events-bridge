@@ -5,24 +5,23 @@ import (
 	"time"
 
 	natsc "github.com/nats-io/nats.go"
+
+	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 const errUnexpected = "unexpected error: %v"
 
 func TestNATSSourceNewSourceValidation(t *testing.T) {
-	if _, err := NewSource(map[string]any{"address": "", "subject": "s"}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "", "subject": "s", "queueGroup": "g"}, new(SourceConfig)); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
-	if _, err := NewSource(map[string]any{"address": "nats://127.0.0.1:4222", "subject": ""}); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "nats://127.0.0.1:4222", "subject": "", "queueGroup": "g"}, new(SourceConfig)); err == nil {
 		t.Fatal("expected error when subject is empty")
 	}
 }
 
 func TestNATSSourceCloseWithoutStart(t *testing.T) {
-	src, err := NewSource(map[string]any{"address": "nats://127.0.0.1:4222", "subject": "s"})
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
+	src := mustNewNATSSource(t, map[string]any{"address": "nats://127.0.0.1:4222", "subject": "s", "queueGroup": "g"})
 	if err := src.Close(); err != nil {
 		t.Fatalf("unexpected close error: %v", err)
 	}
@@ -32,14 +31,14 @@ func TestNATSQueueGroupBasic(t *testing.T) {
 	addr, cleanup := startNATSServer(t)
 	defer cleanup()
 
-	s1, _ := NewSource(map[string]any{"address": addr, "subject": "share.*", "queueGroup": "grp"})
+	s1 := mustNewNATSSource(t, map[string]any{"address": addr, "subject": "share.*", "queueGroup": "grp"})
 	ch1, err := s1.Produce(10)
 	if err != nil {
 		t.Fatalf("s1 produce: %v", err)
 	}
 	defer s1.Close()
 
-	s2, _ := NewSource(map[string]any{"address": addr, "subject": "share.*", "queueGroup": "grp"})
+	s2 := mustNewNATSSource(t, map[string]any{"address": addr, "subject": "share.*", "queueGroup": "grp"})
 	ch2, err := s2.Produce(10)
 	if err != nil {
 		t.Fatalf("s2 produce: %v", err)
@@ -78,4 +77,21 @@ func TestNATSQueueGroupBasic(t *testing.T) {
 	if got1 == 0 || got2 == 0 {
 		t.Fatalf("expected distribution across consumers, got1=%d got2=%d", got1, got2)
 	}
+}
+
+func mustNewNATSSource(t *testing.T, opts map[string]any) *NATSSource {
+	t.Helper()
+	cfg := new(SourceConfig)
+	if err := utils.ParseConfig(opts, cfg); err != nil {
+		t.Fatalf("failed to parse source config: %v", err)
+	}
+	src, err := NewSource(cfg)
+	if err != nil {
+		t.Fatalf(errUnexpected, err)
+	}
+	natsSrc, ok := src.(*NATSSource)
+	if !ok {
+		t.Fatalf("expected *NATSSource, got %T", src)
+	}
+	return natsSrc
 }
