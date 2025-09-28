@@ -13,6 +13,13 @@ import (
 const (
 	runnerOptionsYAMLLine = "  options:\n"
 	runnerOptionsLine     = "  options:"
+	configFilePathFlag    = "--config-file-path"
+	configContentFlag     = "--config-content"
+	configFormatFlag      = "--config-format"
+	configFileName        = "config.yaml"
+	sourceKeyLine         = "source:"
+	targetKeyLine         = "target:"
+	targetTypeNatsLine    = "  type: nats"
 )
 
 // helper to temporarily set os.Args and restore on cleanup
@@ -26,9 +33,9 @@ func withArgs(t *testing.T, args []string) {
 func TestApplyCLIOverridesLongAndEqualsForms(t *testing.T) {
 	// long form
 	withArgs(t, []string{
-		"--config-file-path", "/tmp/eb.yaml",
-		"--config-content", "{\"a\":1}",
-		"--config-format", "json",
+		configFilePathFlag, "/tmp/eb.yaml",
+		configContentFlag, "{\"a\":1}",
+		configFormatFlag, "json",
 	})
 	ec := &EnvConfig{}
 	applyCLIOverrides(ec)
@@ -38,15 +45,38 @@ func TestApplyCLIOverridesLongAndEqualsForms(t *testing.T) {
 
 	// equals form
 	withArgs(t, []string{
-		"--config-file-path=/var/lib/eb/config.yml",
-		"--config-content=source: {}",
-		"--config-format=yaml",
+		configFilePathFlag + "=/var/lib/eb/config.yml",
+		configContentFlag + "=source: {}",
+		configFormatFlag + "=yaml",
 	})
 	ec2 := &EnvConfig{}
 	applyCLIOverrides(ec2)
 	require.Equal(t, "/var/lib/eb/config.yml", ec2.ConfigFilePath)
 	require.Equal(t, "source: {}", ec2.ConfigContent)
 	require.Equal(t, "yaml", ec2.ConfigFormat)
+}
+
+func TestApplyCLIOverridesIgnoresMissingValues(t *testing.T) {
+	withArgs(t, []string{configFilePathFlag})
+	ec := &EnvConfig{}
+	applyCLIOverrides(ec)
+	require.Empty(t, ec.ConfigFilePath)
+	require.Empty(t, ec.ConfigContent)
+	require.Empty(t, ec.ConfigFormat)
+
+	withArgs(t, []string{configContentFlag})
+	ec2 := &EnvConfig{}
+	applyCLIOverrides(ec2)
+	require.Empty(t, ec2.ConfigFilePath)
+	require.Empty(t, ec2.ConfigContent)
+	require.Empty(t, ec2.ConfigFormat)
+
+	withArgs(t, []string{configFormatFlag})
+	ec3 := &EnvConfig{}
+	applyCLIOverrides(ec3)
+	require.Empty(t, ec3.ConfigFilePath)
+	require.Empty(t, ec3.ConfigContent)
+	require.Empty(t, ec3.ConfigFormat)
 }
 
 func TestLoadEnvConfigDefaultPathWhenEmpty(t *testing.T) {
@@ -63,10 +93,10 @@ func TestLoadEnvConfigDefaultPathWhenEmpty(t *testing.T) {
 
 func TestLoadConfigFileYAMLWithEnvOverrides(t *testing.T) {
 	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "config.yaml")
+	cfgPath := filepath.Join(dir, configFileName)
 	yaml := "" +
-		"source:\n" +
-		"  type: nats\n" +
+		sourceKeyLine + "\n" +
+		targetTypeNatsLine + "\n" +
 		runnerOptionsYAMLLine +
 		"    address: 127.0.0.1:4222\n" +
 		"    subject: fromfile\n" +
@@ -74,8 +104,8 @@ func TestLoadConfigFileYAMLWithEnvOverrides(t *testing.T) {
 		"  type: cli\n" +
 		runnerOptionsYAMLLine +
 		"    command: echo\n" +
-		"target:\n" +
-		"  type: nats\n" +
+		targetKeyLine + "\n" +
+		targetTypeNatsLine + "\n" +
 		runnerOptionsYAMLLine +
 		"    address: 127.0.0.1:4222\n" +
 		"    subject: will-be-overridden\n"
@@ -113,6 +143,35 @@ func TestLoadConfigFileUnsupportedExtension(t *testing.T) {
 	require.Equal(t, ".toml", ue.Extension)
 }
 
+func TestLoadConfigFileInvalidYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+	require.NoError(t, os.WriteFile(path, []byte("source: [\n  invalid"), 0o600))
+
+	_, err := loadConfigFile(path)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "error loading config file")
+}
+
+func TestLoadConfigFileValidationError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, configFileName)
+	yaml := strings.Join([]string{
+		sourceKeyLine,
+		runnerOptionsLine,
+		"    subject: missing-type",
+		targetKeyLine,
+		targetTypeNatsLine,
+		runnerOptionsLine,
+		"    subject: ok",
+	}, "\n")
+	require.NoError(t, os.WriteFile(path, []byte(yaml), 0o600))
+
+	_, err := loadConfigFile(path)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Source.Type")
+}
+
 func TestLoadConfigFileFileNotFound(t *testing.T) {
 	_, err := loadConfigFile(filepath.Join(t.TempDir(), "missing.yaml"))
 	require.Error(t, err)
@@ -122,8 +181,8 @@ func TestLoadConfigFileFileNotFound(t *testing.T) {
 func TestLoadConfigContentYAMLAndJSONAutoDetectAndExplicit(t *testing.T) {
 	// YAML explicit
 	yaml := strings.Join([]string{
-		"source:",
-		"  type: nats",
+		sourceKeyLine,
+		targetTypeNatsLine,
 		runnerOptionsLine,
 		"    address: 127.0.0.1:4222",
 		"    subject: a",
@@ -131,8 +190,8 @@ func TestLoadConfigContentYAMLAndJSONAutoDetectAndExplicit(t *testing.T) {
 		"  type: cli",
 		runnerOptionsLine,
 		"    command: echo",
-		"target:",
-		"  type: nats",
+		targetKeyLine,
+		targetTypeNatsLine,
 		runnerOptionsLine,
 		"    address: 127.0.0.1:4222",
 		"    subject: b",
@@ -159,6 +218,25 @@ func TestLoadConfigContentUnsupportedFormat(t *testing.T) {
 	require.Equal(t, "toml", ue.Extension)
 }
 
+func TestLoadConfigContentInvalidYAML(t *testing.T) {
+	_, err := loadConfigContent("source: [\n  broken", "yaml")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "error loading config content")
+}
+
+func TestLoadConfigContentValidationError(t *testing.T) {
+	yaml := strings.Join([]string{
+		sourceKeyLine,
+		"  options:",
+		"    subject: nope",
+		targetKeyLine,
+		targetTypeNatsLine,
+	}, "\n")
+	_, err := loadConfigContent(yaml, "yaml")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Source.Type")
+}
+
 func TestLoadConfigUsesEnvAndCLIPrecedence(t *testing.T) {
 	// Provide minimal env content to avoid default path (and its filepath validation),
 	// then override via CLI which should take precedence over env.
@@ -178,6 +256,37 @@ func TestLoadConfigUsesEnvAndCLIPrecedence(t *testing.T) {
 	} else {
 		t.Fatalf("expected source options.subject to be string, got %#v", cfg.Source.Options["subject"])
 	}
+}
+
+func TestLoadConfigUsesConfigFileFromEnv(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, configFileName)
+	yaml := strings.Join([]string{
+		sourceKeyLine,
+		targetTypeNatsLine,
+		runnerOptionsLine,
+		"    subject: fileenv",
+		targetKeyLine,
+		targetTypeNatsLine,
+	}, "\n")
+	require.NoError(t, os.WriteFile(cfgPath, []byte(yaml), 0o600))
+
+	t.Setenv("EB_CONFIG_FILE_PATH", cfgPath)
+	t.Setenv("EB_CONFIG_CONTENT", "")
+	t.Setenv("EB_CONFIG_FORMAT", "")
+
+	cfg, err := LoadConfig()
+	require.NoError(t, err)
+	require.Equal(t, "fileenv", cfg.Source.Options["subject"])
+}
+
+func TestLoadConfigFailsOnInvalidEnvConfig(t *testing.T) {
+	t.Setenv("EB_CONFIG_CONTENT", "source: {}")
+	t.Setenv("EB_CONFIG_FORMAT", "xml")
+
+	_, err := LoadConfig()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to validate configuration options")
 }
 
 func TestUnsupportedExtensionErrorError(t *testing.T) {
