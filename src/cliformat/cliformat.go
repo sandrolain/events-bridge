@@ -2,6 +2,7 @@ package cliformat
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -14,8 +15,17 @@ import (
 // between pairs. This assumes metadata keys/values do not contain these bytes
 // nor newlines, which is generally true for textual headers.
 const (
-	kvSeparator   byte = 0x1F // key-value separator
-	pairSeparator byte = 0x1E // pair separator
+	kvSeparator     byte = 0x1F // key-value separator
+	pairSeparator   byte = 0x1E // pair separator
+	frameMarkerSize      = 4
+	frameHeaderSize      = frameMarkerSize + 8
+)
+
+const maxFrameValue = ^uint32(0)
+
+var (
+	frameMarker     = [frameMarkerSize]byte{'E', 'B', 'F', '1'}
+	maxFrameSegment = int(^uint(0) >> 1)
 )
 
 // EncodeMetadata encodes a map of metadata using binary separators.
@@ -75,62 +85,112 @@ func DecodeMetadata(b []byte) (message.MessageMetadata, error) {
 	return m, nil
 }
 
-// Encode serializes metadata and binary data in the required format:
-// encoded-metadata + "\n" + binary data
+// Encode serializes metadata and binary data into a self-describing binary frame.
+// Frame layout:
+//
+//	marker(4B) | metadata length (uint32 BE) | data length (uint32 BE) | metadata | data
+//
+// The marker provides an easily recognizable frame start when decoding streams.
 func Encode(metadata message.MessageMetadata, data []byte) ([]byte, error) {
-	q, err := EncodeMetadata(metadata)
+	metaBytes, err := EncodeMetadata(metadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode metadata: %w", err)
 	}
-	var buf bytes.Buffer
-	buf.Write(q)
-	buf.WriteByte('\n')
+	if uint64(len(metaBytes)) > uint64(maxFrameSegment) {
+		return nil, fmt.Errorf("metadata too large: %d bytes", len(metaBytes))
+	}
+	if uint64(len(data)) > uint64(maxFrameSegment) {
+		return nil, fmt.Errorf("data too large: %d bytes", len(data))
+	}
+	if uint64(len(metaBytes)) > uint64(maxFrameValue) {
+		return nil, fmt.Errorf("metadata too large: %d bytes", len(metaBytes))
+	}
+	if uint64(len(data)) > uint64(maxFrameValue) {
+		return nil, fmt.Errorf("data too large: %d bytes", len(data))
+	}
+
+	frameLen := frameHeaderSize + len(metaBytes) + len(data)
+	buf := bytes.NewBuffer(make([]byte, 0, frameLen))
+	buf.Write(frameMarker[:])
+
+	header := make([]byte, 8)
+	binary.BigEndian.PutUint32(header[:4], uint32(len(metaBytes)))
+	binary.BigEndian.PutUint32(header[4:], uint32(len(data)))
+	buf.Write(header)
+	buf.Write(metaBytes)
 	buf.Write(data)
 	return buf.Bytes(), nil
 }
 
-// Decode extracts metadata and binary data from the format:
-// encoded-metadata + "\n" + binary data
+// Decode extracts metadata and payload from a CLI frame produced by Encode.
 func Decode(input []byte) (message.MessageMetadata, []byte, error) {
-	i := bytes.IndexByte(input, '\n')
-	if i < 0 {
-		return nil, nil, errors.New("invalid format: missing newline separator")
+	if len(input) < frameHeaderSize {
+		return nil, nil, fmt.Errorf("frame too small: %d bytes", len(input))
 	}
-	meta := input[:i]
-	data := input[i+1:]
-	m, err := DecodeMetadata(meta)
+	if !bytes.Equal(input[:frameMarkerSize], frameMarker[:]) {
+		return nil, nil, errors.New("invalid frame marker")
+	}
+	metaLen := binary.BigEndian.Uint32(input[frameMarkerSize : frameMarkerSize+4])
+	dataLen := binary.BigEndian.Uint32(input[frameMarkerSize+4 : frameHeaderSize])
+	if uint64(metaLen) > uint64(maxFrameSegment) || uint64(dataLen) > uint64(maxFrameSegment) {
+		return nil, nil, errors.New("frame segment exceeds supported size")
+	}
+	totalExpected := frameHeaderSize + int(metaLen) + int(dataLen)
+	if len(input) != totalExpected {
+		return nil, nil, fmt.Errorf("invalid frame length: expected %d bytes got %d", totalExpected, len(input))
+	}
+	metaStart := frameHeaderSize
+	metaEnd := metaStart + int(metaLen)
+	metaBytes := input[metaStart:metaEnd]
+	dataBytes := input[metaEnd:totalExpected]
+
+	m, err := DecodeMetadata(metaBytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to decode metadata: %w", err)
 	}
-	return m, data, nil
+	return m, dataBytes, nil
 }
 
-// DecodeFromReader allows decoding from a stream (e.g., os.Stdin)
+// DecodeFromReader reads a single CLI frame from the provided reader.
 func DecodeFromReader(r io.Reader) (message.MessageMetadata, []byte, error) {
-	var metaBuf bytes.Buffer
-	for {
-		b := make([]byte, 1)
-		n, err := r.Read(b)
-		if n == 1 {
-			if b[0] == '\n' {
-				break
-			}
-			metaBuf.WriteByte(b[0])
-		} else if err != nil {
-			return nil, nil, err
+	return readFrame(r)
+}
+
+func readFrame(r io.Reader) (message.MessageMetadata, []byte, error) {
+	header := make([]byte, frameHeaderSize)
+	n, err := io.ReadFull(r, header)
+	if err != nil {
+		if errors.Is(err, io.EOF) && n == 0 {
+			return nil, nil, io.EOF
 		}
-	}
-	metaStr := metaBuf.Bytes()
-	m, err := DecodeMetadata(metaStr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Read the rest as binary data
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, nil, err
+		if errors.Is(err, io.ErrUnexpectedEOF) && n == 0 {
+			return nil, nil, io.EOF
+		}
+		return nil, nil, fmt.Errorf("failed to read frame header: %w", err)
 	}
 
-	return m, data, nil
+	if !bytes.Equal(header[:frameMarkerSize], frameMarker[:]) {
+		return nil, nil, errors.New("invalid frame marker")
+	}
+	metaLen := binary.BigEndian.Uint32(header[frameMarkerSize : frameMarkerSize+4])
+	dataLen := binary.BigEndian.Uint32(header[frameMarkerSize+4:])
+
+	if uint64(metaLen) > uint64(maxFrameSegment) || uint64(dataLen) > uint64(maxFrameSegment) {
+		return nil, nil, errors.New("frame segment exceeds supported size")
+	}
+	metaBytes := make([]byte, int(metaLen))
+	if _, err := io.ReadFull(r, metaBytes); err != nil {
+		return nil, nil, fmt.Errorf("failed to read metadata: %w", err)
+	}
+	dataBytes := make([]byte, int(dataLen))
+	if _, err := io.ReadFull(r, dataBytes); err != nil {
+		return nil, nil, fmt.Errorf("failed to read payload: %w", err)
+	}
+
+	m, err := DecodeMetadata(metaBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode metadata: %w", err)
+	}
+
+	return m, dataBytes, nil
 }

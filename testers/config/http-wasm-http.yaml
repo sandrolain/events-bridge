@@ -30,6 +30,6 @@ commands:
     restartTries: 0
   - name: http-source
     cmd: "./testers/bin/httptool"
-    args: ["send", "--interval", "1000us", "--payload", "{counter} - {nowtime}"]
-    startAfter: "5s"
+    args: ["send", "--interval", "1s", "--payload", "{counter} - {nowtime}"]
+    startAfter: "2s"
 killOthers: true
