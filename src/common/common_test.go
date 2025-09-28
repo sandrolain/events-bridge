@@ -1,14 +1,13 @@
 package common_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
-
-const unexpectedParserError = "unexpected parser error: %v"
 
 type mockSourceMessage struct {
 	metadata message.MessageMetadata
@@ -38,6 +37,34 @@ func (m *mockSourceMessage) Reply(data *message.ReplyData) error {
 	return nil
 }
 
+type mockSourceMessageError struct {
+	metadataErr error
+}
+
+func (m *mockSourceMessageError) GetID() []byte {
+	return nil
+}
+
+func (m *mockSourceMessageError) GetMetadata() (message.MessageMetadata, error) {
+	return nil, m.metadataErr
+}
+
+func (m *mockSourceMessageError) GetData() ([]byte, error) {
+	return nil, nil
+}
+
+func (m *mockSourceMessageError) Ack() error {
+	return nil
+}
+
+func (m *mockSourceMessageError) Nak() error {
+	return nil
+}
+
+func (m *mockSourceMessageError) Reply(data *message.ReplyData) error {
+	return nil
+}
+
 func TestResolveFromMetadata(t *testing.T) {
 	base := message.MessageMetadata{"color": "blue"}
 	msg := message.NewRunnerMessage(&mockSourceMessage{metadata: base})
@@ -60,6 +87,23 @@ func TestResolveFromMetadata(t *testing.T) {
 	}
 }
 
+func TestResolveFromMetadataFallbackOnError(t *testing.T) {
+	msg := message.NewRunnerMessage(&mockSourceMessageError{metadataErr: errors.New("boom")})
+
+	if got := common.ResolveFromMetadata(msg, "color", "fallback"); got != "fallback" {
+		t.Fatalf("expected fallback when metadata retrieval fails, got %q", got)
+	}
+}
+
+func TestResolveFromMetadataEmptyValue(t *testing.T) {
+	base := message.MessageMetadata{"color": ""}
+	msg := message.NewRunnerMessage(&mockSourceMessage{metadata: base})
+
+	if got := common.ResolveFromMetadata(msg, "color", "fallback"); got != "fallback" {
+		t.Fatalf("expected fallback when metadata value empty, got %q", got)
+	}
+}
+
 func TestAwaitReplyOrStatusReply(t *testing.T) {
 	done := make(chan message.ResponseStatus, 1)
 	reply := make(chan *message.ReplyData, 1)
@@ -74,6 +118,39 @@ func TestAwaitReplyOrStatusReply(t *testing.T) {
 	}
 	if r == nil || string(r.Data) != "hello" {
 		t.Fatalf("unexpected reply data: %+v", r)
+	}
+}
+
+func TestSendResponseStatus(t *testing.T) {
+	common.SendResponseStatus(nil, message.ResponseStatusAck)
+
+	ch := make(chan message.ResponseStatus, 1)
+	common.SendResponseStatus(ch, message.ResponseStatusAck)
+
+	select {
+	case status := <-ch:
+		if status != message.ResponseStatusAck {
+			t.Fatalf("unexpected status sent: %v", status)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("timeout waiting for status send")
+	}
+}
+
+func TestSendReply(t *testing.T) {
+	common.SendReply(nil, &message.ReplyData{Data: []byte("noop")})
+
+	ch := make(chan *message.ReplyData, 1)
+	expected := &message.ReplyData{Data: []byte("hello")}
+	common.SendReply(ch, expected)
+
+	select {
+	case reply := <-ch:
+		if string(reply.Data) != "hello" {
+			t.Fatalf("unexpected reply data: %s", reply.Data)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("timeout waiting for reply send")
 	}
 }
 
