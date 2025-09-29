@@ -16,4 +16,5 @@ type RunnerConfig struct {
 	Type     string         `yaml:"type" json:"type"`
 	Routines int            `yaml:"routines" json:"routines" validate:"omitempty,min=1"`
 	Options  map[string]any `yaml:"options" json:"options"`
+	IfExpr   string         `yaml:"ifExpr" json:"ifExpr" validate:"omitempty"`
 }

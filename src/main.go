@@ -123,24 +123,69 @@ func main() {
 	if len(runners) > 0 {
 		l.Info("runner starting to consume messages from source")
 
-		for _, runnerItem := range runners {
+		for i, runnerItem := range runners {
 			runner := runnerItem.Runner
+			cfg := runnerItem.Config
 
-			runnerRoutines := runnerItem.Config.Routines
+			runnerRoutines := cfg.Routines
 			if runnerRoutines < 1 {
 				runnerRoutines = 1
 			}
 
+			evaluator, err := utils.NewExprEvaluator(cfg.IfExpr)
+			if err != nil {
+				fatal(l, err, fmt.Sprintf("failed to create expression evaluator for runner %d ifExpr: %s", i, cfg.IfExpr))
+			}
+
 			out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
+				if cfg.IfExpr != "" {
+					meta, err := msg.GetTargetMetadata()
+					if err != nil {
+						l.Error("failed to get message metadata for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
+						if err = msg.Nak(); err != nil {
+							l.Error("failed to nak message after ifExpr metadata retrieval error", "error", err)
+						}
+						return msg, false, nil
+					}
+
+					data, err := msg.GetTargetData()
+					if err != nil {
+						l.Error("failed to get message data for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
+						if err = msg.Nak(); err != nil {
+							l.Error("failed to nak message after ifExpr data retrieval error", "error", err)
+						}
+						return msg, false, nil
+					}
+
+					pass, err := evaluator.Eval(map[string]any{
+						"metadata": meta,
+						"data":     data,
+					})
+					if err != nil {
+						l.Error("failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
+						if err = msg.Nak(); err != nil {
+							l.Error("failed to nak message after ifExpr evaluation error", "error", err)
+						}
+						// If expression evaluation fails, we skip processing but do not drop the message
+						return msg, false, nil
+					}
+
+					if !pass {
+						l.Debug("ifExpr evaluated to false, skipping runner processing", "ifExpr", cfg.IfExpr)
+						return msg, true, nil
+					}
+				}
+
 				res, err := runner.Process(msg)
 				if err != nil {
 					l.Error("error processing message", "error", err)
-					err = msg.Nak()
-					if err != nil {
+
+					if err = msg.Nak(); err != nil {
 						l.Error("failed to nak message after processing error", "error", err)
 					}
 					return nil, false, nil
 				}
+
 				return res, true, nil
 			})
 		}
