@@ -8,17 +8,49 @@ commands:
           options:
             address: "localhost:8080"
             method: "POST"
-            path: "/event"
         runners:
           - type: "wasm"
             options:
               path: "./testers/bin/wasmrunner.wasm"
               mountPath: "./testers/runners/wasmrunner"
+              env:
+                FILE_NAME: "test1.txt"
             routines: 8
+            ifExpr: 'string(metadata.path) matches "^/event$"'
+          - type: "wasm"
+            options:
+              path: "./testers/bin/wasmrunner.wasm"
+              mountPath: "./testers/runners/wasmrunner"
+              env:
+                FILE_NAME: "test2.txt"
+            routines: 8
+            ifExpr: 'string(metadata.path) matches "^/hook$"'
     args: []
     restartTries: 0
-  - name: http-source
+  - name: http-source-1
     cmd: "./testers/bin/httptool"
-    args: ["send", "--interval", "1s", "--payload", "{counter} - {nowtime}"]
+    args:
+      [
+        "send",
+        "--interval",
+        "1s",
+        "--path",
+        "/event",
+        "--payload",
+        "{counter} - {nowtime}",
+      ]
+    startAfter: "2s"
+  - name: http-source-2
+    cmd: "./testers/bin/httptool"
+    args:
+      [
+        "send",
+        "--interval",
+        "1s",
+        "--path",
+        "/hook",
+        "--payload",
+        "{counter} - {nowtime}",
+      ]
     startAfter: "2s"
 killOthers: true

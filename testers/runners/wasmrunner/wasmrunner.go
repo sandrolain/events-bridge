@@ -22,7 +22,8 @@ func main() {
 	newMeta["wasm-processed"] = "true"
 	newMeta["eb-status"] = "400"
 
-	pfix, err := fs.ReadFile(os.DirFS("/"), "test.txt")
+	fileName := os.Getenv("FILE_NAME")
+	pfix, err := fs.ReadFile(os.DirFS("/"), fileName)
 	if err != nil {
 		log.Fatalf("failed to read prefix file: %v", err)
 	}
