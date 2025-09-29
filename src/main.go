@@ -85,18 +85,18 @@ func main() {
 		l.Info("no runner configured, messages will be passed through without processing")
 	}
 
-	l.Info("creating target", "type", cfg.Target.Type)
+	if cfg.Target.Type != "" && cfg.Target.Type != "none" {
+		l.Info("creating target", "type", cfg.Target.Type)
 
-	target, err = utils.LoadPluginAndConfig[connectors.Target](
-		connectorPath(cfg.Target.Type),
-		connectors.NewTargetMethodName,
-		connectors.NewTargetConfigName,
-		cfg.Target.Options,
-	)
-	if err != nil {
-		fatal(l, err, "failed to create target")
-	}
-	if target != nil {
+		target, err = utils.LoadPluginAndConfig[connectors.Target](
+			connectorPath(cfg.Target.Type),
+			connectors.NewTargetMethodName,
+			connectors.NewTargetConfigName,
+			cfg.Target.Options,
+		)
+		if err != nil {
+			fatal(l, err, "failed to create target")
+		}
 		l.Info("target created, deferring close")
 		defer func() {
 			if err := target.Close(); err != nil {

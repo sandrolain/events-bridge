@@ -13,7 +13,7 @@ type Target interface {
 }
 
 type TargetConfig struct {
-	Type     string         `yaml:"type" json:"type" validate:"required"`
+	Type     string         `yaml:"type" json:"type"`
 	Buffer   int            `yaml:"buffer" json:"buffer"`
 	Routines int            `yaml:"routines" json:"routines" validate:"omitempty,min=1"`
 	Options  map[string]any `yaml:"options" json:"options"`
