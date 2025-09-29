@@ -75,7 +75,7 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	defer tIface.Close()
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
-	rm.SetMetadata("topic", "dyn/x")
+	rm.AddMetadata("topic", "dyn/x")
 	if err := tIface.Consume(rm); err != nil {
 		t.Fatalf("target consume: %v", err)
 	}

@@ -70,7 +70,7 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	defer tIface.Close()
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
-	rm.SetMetadata("subject", "dyn.x")
+	rm.AddMetadata("subject", "dyn.x")
 	if err := tIface.Consume(rm); err != nil {
 		t.Fatalf("target consume: %v", err)
 	}

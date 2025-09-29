@@ -1,5 +1,7 @@
 package message
 
+import "sync"
+
 type MessageMetadata = map[string]string
 
 type SourceMessage interface {
@@ -21,34 +23,38 @@ type RunnerMessage struct {
 	original SourceMessage
 	data     []byte
 	metadata MessageMetadata
+	metaMx   sync.Mutex
 }
 
 func (m *RunnerMessage) GetID() []byte {
 	return m.original.GetID()
 }
 
-func (m *RunnerMessage) MergeMetadata(mapdata MessageMetadata) {
+func (m *RunnerMessage) MergeMetadata(meta MessageMetadata) {
+	m.metaMx.Lock()
+	defer m.metaMx.Unlock()
 	if m.metadata == nil {
 		m.metadata = make(MessageMetadata)
 	}
-	for k, v := range mapdata {
+	for k, v := range meta {
 		m.metadata[k] = v
 	}
 }
 
-// TODO: metadata as simplier key-value with single value ?
-func (m *RunnerMessage) SetMetadata(key string, value string) {
+func (m *RunnerMessage) AddMetadata(key string, value string) {
+	m.metaMx.Lock()
+	defer m.metaMx.Unlock()
 	if m.metadata == nil {
 		m.metadata = make(MessageMetadata)
 	}
 	m.metadata[key] = value
 }
 
-func (m *RunnerMessage) AddMetadata(key string, value string) {
-	if m.metadata == nil {
-		m.metadata = make(MessageMetadata)
+func (m *RunnerMessage) SetMetadata(meta MessageMetadata) {
+	m.metadata = make(MessageMetadata)
+	for k, v := range meta {
+		m.metadata[k] = v
 	}
-	m.metadata[key] = value
 }
 
 func (m *RunnerMessage) SetData(data []byte) {

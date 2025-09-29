@@ -255,7 +255,7 @@ func TestPluginTargetSendsMessage(t *testing.T) {
 	original := &runnerSourceStub{metadata: message.MessageMetadata{"trace": "source"}, data: []byte("origin")}
 	msg := message.NewRunnerMessage(original)
 	msg.SetData([]byte("payload"))
-	msg.SetMetadata("foo", "bar")
+	msg.AddMetadata("foo", "bar")
 
 	if err := p.Target(context.Background(), msg); err != nil {
 		t.Fatalf("Target returned error: %v", err)
@@ -309,7 +309,7 @@ func TestPluginRunnerReturnsResponse(t *testing.T) {
 
 	msg := message.NewRunnerMessage(&runnerSourceStub{})
 	msg.SetData([]byte("payload"))
-	msg.SetMetadata("foo", "bar")
+	msg.AddMetadata("foo", "bar")
 
 	res, err := p.Runner(context.Background(), msg)
 	if err != nil {

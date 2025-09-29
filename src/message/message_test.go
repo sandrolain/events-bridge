@@ -90,7 +90,7 @@ func TestRunnerMessageTargetMetadataPreferredLocal(t *testing.T) {
 
 	original := &stubSourceMessage{metadata: MessageMetadata{"foo": "bar"}}
 	msg := NewRunnerMessage(original)
-	msg.SetMetadata("foo", "override")
+	msg.AddMetadata("foo", "override")
 	msg.AddMetadata("baz", "qux")
 
 	metadata, err := msg.GetTargetMetadata()
@@ -148,7 +148,7 @@ func TestRunnerMessageReplyDelegates(t *testing.T) {
 	original := &stubSourceMessage{}
 	msg := NewRunnerMessage(original)
 	msg.SetData([]byte("payload"))
-	msg.SetMetadata("k", "v")
+	msg.AddMetadata("k", "v")
 
 	if err := msg.Reply(); err != nil {
 		t.Fatalf("unexpected error replying: %v", err)
@@ -197,7 +197,7 @@ func TestRunnerMessageGetters(t *testing.T) {
 	original := &stubSourceMessage{id: []byte("id"), metadata: MessageMetadata{"foo": "bar"}, data: []byte("src")}
 	msg := NewRunnerMessage(original)
 	msg.SetData([]byte("dst"))
-	msg.SetMetadata("foo", "baz")
+	msg.AddMetadata("foo", "baz")
 
 	if string(msg.GetID()) != "id" {
 		t.Fatalf("unexpected id: %q", msg.GetID())
