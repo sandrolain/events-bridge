@@ -16,8 +16,8 @@ import (
 
 type SourceConfig struct {
 	Address string        `mapstructure:"address" validate:"required"`
-	Method  string        `mapstructure:"method" validate:"required"`
-	Path    string        `mapstructure:"path" validate:"required"`
+	Method  string        `mapstructure:"method"`
+	Path    string        `mapstructure:"path"`
 	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
 }
 
@@ -67,12 +67,12 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 
 			s.slog.Debug("received HTTP request", "method", method, "path", path)
 
-			if method != reqMethod {
+			if reqMethod != "" && method != reqMethod {
 				ctx.SetStatusCode(fasthttp.StatusMethodNotAllowed)
 				return
 			}
 
-			if path != reqPath {
+			if reqPath != "" && path != reqPath {
 				ctx.SetStatusCode(fasthttp.StatusNotFound)
 				return
 			}
@@ -95,7 +95,9 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 				return
 			}
 			if r != nil {
-				status := fasthttp.StatusOK
+				var status int
+
+				// Set response headers from metadata, skipping eb- headers
 				for k, v := range r.Metadata {
 					lk := strings.ToLower(k)
 					if strings.HasPrefix(lk, "eb-") {
@@ -115,8 +117,17 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 					}
 					ctx.Response.Header.Add(k, v)
 				}
+
+				if status == 0 {
+					status = fasthttp.StatusOK
+					if len(r.Data) == 0 {
+						status = fasthttp.StatusNoContent
+					}
+				}
+
 				ctx.SetStatusCode(status)
 				ctx.SetBody(r.Data)
+
 				return
 			}
 			if status != nil {

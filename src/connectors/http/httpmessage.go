@@ -33,6 +33,8 @@ func (m HTTPMessage) GetMetadata() (res message.MessageMetadata, err error) {
 		}
 		res[key] = strings.Join(values, ",")
 	}
+	res["method"] = string(m.httpCtx.Method())
+	res["path"] = string(m.httpCtx.Path())
 	return
 }
 
