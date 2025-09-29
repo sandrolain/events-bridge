@@ -1,0 +1,24 @@
+commands:
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "http"
+          options:
+            address: "localhost:8080"
+            method: "POST"
+            path: "/event"
+        runners:
+          - type: "wasm"
+            options:
+              path: "./testers/bin/wasmrunner.wasm"
+              mountPath: "./testers/runners/wasmrunner"
+            routines: 8
+    args: []
+    restartTries: 0
+  - name: http-source
+    cmd: "./testers/bin/httptool"
+    args: ["send", "--interval", "1s", "--payload", "{counter} - {nowtime}"]
+    startAfter: "2s"
+killOthers: true

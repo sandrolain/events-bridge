@@ -20,8 +20,9 @@ import (
 var _ connectors.Runner = &WasmRunner{}
 
 type RunnerConfig struct {
-	Path    string        `mapstructure:"path" validate:"required"`
-	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
+	Path      string        `mapstructure:"path" validate:"required"`
+	MountPath string        `mapstructure:"mountPath"`
+	Timeout   time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
 }
 
 type WasmRunner struct {
@@ -111,10 +112,16 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 	stdin := bytes.NewReader(inData)
 	stout := bytes.NewBuffer(nil)
 
-	module, err := w.rt.InstantiateModule(ctx, w.module, wazero.NewModuleConfig().
+	config := wazero.NewModuleConfig().
 		WithStdin(stdin).
 		WithStdout(stout).
-		WithStderr(os.Stderr))
+		WithStderr(os.Stderr)
+
+	if w.cfg.MountPath != "" {
+		config = config.WithFS(os.DirFS(w.cfg.MountPath))
+	}
+
+	module, err := w.rt.InstantiateModule(ctx, w.module, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate wasm module: %w", err)
 	}

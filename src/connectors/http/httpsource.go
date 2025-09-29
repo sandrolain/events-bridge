@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/common"
@@ -93,10 +95,27 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 				return
 			}
 			if r != nil {
+				status := fasthttp.StatusOK
 				for k, v := range r.Metadata {
+					lk := strings.ToLower(k)
+					if strings.HasPrefix(lk, "eb-") {
+						switch lk {
+						case "eb-status":
+							vi, err := strconv.Atoi(v)
+							if err != nil {
+								s.slog.Warn("invalid eb-status metadata value, must be an integer", "value", v)
+							} else {
+								s.slog.Debug("setting response status from eb-status metadata", "status", vi)
+								status = vi
+							}
+						default:
+							s.slog.Warn("skipping metadata key starting with eb- in HTTP response", "key", k)
+						}
+						continue
+					}
 					ctx.Response.Header.Add(k, v)
 				}
-				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.SetStatusCode(status)
 				ctx.SetBody(r.Data)
 				return
 			}
