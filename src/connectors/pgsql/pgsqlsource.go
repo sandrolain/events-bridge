@@ -12,7 +12,7 @@ import (
 )
 
 type SourceConfig struct {
-	ConnString string `mapstructure:"conn_string" validate:"required"`
+	ConnString string `mapstructure:"connString" validate:"required"`
 	Table      string `mapstructure:"table" validate:"required"`
 }
 
