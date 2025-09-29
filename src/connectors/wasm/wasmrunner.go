@@ -20,9 +20,11 @@ import (
 var _ connectors.Runner = &WasmRunner{}
 
 type RunnerConfig struct {
-	Path      string        `mapstructure:"path" validate:"required"`
-	MountPath string        `mapstructure:"mountPath"`
-	Timeout   time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
+	Path      string            `mapstructure:"path" validate:"required"`
+	MountPath string            `mapstructure:"mountPath"`
+	Timeout   time.Duration     `mapstructure:"timeout" default:"5s" validate:"required"`
+	Env       map[string]string `mapstructure:"env"`
+	Args      []string          `mapstructure:"args"`
 }
 
 type WasmRunner struct {
@@ -116,6 +118,16 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 		WithStdin(stdin).
 		WithStdout(stout).
 		WithStderr(os.Stderr)
+
+	if len(w.cfg.Args) > 0 {
+		config = config.WithArgs(w.cfg.Args...)
+	}
+
+	if len(w.cfg.Env) > 0 {
+		for k, v := range w.cfg.Env {
+			config = config.WithEnv(k, v)
+		}
+	}
 
 	if w.cfg.MountPath != "" {
 		config = config.WithFS(os.DirFS(w.cfg.MountPath))
