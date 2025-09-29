@@ -81,7 +81,7 @@ func TestResolveFromMetadata(t *testing.T) {
 		t.Fatalf("expected fallback for empty key, got %q", got)
 	}
 
-	msg.SetMetadata("color", "green")
+	msg.AddMetadata("color", "green")
 	if got := common.ResolveFromMetadata(msg, "color", "fallback"); got != "green" {
 		t.Fatalf("expected overridden metadata value, got %q", got)
 	}

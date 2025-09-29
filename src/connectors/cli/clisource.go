@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -187,19 +188,21 @@ func (s *CLISource) consumeStream(r io.Reader) {
 }
 
 func (s *CLISource) consumeJSON(r io.Reader) error {
-	stream, err := encdec.DecodeJSONStream[map[string]any](r)
-	if err != nil {
-		return fmt.Errorf("failed to create JSON decoder: %w", err)
-	}
+	stream := encdec.DecodeJSONStream[map[string]any](r)
 	for {
 		select {
 		case <-s.ctx.Done():
 			return s.ctx.Err()
 		case payload, ok := <-stream:
 			if !ok {
+				s.slog.Debug("json stream closed")
 				return nil
 			}
-			if err := s.handlePayload(payload); err != nil {
+			if payload.Error != nil {
+				s.slog.Error("error decoding JSON payload", "error", payload.Error)
+				continue
+			}
+			if err := s.handlePayload(payload.Value); err != nil {
 				s.slog.Error("failed to process CLI payload", "error", err)
 			}
 		}
@@ -207,19 +210,21 @@ func (s *CLISource) consumeJSON(r io.Reader) error {
 }
 
 func (s *CLISource) consumeCBOR(r io.Reader) error {
-	stream, err := encdec.DecodeCBORStream[map[string]any](r)
-	if err != nil {
-		return fmt.Errorf("failed to create CBOR decoder: %w", err)
-	}
+	stream := encdec.DecodeCBORStream[map[string]any](r)
 	for {
 		select {
 		case <-s.ctx.Done():
 			return s.ctx.Err()
 		case payload, ok := <-stream:
 			if !ok {
+				s.slog.Debug("cbor stream closed")
 				return nil
 			}
-			if err := s.handlePayload(payload); err != nil {
+			if payload.Error != nil {
+				s.slog.Error("error decoding CBOR payload", "error", payload.Error)
+				continue
+			}
+			if err := s.handlePayload(payload.Value); err != nil {
 				s.slog.Error("failed to process CLI payload", "error", err)
 			}
 		}
@@ -396,6 +401,9 @@ func (s *CLISource) pipeLogger(r io.Reader, stream string) {
 		s.slog.Warn("cli output", "stream", stream, "line", scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed) {
+			return
+		}
 		s.slog.Error("error reading cli output", "stream", stream, "error", err)
 	}
 }

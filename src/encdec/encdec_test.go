@@ -3,9 +3,6 @@ package encdec
 import (
 	"bytes"
 	"errors"
-	"io"
-	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -74,10 +71,7 @@ func TestDecodeJSONStream(t *testing.T) {
 		buf.WriteByte('\n')
 	}
 
-	stream, err := DecodeJSONStream[map[string]int](buf)
-	if err != nil {
-		t.Fatalf(errDecodeJSONFmt, err)
-	}
+	stream := DecodeJSONStream[map[string]int](buf)
 
 	for i := 0; i < 3; i++ {
 		select {
@@ -85,7 +79,10 @@ func TestDecodeJSONStream(t *testing.T) {
 			if !ok {
 				t.Fatalf("stream closed before receiving %d values", 3)
 			}
-			if payload["id"] != i {
+			if payload.Error != nil {
+				t.Fatalf("unexpected error in stream item %d: %v", i, payload.Error)
+			}
+			if payload.Value["id"] != i {
 				t.Fatalf("unexpected id at position %d: %v", i, payload)
 			}
 		case <-time.After(time.Second):
@@ -116,10 +113,7 @@ func TestDecodeCBORStream(t *testing.T) {
 		buf.Write(encoded)
 	}
 
-	stream, err := DecodeCBORStream[map[string]int](buf)
-	if err != nil {
-		t.Fatalf(errDecodeCBORFmt, err)
-	}
+	stream := DecodeCBORStream[map[string]int](buf)
 
 	for i := 0; i < 3; i++ {
 		select {
@@ -127,7 +121,10 @@ func TestDecodeCBORStream(t *testing.T) {
 			if !ok {
 				t.Fatalf("stream closed before receiving %d values", 3)
 			}
-			if payload["id"] != i {
+			if payload.Error != nil {
+				t.Fatalf("unexpected error in stream item %d: %v", i, payload.Error)
+			}
+			if payload.Value["id"] != i {
 				t.Fatalf("unexpected id at position %d: %v", i, payload)
 			}
 		case <-time.After(time.Second):
@@ -149,16 +146,12 @@ func TestDecodeJSONStreamInvalid(t *testing.T) {
 	t.Parallel()
 
 	buf := bytes.NewBufferString("{invalid")
-
-	stream, err := DecodeJSONStream[map[string]int](buf)
-	if err != nil {
-		t.Fatalf(errDecodeJSONFmt, err)
-	}
+	stream := DecodeJSONStream[map[string]int](buf)
 
 	select {
 	case _, ok := <-stream:
 		if ok {
-			t.Fatalf("expected no values for invalid stream")
+			t.Fatalf("expected error for invalid stream item, got value")
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("timeout waiting for invalid stream to close")
@@ -170,15 +163,12 @@ func TestDecodeCBORStreamInvalid(t *testing.T) {
 
 	buf := bytes.NewBuffer([]byte{0xff, 0x00})
 
-	stream, err := DecodeCBORStream[map[string]int](buf)
-	if err != nil {
-		t.Fatalf(errDecodeCBORFmt, err)
-	}
+	stream := DecodeCBORStream[map[string]int](buf)
 
 	select {
-	case _, ok := <-stream:
-		if ok {
-			t.Fatalf("expected no values for invalid stream")
+	case v := <-stream:
+		if v.Error == nil {
+			t.Fatalf("expected error for invalid stream item, got value: %v", v.Value)
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("timeout waiting for invalid stream to close")
@@ -193,60 +183,19 @@ func (r errReader) Read(_ []byte) (int, error) {
 	return 0, r.err
 }
 
-func captureStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	old := os.Stderr
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stderr pipe: %v", err)
-	}
-	os.Stderr = w
-	defer func() {
-		os.Stderr = old
-	}()
-
-	fn()
-	time.Sleep(10 * time.Millisecond)
-
-	if err := w.Close(); err != nil {
-		t.Fatalf("failed to close stderr writer: %v", err)
-	}
-
-	out, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("failed to read stderr: %v", err)
-	}
-
-	if err := r.Close(); err != nil {
-		t.Fatalf("failed to close stderr reader: %v", err)
-	}
-
-	return string(out)
-}
-
 func TestDecodeJSONStreamLogsUnexpectedError(t *testing.T) {
 	t.Parallel()
 
 	boom := errors.New("boom")
-	logged := captureStderr(t, func() {
-		stream, err := DecodeJSONStream[map[string]int](errReader{err: boom})
-		if err != nil {
-			t.Fatalf(errDecodeJSONFmt, err)
-		}
+	stream := DecodeJSONStream[map[string]int](errReader{err: boom})
 
-		select {
-		case _, ok := <-stream:
-			if ok {
-				t.Fatalf("expected stream to close without values")
-			}
-		case <-time.After(time.Second):
-			t.Fatalf("timeout waiting for stream close")
+	select {
+	case v := <-stream:
+		if v.Error == nil {
+			t.Fatalf("expected error for invalid stream item, got value: %v", v.Value)
 		}
-	})
-
-	if !strings.Contains(logged, "error decoding stream:") {
-		t.Fatalf("expected log entry for unexpected error, got %q", logged)
+	case <-time.After(time.Second):
+		t.Fatalf("timeout waiting for stream close")
 	}
 }
 
@@ -254,23 +203,17 @@ func TestDecodeCBORStreamLogsUnexpectedError(t *testing.T) {
 	t.Parallel()
 
 	boom := errors.New("boom")
-	logged := captureStderr(t, func() {
-		stream, err := DecodeCBORStream[map[string]int](errReader{err: boom})
-		if err != nil {
-			t.Fatalf(errDecodeCBORFmt, err)
-		}
+	stream := DecodeCBORStream[map[string]int](errReader{err: boom})
 
-		select {
-		case _, ok := <-stream:
-			if ok {
-				t.Fatalf("expected stream to close without values")
-			}
-		case <-time.After(time.Second):
-			t.Fatalf("timeout waiting for stream close")
+	select {
+	case v, ok := <-stream:
+		if !ok {
+			t.Fatalf("expected stream to close with error")
 		}
-	})
-
-	if !strings.Contains(logged, "error decoding stream:") {
-		t.Fatalf("expected log entry for unexpected error, got %q", logged)
+		if v.Error == nil {
+			t.Fatalf("expected error for invalid stream item, got value: %v", v.Value)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timeout waiting for stream close")
 	}
 }
