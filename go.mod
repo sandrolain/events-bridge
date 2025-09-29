@@ -15,7 +15,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/fatih/color v1.18.0
 	github.com/fxamacker/cbor/v2 v2.9.0
-	github.com/go-faker/faker/v4 v4.6.2
+	github.com/go-faker/faker/v4 v4.7.0
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
