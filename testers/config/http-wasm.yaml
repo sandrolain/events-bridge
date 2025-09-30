@@ -54,3 +54,4 @@ commands:
       ]
     startAfter: "2s"
 killOthers: true
+enableTUI: true
