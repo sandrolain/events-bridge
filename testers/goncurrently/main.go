@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/fatih/color"
@@ -43,6 +42,7 @@ func main() {
 	termination := newTerminationManager(func(sig os.Signal, immediate bool) {
 		if immediate {
 			color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Second interrupt (%s) received, forcing termination...\n", sig)
+			router.Stop()
 			return
 		}
 		color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Interrupt (%s) received, stopping all processes...\n", sig)
@@ -56,12 +56,10 @@ func main() {
 	if len(cfg.SetupCommands) > 0 {
 		baseLog("Setup phase completed")
 	}
-
-	var wg sync.WaitGroup
 	for i, c := range cfg.Commands {
-		wg.Add(1)
+		router.Add()
 		go func(idx int, cc CommandConfig) {
-			defer wg.Done()
+			defer router.Done()
 			baseLog("[%s] worker initialized", cc.Name)
 			runManagedCommand(
 				cc,
@@ -75,16 +73,5 @@ func main() {
 		}(i, c)
 	}
 
-	workersDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(workersDone)
-	}()
-
-	select {
-	case <-signals.stop:
-	case <-workersDone:
-	}
-
-	wg.Wait()
+	router.Wait()
 }

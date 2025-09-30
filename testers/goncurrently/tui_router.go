@@ -166,10 +166,19 @@ func (t *tuiRouter) Stop() {
 		if t.app != nil {
 			t.app.Stop()
 		}
-		if t.runDone != nil {
-			<-t.runDone
-		}
 	})
+}
+
+func (t *tuiRouter) Add() {
+
+}
+
+func (t *tuiRouter) Done() {
+
+}
+
+func (t *tuiRouter) Wait() {
+	<-t.runDone
 }
 
 type textViewWriter struct {
