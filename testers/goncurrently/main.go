@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -107,13 +108,14 @@ func (c *consoleRouter) Stop() {
 }
 
 type tuiRouter struct {
-	app         *tview.Application
-	baseName    string
-	views       map[string]*tview.TextView
-	defaultView *tview.TextView
-	stopOnce    sync.Once
-	runDone     chan struct{}
-	runErr      error
+	app              *tview.Application
+	baseName         string
+	views            map[string]*tview.TextView
+	defaultView      *tview.TextView
+	stopOnce         sync.Once
+	runDone          chan struct{}
+	runErr           error
+	interruptHandler atomic.Value
 }
 
 func newTUIRouter(baseName string, commandNames []string, styles map[string]panelAppearance) (*tuiRouter, error) {
@@ -149,10 +151,25 @@ func newTUIRouter(baseName string, commandNames []string, styles map[string]pane
 		runDone:     make(chan struct{}),
 	}
 
+	t.interruptHandler.Store((func())(nil))
+
 	app.SetRoot(layout, true)
 	if focusView, ok := views[baseName]; ok {
 		app.SetFocus(focusView)
 	}
+
+	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if isCtrlC(event) {
+			go func() {
+				if handler, ok := t.interruptHandler.Load().(func()); ok && handler != nil {
+					handler()
+				}
+				t.Stop()
+			}()
+			return nil
+		}
+		return event
+	})
 
 	go func() {
 		t.runErr = app.Run()
@@ -160,6 +177,29 @@ func newTUIRouter(baseName string, commandNames []string, styles map[string]pane
 	}()
 
 	return t, nil
+}
+
+func isCtrlC(event *tcell.EventKey) bool {
+	if event == nil {
+		return false
+	}
+	if event.Key() == tcell.KeyCtrlC {
+		return true
+	}
+	if event.Key() == tcell.KeyRune {
+		r := event.Rune()
+		if r == '' {
+			return true
+		}
+		if (r == 'c' || r == 'C') && (event.Modifiers()&tcell.ModCtrl) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *tuiRouter) RegisterInterruptHandler(handler func()) {
+	t.interruptHandler.Store(handler)
 }
 
 func buildTUILayout(sectionNames []string, styles map[string]panelAppearance) (*tview.Flex, map[string]*tview.TextView) {
@@ -386,12 +426,20 @@ func main() {
 		closeImmediate()
 	}
 
+	notifyInterrupt := func() {
+		color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Interrupt received, stopping all processes...\n")
+		triggerImmediateStop()
+	}
+
+	if interruptable, ok := router.(interface{ RegisterInterruptHandler(func()) }); ok {
+		interruptable.RegisterInterruptHandler(notifyInterrupt)
+	}
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigCh
-		color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Interrupt received, stopping all processes...\n")
-		triggerImmediateStop()
+		notifyInterrupt()
 	}()
 
 	// Run setup commands sequentially (with restart semantics, without global stop handling)
@@ -616,10 +664,17 @@ func logRestartSchedule(name string, attempt int, restartTries int, triesLeft in
 }
 
 // runManagedCommand runs a command with restart semantics and stop/kill orchestration.
+
 func runManagedCommand(c CommandConfig, col *color.Color, sink outputRouter, signals stopSignals, killTimeout time.Duration, killOthers bool, requestStop func()) {
-	prefix := fmt.Sprintf("[%s] ", c.Name)
-	stdoutWriter := sink.LineWriter(c.Name, col, prefix)
-	stderrWriter := sink.LineWriter(c.Name, col, fmt.Sprintf("[%s stderr] ", c.Name))
+	identifier := fmt.Sprintf("[%s] ", c.Name)
+	stdoutPrefix := identifier
+	stderrPrefix := fmt.Sprintf("[%s stderr] ", c.Name)
+	if _, isTUI := sink.(*tuiRouter); isTUI {
+		stdoutPrefix = ""
+		stderrPrefix = "[stderr] "
+	}
+	stdoutWriter := sink.LineWriter(c.Name, col, stdoutPrefix)
+	stderrWriter := sink.LineWriter(c.Name, col, stderrPrefix)
 	alert := color.New(color.FgRed, color.Bold)
 	triesLeft := c.RestartTries
 	if waitStartDelay(c, signals.stop) {
@@ -629,7 +684,7 @@ func runManagedCommand(c CommandConfig, col *color.Color, sink outputRouter, sig
 	baseLog("[%s] starting", c.Name)
 	attempt := 1
 	for {
-		err, timedOut, interrupted := executeOnce(c, prefix, stdoutWriter, stderrWriter, signals, killTimeout)
+		err, timedOut, interrupted := executeOnce(c, identifier, stdoutWriter, stderrWriter, signals, killTimeout)
 		if interrupted {
 			baseLog("[%s] interrupted", c.Name)
 			return
