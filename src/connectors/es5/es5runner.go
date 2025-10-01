@@ -158,12 +158,18 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 
 	done := make(chan error, 1)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				done <- fmt.Errorf("js panic: %v", r)
+			}
+		}()
 		_, err := vm.RunProgram(e.program)
 		done <- err
 	}()
 
 	select {
 	case <-ctx.Done():
+		e.slog.Warn("js execution timeout, potential goroutine leak")
 		return nil, fmt.Errorf("js execution timeout")
 	case err := <-done:
 		if err != nil {
