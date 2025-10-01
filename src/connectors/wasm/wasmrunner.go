@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sandrolain/events-bridge/src/cliformat"
 	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/common/cliformat"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"

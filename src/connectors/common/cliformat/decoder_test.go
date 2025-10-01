@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"testing"
-	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -50,7 +49,7 @@ func TestDecoderNextMultipleFrames(t *testing.T) {
 
 	decoder := NewDecoder(&buf)
 	for _, expected := range frames {
-		frame, err := decoder.Next()
+		frame, err := decoder.Decode()
 		if err != nil {
 			t.Fatalf("unexpected error decoding frame: %v", err)
 		}
@@ -60,7 +59,7 @@ func TestDecoderNextMultipleFrames(t *testing.T) {
 		}
 	}
 
-	if _, err := decoder.Next(); !errors.Is(err, io.EOF) {
+	if _, err := decoder.Decode(); !errors.Is(err, io.EOF) {
 		t.Fatalf("expected io.EOF, got %v", err)
 	}
 }
@@ -106,63 +105,6 @@ func TestDecodeFromReader(t *testing.T) {
 	assertMetadataEqual(t, meta, originalMeta)
 	if string(data) != string(originalData) {
 		t.Fatalf(errUnexpectedPayloadFmt, data, originalData)
-	}
-}
-
-func TestDecodeStream(t *testing.T) {
-	t.Parallel()
-
-	frames := []struct {
-		metadata message.MessageMetadata
-		data     []byte
-	}{
-		{
-			metadata: message.MessageMetadata{
-				"id":   "42",
-				"type": "alpha",
-			},
-			data: []byte("foo"),
-		},
-		{
-			metadata: message.MessageMetadata{
-				"id":   "43",
-				"type": "beta",
-			},
-			data: []byte("bar"),
-		},
-	}
-
-	var buf bytes.Buffer
-	for _, frame := range frames {
-		payload, err := Encode(frame.metadata, frame.data)
-		if err != nil {
-			t.Fatalf(errEncodeFrameFmt, err)
-		}
-		buf.Write(payload)
-	}
-
-	ch, err := DecodeStream(bytes.NewReader(buf.Bytes()))
-	if err != nil {
-		t.Fatalf("unexpected error creating decoder: %v", err)
-	}
-
-	for _, expected := range frames {
-		select {
-		case frame, ok := <-ch:
-			if !ok {
-				t.Fatalf("channel closed unexpectedly")
-			}
-			assertMetadataEqual(t, frame.Metadata, expected.metadata)
-			if string(frame.Data) != string(expected.data) {
-				t.Fatalf(errUnexpectedPayloadFmt, frame.Data, expected.data)
-			}
-		case <-time.After(time.Second):
-			t.Fatalf("timeout waiting for frame")
-		}
-	}
-
-	if _, ok := <-ch; ok {
-		t.Fatalf("expected channel to be closed")
 	}
 }
 

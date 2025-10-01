@@ -5,10 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -169,67 +167,5 @@ func TestReadFramePayloadReadError(t *testing.T) {
 
 	if _, _, err := readFrame(buf); err == nil || !strings.Contains(err.Error(), "failed to read payload") {
 		t.Fatalf("expected payload read error, got %v", err)
-	}
-}
-
-func TestDecodeStreamClosedPipe(t *testing.T) {
-	t.Parallel()
-
-	ch, err := DecodeStream(staticErrorReader{err: io.ErrClosedPipe})
-	if err != nil {
-		t.Fatalf(errUnexpectedFmt, err)
-	}
-
-	select {
-	case _, ok := <-ch:
-		if ok {
-			t.Fatalf("expected channel to be closed")
-		}
-	case <-time.After(time.Second):
-		t.Fatalf("timeout waiting for channel close")
-	}
-}
-
-func TestDecodeStreamLogsError(t *testing.T) {
-	rPipe, wPipe, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create pipe: %v", err)
-	}
-	defer rPipe.Close() //nolint:errcheck
-
-	originalStderr := os.Stderr
-	os.Stderr = wPipe
-	defer func() {
-		os.Stderr = originalStderr
-	}()
-
-	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte{'B', 'A', 'D', '!'})
-	header := make([]byte, 8)
-	buf.Write(header)
-
-	ch, err := DecodeStream(bytes.NewReader(buf.Bytes()))
-	if err != nil {
-		t.Fatalf(errUnexpectedFmt, err)
-	}
-
-	select {
-	case _, ok := <-ch:
-		if ok {
-			t.Fatalf("expected channel to be closed")
-		}
-	case <-time.After(time.Second):
-		t.Fatalf("timeout waiting for channel close")
-	}
-
-	if err := wPipe.Close(); err != nil {
-		t.Fatalf("failed to close writer pipe: %v", err)
-	}
-	logged, err := io.ReadAll(rPipe)
-	if err != nil {
-		t.Fatalf("failed to read stderr: %v", err)
-	}
-	if !strings.Contains(string(logged), "invalid frame marker") {
-		t.Fatalf("expected log message about invalid frame marker, got %q", string(logged))
 	}
 }
