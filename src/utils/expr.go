@@ -54,17 +54,17 @@ func toBool(v any) bool {
 		return val != 0
 	}
 
-	// gestisci collection "vuote"
+	// handle empty collections
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.Map:
 		return rv.Len() > 0
 	case reflect.Struct:
-		// per struct puoi decidere se controllare "zero value"
+		// for struct you can decide whether to check "zero value"
 		zero := reflect.Zero(rv.Type())
 		return !reflect.DeepEqual(rv.Interface(), zero.Interface())
 	}
 
-	// fallback: se non è nil né vuoto, lo consideriamo true
+	// fallback: if not nil nor empty, consider it true
 	return true
 }
