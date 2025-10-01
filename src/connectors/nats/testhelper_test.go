@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -66,16 +65,3 @@ func (t *testSrcMsg) GetData() ([]byte, error)                      { return t.d
 func (t *testSrcMsg) Ack() error                                    { return nil }
 func (t *testSrcMsg) Nak() error                                    { return nil }
 func (t *testSrcMsg) Reply(_ *message.ReplyData) error              { return nil }
-
-// helper publisher for tests
-func publishNATS(t *testing.T, address, subject string, payload []byte) {
-	t.Helper()
-	nc, err := nats.Connect(address)
-	if err != nil {
-		t.Fatalf("publisher connect: %v", err)
-	}
-	defer nc.Close()
-	if err := nc.Publish(subject, payload); err != nil {
-		t.Fatalf("publish err: %v", err)
-	}
-}

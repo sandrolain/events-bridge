@@ -112,7 +112,6 @@ type CommandExecutor struct {
 	BaseConfig
 	ctx    context.Context
 	cancel context.CancelFunc
-	cmd    *exec.Cmd
 	slog   *slog.Logger
 }
 

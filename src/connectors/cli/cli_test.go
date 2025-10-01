@@ -27,10 +27,6 @@ const (
 	errUnexpectedMetadataFmt = "unexpected metadata: %v"
 	errUnexpectedPayloadFmt  = "unexpected payload text: %v"
 	errWriteTempFileFmt      = "write temp file: %v"
-
-	// Test constants to avoid duplication
-	catOutputCommand = "cat > %q"
-	testDataString   = "test data"
 )
 
 func TestCLISourceJSON(t *testing.T) {

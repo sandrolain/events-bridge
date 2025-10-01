@@ -245,7 +245,7 @@ func TestCoAPSourceTCPAckChanged(t *testing.T) {
 
 	rm := <-ch
 	if rm == nil {
-		t.Fatalf(errNilRunnerMsg)
+		t.Fatal(errNilRunnerMsg)
 	}
 	_ = rm.Ack()
 

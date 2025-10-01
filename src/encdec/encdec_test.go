@@ -12,11 +12,6 @@ type testStruct struct {
 	Name string `json:"name" cbor:"name"`
 }
 
-const (
-	errDecodeJSONFmt = "DecodeJSONStream error: %v"
-	errDecodeCBORFmt = "DecodeCBORStream error: %v"
-)
-
 func TestJSONRoundTrip(t *testing.T) {
 	t.Parallel()
 

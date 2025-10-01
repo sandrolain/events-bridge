@@ -256,14 +256,11 @@ func main() {
 		}
 	}
 
-	// Log any close errors
 	// Monitor for shutdown signal
-	select {
-	case <-ctx.Done():
-		l.Info("shutdown signal received, cleaning up resources")
-		// Cleanup will be handled by deferred functions
-	}
+	<-ctx.Done()
+	l.Info("shutdown signal received, cleaning up resources")
 
+	// Log any close errors
 	if len(closeErrors) > 0 {
 		for _, err := range closeErrors {
 			l.Error("close error", "error", err)
