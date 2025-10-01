@@ -133,7 +133,7 @@ func NewCommandExecutor(cfg *BaseConfig, logger *slog.Logger) (*CommandExecutor,
 
 // CreateCommand creates and configures an exec.Cmd with the given context
 func (ce *CommandExecutor) CreateCommand(ctx context.Context) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, ce.Command, ce.Args...)
+	cmd := exec.CommandContext(ctx, ce.Command, ce.Args...) // #nosec G204 - CLI connector requires external command execution
 
 	if len(ce.Envs) > 0 {
 		env := make([]string, 0, len(ce.Envs))

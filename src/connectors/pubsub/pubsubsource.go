@@ -64,7 +64,10 @@ func (s *PubSubSource) Produce(buffer int) (<-chan *message.RunnerMessage, error
 		// Optional parameters
 		ackDeadline := int32(10)
 		if s.cfg.AckDeadline > 0 {
-			ackDeadline = int32(s.cfg.AckDeadline)
+			if s.cfg.AckDeadline > 2147483647 { // max int32 value
+				return nil, fmt.Errorf("ackDeadline too large: %d", s.cfg.AckDeadline)
+			}
+			ackDeadline = int32(s.cfg.AckDeadline) // #nosec G115 - checked above
 		}
 		retention := int64(24 * 3600)
 		if s.cfg.RetentionDuration > 0 {

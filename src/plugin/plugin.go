@@ -75,7 +75,7 @@ func (p *Plugin) Start() (err error) {
 		return
 	}
 
-	p.cmd = exec.Command(cfg.Exec, cfg.Args...)
+	p.cmd = exec.Command(cfg.Exec, cfg.Args...) // #nosec G204 - plugin execution requires external command execution
 	env := append(os.Environ(), cfg.Env...)
 	env = append(env, fmt.Sprintf("PLUGIN_ID=%s", p.ID))
 	env = append(env, fmt.Sprintf("PLUGIN_PROTOCOL=%s", cfg.Protocol))

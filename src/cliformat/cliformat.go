@@ -96,16 +96,16 @@ func Encode(metadata message.MessageMetadata, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode metadata: %w", err)
 	}
-	if uint64(len(metaBytes)) > uint64(maxFrameSegment) {
+	if len(metaBytes) > maxFrameSegment {
 		return nil, fmt.Errorf("metadata too large: %d bytes", len(metaBytes))
 	}
-	if uint64(len(data)) > uint64(maxFrameSegment) {
+	if len(data) > maxFrameSegment {
 		return nil, fmt.Errorf("data too large: %d bytes", len(data))
 	}
-	if uint64(len(metaBytes)) > uint64(maxFrameValue) {
+	if len(metaBytes) > int(maxFrameValue) {
 		return nil, fmt.Errorf("metadata too large: %d bytes", len(metaBytes))
 	}
-	if uint64(len(data)) > uint64(maxFrameValue) {
+	if len(data) > int(maxFrameValue) {
 		return nil, fmt.Errorf("data too large: %d bytes", len(data))
 	}
 
@@ -114,8 +114,8 @@ func Encode(metadata message.MessageMetadata, data []byte) ([]byte, error) {
 	buf.Write(frameMarker[:])
 
 	header := make([]byte, 8)
-	binary.BigEndian.PutUint32(header[:4], uint32(len(metaBytes)))
-	binary.BigEndian.PutUint32(header[4:], uint32(len(data)))
+	binary.BigEndian.PutUint32(header[:4], uint32(len(metaBytes))) // #nosec G115 - checked bounds above
+	binary.BigEndian.PutUint32(header[4:], uint32(len(data)))      // #nosec G115 - checked bounds above
 	buf.Write(header)
 	buf.Write(metaBytes)
 	buf.Write(data)
@@ -132,7 +132,7 @@ func Decode(input []byte) (message.MessageMetadata, []byte, error) {
 	}
 	metaLen := binary.BigEndian.Uint32(input[frameMarkerSize : frameMarkerSize+4])
 	dataLen := binary.BigEndian.Uint32(input[frameMarkerSize+4 : frameHeaderSize])
-	if uint64(metaLen) > uint64(maxFrameSegment) || uint64(dataLen) > uint64(maxFrameSegment) {
+	if metaLen > maxFrameValue || dataLen > maxFrameValue {
 		return nil, nil, errors.New("frame segment exceeds supported size")
 	}
 	totalExpected := frameHeaderSize + int(metaLen) + int(dataLen)
@@ -175,7 +175,7 @@ func readFrame(r io.Reader) (message.MessageMetadata, []byte, error) {
 	metaLen := binary.BigEndian.Uint32(header[frameMarkerSize : frameMarkerSize+4])
 	dataLen := binary.BigEndian.Uint32(header[frameMarkerSize+4:])
 
-	if uint64(metaLen) > uint64(maxFrameSegment) || uint64(dataLen) > uint64(maxFrameSegment) {
+	if metaLen > maxFrameValue || dataLen > maxFrameValue {
 		return nil, nil, errors.New("frame segment exceeds supported size")
 	}
 	metaBytes := make([]byte, int(metaLen))
