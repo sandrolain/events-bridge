@@ -106,6 +106,8 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 							vi, err := strconv.Atoi(v)
 							if err != nil {
 								s.slog.Warn("invalid eb-status metadata value, must be an integer", "value", v)
+							} else if vi < 100 || vi > 599 {
+								s.slog.Warn("invalid eb-status metadata value, must be a valid HTTP status code (100-599)", "value", vi)
 							} else {
 								s.slog.Debug("setting response status from eb-status metadata", "status", vi)
 								status = vi
