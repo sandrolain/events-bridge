@@ -37,11 +37,11 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
 	}
-	defer sIface.Close()
+	defer sIface.Close() //nolint:errcheck
 
 	// Target publishes to topic
 	tIface := mustNewMQTTTarget(t, map[string]any{"address": addr, "topic": "ab/cd", "clientId": "tgt1", "topicFromMetadataKey": "topic", "qos": 1})
-	defer tIface.Close()
+	defer tIface.Close() //nolint:errcheck
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: message.MessageMetadata{"topic": "ab/cd"}})
 	if err := tIface.Consume(rm); err != nil {
@@ -69,10 +69,10 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
 	}
-	defer sIface.Close()
+	defer sIface.Close() //nolint:errcheck
 
 	tIface := mustNewMQTTTarget(t, map[string]any{"address": addr, "topic": "unused", "clientId": "tgt2", "topicFromMetadataKey": "topic", "qos": 1})
-	defer tIface.Close()
+	defer tIface.Close() //nolint:errcheck
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
 	rm.AddMetadata("topic", "dyn/x")

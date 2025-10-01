@@ -38,7 +38,7 @@ func TestApplyCLIOverridesLongAndEqualsForms(t *testing.T) {
 		configFormatFlag, "json",
 	})
 	ec := &EnvConfig{}
-	applyCLIOverrides(ec)
+	applyCLIOverrides(ec) //nolint:errcheck
 	require.Equal(t, "/tmp/eb.yaml", ec.ConfigFilePath)
 	require.Equal(t, "{\"a\":1}", ec.ConfigContent)
 	require.Equal(t, "json", ec.ConfigFormat)
@@ -50,7 +50,7 @@ func TestApplyCLIOverridesLongAndEqualsForms(t *testing.T) {
 		configFormatFlag + "=yaml",
 	})
 	ec2 := &EnvConfig{}
-	applyCLIOverrides(ec2)
+	applyCLIOverrides(ec2) //nolint:errcheck
 	require.Equal(t, "/var/lib/eb/config.yml", ec2.ConfigFilePath)
 	require.Equal(t, "source: {}", ec2.ConfigContent)
 	require.Equal(t, "yaml", ec2.ConfigFormat)
@@ -59,21 +59,21 @@ func TestApplyCLIOverridesLongAndEqualsForms(t *testing.T) {
 func TestApplyCLIOverridesIgnoresMissingValues(t *testing.T) {
 	withArgs(t, []string{configFilePathFlag})
 	ec := &EnvConfig{}
-	applyCLIOverrides(ec)
+	applyCLIOverrides(ec) //nolint:errcheck
 	require.Empty(t, ec.ConfigFilePath)
 	require.Empty(t, ec.ConfigContent)
 	require.Empty(t, ec.ConfigFormat)
 
 	withArgs(t, []string{configContentFlag})
 	ec2 := &EnvConfig{}
-	applyCLIOverrides(ec2)
+	applyCLIOverrides(ec2) //nolint:errcheck
 	require.Empty(t, ec2.ConfigFilePath)
 	require.Empty(t, ec2.ConfigContent)
 	require.Empty(t, ec2.ConfigFormat)
 
 	withArgs(t, []string{configFormatFlag})
 	ec3 := &EnvConfig{}
-	applyCLIOverrides(ec3)
+	applyCLIOverrides(ec3) //nolint:errcheck
 	require.Empty(t, ec3.ConfigFilePath)
 	require.Empty(t, ec3.ConfigContent)
 	require.Empty(t, ec3.ConfigFormat)

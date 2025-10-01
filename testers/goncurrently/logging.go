@@ -18,5 +18,5 @@ func baseLog(format string, args ...any) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
-	fmt.Fprintf(errorOutput, format, args...)
+	fmt.Fprintf(errorOutput, format, args...) //nolint:errcheck
 }

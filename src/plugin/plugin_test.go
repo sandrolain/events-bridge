@@ -466,7 +466,7 @@ func TestPluginStopInvokesShutdownAndClose(t *testing.T) {
 	}()
 	t.Cleanup(func() {
 		srv.Stop()
-		listener.Close()
+		listener.Close() //nolint:errcheck
 	})
 
 	conn, err := grpc.NewClient("bufconn",

@@ -95,7 +95,11 @@ func (p *Plugin) Start() (err error) {
 		}
 
 		go func() {
-			defer stdout.Close()
+			defer func() {
+				if err := stdout.Close(); err != nil {
+					p.slog.Error("Failed to close stdout pipe", "name", cfg.Name, "err", err)
+				}
+			}()
 			// print the output of the subprocess
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
@@ -125,7 +129,11 @@ func (p *Plugin) Start() (err error) {
 		}
 
 		go func() {
-			defer stderr.Close()
+			defer func() {
+				if err := stderr.Close(); err != nil {
+					p.slog.Error("Failed to close stderr pipe", "name", cfg.Name, "err", err)
+				}
+			}()
 			// print the error output of the subprocess
 			scanner := bufio.NewScanner(stderr)
 			for scanner.Scan() {

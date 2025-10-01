@@ -612,7 +612,7 @@ func TestCBORErrorPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTarget error: %v", err)
 	}
-	defer target.Close()
+	defer target.Close() //nolint:errcheck
 
 	// Test with nil metadata to trigger different code paths
 	msg := newRunnerMessage(nil, []byte("test data"))

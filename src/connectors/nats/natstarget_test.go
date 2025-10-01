@@ -33,10 +33,10 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
 	}
-	defer sIface.Close()
+	defer sIface.Close() //nolint:errcheck
 
 	tIface := mustNewNATSTarget(t, map[string]any{"address": addr, "subject": "ab.cd"})
-	defer tIface.Close()
+	defer tIface.Close() //nolint:errcheck
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: message.MessageMetadata{"subject": "ab.cd"}})
 	if err := tIface.Consume(rm); err != nil {
@@ -64,10 +64,10 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Produce: %v", err)
 	}
-	defer sIface.Close()
+	defer sIface.Close() //nolint:errcheck
 
 	tIface := mustNewNATSTarget(t, map[string]any{"address": addr, "subject": "unused", "subjectFromMetadataKey": "subject"})
-	defer tIface.Close()
+	defer tIface.Close() //nolint:errcheck
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
 	rm.AddMetadata("subject", "dyn.x")

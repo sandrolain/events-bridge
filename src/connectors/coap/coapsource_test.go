@@ -67,7 +67,7 @@ func TestCoAPSourceUDPAckChanged(t *testing.T) {
 			errCh <- err
 			return
 		}
-		defer cli.Close()
+		defer cli.Close() //nolint:errcheck
 		payload := []byte("hello-udp-ack")
 		resp, err := cli.Post(context.Background(), testPath, coapmessage.AppJSON, bytes.NewReader(payload))
 		if err != nil {
@@ -108,7 +108,7 @@ func TestCoAPSourceUDPNakInternalError(t *testing.T) {
 			errCh <- err
 			return
 		}
-		defer cli.Close()
+		defer cli.Close() //nolint:errcheck
 		resp, err := cli.Post(context.Background(), testPath, coapmessage.AppJSON, bytes.NewReader([]byte("nak")))
 		if err != nil {
 			errCh <- err
@@ -150,7 +150,7 @@ func TestCoAPSourceUDPReplyContentJSON(t *testing.T) {
 			errCh <- err
 			return
 		}
-		defer cli.Close()
+		defer cli.Close() //nolint:errcheck
 		resp, err := cli.Post(context.Background(), testPath, coapmessage.AppJSON, bytes.NewReader([]byte("ping")))
 		if err != nil {
 			errCh <- err
@@ -193,7 +193,7 @@ func TestCoAPSourceUDPTimeoutGatewayTimeout(t *testing.T) {
 			errCh <- err
 			return
 		}
-		defer cli.Close()
+		defer cli.Close() //nolint:errcheck
 		resp, err := cli.Post(context.Background(), testPath, coapmessage.AppJSON, bytes.NewReader([]byte("timeout")))
 		if err != nil {
 			errCh <- err
@@ -233,7 +233,7 @@ func TestCoAPSourceTCPAckChanged(t *testing.T) {
 			errCh <- err
 			return
 		}
-		defer cli.Close()
+		defer cli.Close() //nolint:errcheck
 		payload := []byte("hello-tcp-ack")
 		resp, err := cli.Post(context.Background(), testPath, coapmessage.AppJSON, bytes.NewReader(payload))
 		if err != nil {
@@ -276,7 +276,7 @@ func TestCoAPSourceTCPReplyContentJSON(t *testing.T) {
 			errCh <- err
 			return
 		}
-		defer cli.Close()
+		defer cli.Close() //nolint:errcheck
 		resp, err := cli.Post(context.Background(), testPath, coapmessage.AppJSON, bytes.NewReader([]byte("ping")))
 		if err != nil {
 			errCh <- err
@@ -319,7 +319,7 @@ func TestCoAPSourceTCPTimeoutGatewayTimeout(t *testing.T) {
 			errCh <- err
 			return
 		}
-		defer cli.Close()
+		defer cli.Close() //nolint:errcheck
 		resp, err := cli.Post(context.Background(), testPath, coapmessage.AppJSON, bytes.NewReader([]byte("timeout")))
 		if err != nil {
 			errCh <- err

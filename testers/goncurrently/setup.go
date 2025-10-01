@@ -19,7 +19,7 @@ func runSetupSequence(cmds []CommandConfig, colors []*color.Color, sink outputRo
 		}
 		baseLog("[setup:%s] starting", c.Name)
 		if !runSetupWithRetries(c, identifier, stdoutWriter, stderrWriter) {
-			color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Setup command '%s' failed after retries\n", c.Name)
+			color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Setup command '%s' failed after retries\n", c.Name) //nolint:errcheck
 			os.Exit(1)
 		}
 		baseLog("[setup:%s] completed", c.Name)

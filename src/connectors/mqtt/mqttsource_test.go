@@ -37,14 +37,14 @@ func TestMQTTSharedSubscriptionBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("s1 produce: %v", err)
 	}
-	defer s1.Close()
+	defer s1.Close() //nolint:errcheck
 
 	s2 := mustNewMQTTSource(t, map[string]any{"address": addr, "topic": "share/#", "clientId": "s2", "consumerGroup": "grp"})
 	ch2, err := s2.Produce(10)
 	if err != nil {
 		t.Fatalf("s2 produce: %v", err)
 	}
-	defer s2.Close()
+	defer s2.Close() //nolint:errcheck
 
 	time.Sleep(500 * time.Millisecond)
 

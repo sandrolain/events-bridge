@@ -155,7 +155,7 @@ func (t *tuiRouter) LineWriter(name string, col *color.Color, prefix string) fun
 	return func(line string) {
 		t.app.QueueUpdateDraw(func() {
 			writer := tview.ANSIWriter(view)
-			fmt.Fprintf(writer, lineJoinFormat, coloredPrefix, line)
+			fmt.Fprintf(writer, lineJoinFormat, coloredPrefix, line) //nolint:errcheck
 			view.ScrollToEnd()
 		})
 	}
@@ -199,15 +199,15 @@ func (w *textViewWriter) Write(p []byte) (int, error) {
 		for len(remaining) > 0 {
 			newlineIdx := strings.IndexByte(remaining, '\n')
 			if w.atLineStart && w.prefix != "" {
-				fmt.Fprint(tvWriter, w.prefix)
+				fmt.Fprint(tvWriter, w.prefix) //nolint:errcheck
 			}
 			if newlineIdx == -1 {
-				fmt.Fprint(tvWriter, remaining)
+				fmt.Fprint(tvWriter, remaining) //nolint:errcheck
 				w.atLineStart = false
 				break
 			}
-			fmt.Fprint(tvWriter, remaining[:newlineIdx])
-			fmt.Fprint(tvWriter, "\n")
+			fmt.Fprint(tvWriter, remaining[:newlineIdx]) //nolint:errcheck
+			fmt.Fprint(tvWriter, "\n")                   //nolint:errcheck
 			w.atLineStart = true
 			remaining = remaining[newlineIdx+1:]
 		}

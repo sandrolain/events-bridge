@@ -31,7 +31,7 @@ func logCommandLine(stdoutWriter, stderrWriter func(string), identifier, message
 	case stdoutWriter != nil:
 		stdoutWriter(message)
 	default:
-		fmt.Fprintf(errorOutput, "%s%s\n", identifier, message)
+		fmt.Fprintf(errorOutput, "%s%s\n", identifier, message) //nolint:errcheck
 	}
 }
 
@@ -136,7 +136,7 @@ func logCommandOutcome(name string, err error, timedOut bool) {
 
 func handleNoRestart(name string, killOthers bool, alert *color.Color, requestStop func()) {
 	if killOthers {
-		alert.Fprintf(errorOutput, "Stopping all processes due to killOnExit triggered by '%s'\n", name)
+		alert.Fprintf(errorOutput, "Stopping all processes due to killOnExit triggered by '%s'\n", name) //nolint:errcheck
 		if requestStop != nil {
 			requestStop()
 		}

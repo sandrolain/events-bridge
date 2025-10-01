@@ -84,7 +84,7 @@ func main() {
 						fmt.Fprintf(os.Stderr, "Failed to dial CoAP (udp): %v\n", err)
 						return
 					}
-					defer client.Close()
+					defer client.Close() //nolint:errcheck
 					resp, err := client.Post(ctx, sendPath, mt, bytes.NewReader(body))
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "POST error: %v\n", err)
@@ -101,7 +101,7 @@ func main() {
 						fmt.Fprintf(os.Stderr, "Failed to dial CoAP (tcp): %v\n", err)
 						return
 					}
-					defer client.Close()
+					defer client.Close() //nolint:errcheck
 					resp, err := client.Post(ctx, sendPath, mt, bytes.NewReader(body))
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "POST error: %v\n", err)

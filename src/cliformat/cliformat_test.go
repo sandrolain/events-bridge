@@ -195,7 +195,7 @@ func TestDecodeStreamLogsError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)
 	}
-	defer rPipe.Close()
+	defer rPipe.Close() //nolint:errcheck
 
 	originalStderr := os.Stderr
 	os.Stderr = wPipe

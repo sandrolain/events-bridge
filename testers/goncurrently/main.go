@@ -41,11 +41,11 @@ func main() {
 
 	termination := newTerminationManager(func(sig os.Signal, immediate bool) {
 		if immediate {
-			color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Second interrupt (%s) received, forcing termination...\n", sig)
+			color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Second interrupt (%s) received, forcing termination...\n", sig) //nolint:errcheck
 			router.Stop()
 			return
 		}
-		color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Interrupt (%s) received, stopping all processes...\n", sig)
+		color.New(color.FgRed, color.Bold).Fprintf(errorOutput, "Interrupt (%s) received, stopping all processes...\n", sig) //nolint:errcheck
 	})
 	defer termination.Shutdown()
 

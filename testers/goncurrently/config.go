@@ -64,7 +64,7 @@ func mustParseDurationField(field string, value string, commandName string) time
 	}
 	d, err := time.ParseDuration(value)
 	if err != nil {
-		fmt.Fprintf(errorOutput, "invalid duration for %s in command '%s': %v\n", field, commandName, err)
+		fmt.Fprintf(errorOutput, "invalid duration for %s in command '%s': %v\n", field, commandName, err) //nolint:errcheck
 		os.Exit(1)
 	}
 	return d

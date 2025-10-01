@@ -36,14 +36,14 @@ func TestNATSQueueGroupBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("s1 produce: %v", err)
 	}
-	defer s1.Close()
+	defer s1.Close() //nolint:errcheck
 
 	s2 := mustNewNATSSource(t, map[string]any{"address": addr, "subject": "share.*", "queueGroup": "grp"})
 	ch2, err := s2.Produce(10)
 	if err != nil {
 		t.Fatalf("s2 produce: %v", err)
 	}
-	defer s2.Close()
+	defer s2.Close() //nolint:errcheck
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -57,7 +57,7 @@ func TestNATSQueueGroupBasic(t *testing.T) {
 			t.Fatalf("publish err: %v", err)
 		}
 	}
-	nc.Flush()
+	nc.Flush() //nolint:errcheck
 	nc.Close()
 
 	got1, got2 := 0, 0
