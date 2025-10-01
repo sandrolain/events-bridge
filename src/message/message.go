@@ -24,6 +24,7 @@ type RunnerMessage struct {
 	data     []byte
 	metadata MessageMetadata
 	metaMx   sync.Mutex
+	dataMx   sync.Mutex
 }
 
 func (m *RunnerMessage) GetID() []byte {
@@ -60,6 +61,8 @@ func (m *RunnerMessage) SetMetadata(meta MessageMetadata) {
 }
 
 func (m *RunnerMessage) SetData(data []byte) {
+	m.dataMx.Lock()
+	defer m.dataMx.Unlock()
 	m.data = data
 }
 
@@ -81,6 +84,8 @@ func (m *RunnerMessage) GetSourceData() ([]byte, error) {
 }
 
 func (m *RunnerMessage) GetTargetData() ([]byte, error) {
+	m.dataMx.Lock()
+	defer m.dataMx.Unlock()
 	if m.data != nil {
 		return m.data, nil
 	}
@@ -94,6 +99,8 @@ func (m *RunnerMessage) GetMetadata() MessageMetadata {
 }
 
 func (m *RunnerMessage) GetData() []byte {
+	m.dataMx.Lock()
+	defer m.dataMx.Unlock()
 	return m.data
 }
 
