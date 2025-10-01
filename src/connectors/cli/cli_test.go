@@ -120,7 +120,7 @@ func TestCLITargetJSON(t *testing.T) {
 	cfg := &TargetConfig{
 		Command:     script,
 		Args:        args,
-		Timeout:     time.Second,
+		Timeout:     5 * time.Second, // Increased timeout for race detector
 		Format:      "json",
 		MetadataKey: "metadata",
 		DataKey:     "payload",
@@ -169,7 +169,7 @@ func TestCLITargetCBOR(t *testing.T) {
 	cfg := &TargetConfig{
 		Command:     script,
 		Args:        args,
-		Timeout:     time.Second,
+		Timeout:     5 * time.Second, // Increased timeout for race detector
 		Format:      "CBOR",
 		MetadataKey: "metadata",
 		DataKey:     "payload",
@@ -217,7 +217,7 @@ func TestCLITargetJSONDataOnly(t *testing.T) {
 	cfg := &TargetConfig{
 		Command: script,
 		Args:    args,
-		Timeout: time.Second,
+		Timeout: 5 * time.Second, // Increased timeout for race detector
 		Format:  "json",
 	}
 
@@ -256,7 +256,7 @@ func setupCLISource(t *testing.T, format CLIFormat, records []map[string]any, me
 	cfg := &SourceConfig{
 		Command:     "cat",
 		Args:        []string{file},
-		Timeout:     time.Second,
+		Timeout:     5 * time.Second, // Increased timeout for race detector
 		Format:      string(format),
 		MetadataKey: metadataKey,
 		DataKey:     dataKey,
@@ -383,7 +383,7 @@ func receiveMessage(t *testing.T, ch <-chan *message.RunnerMessage) *message.Run
 			t.Fatalf("channel closed unexpectedly")
 		}
 		return msg
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second): // Increased timeout for race detector
 		t.Fatalf("timeout waiting for message")
 	}
 	return nil
