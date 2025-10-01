@@ -21,10 +21,14 @@ func LoadConfig() (cfg *Config, err error) {
 	// Precedence: CLI > Env
 	envCfg, err := loadEnvConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load environment configuration: %w", err)
 	}
+
 	// Apply CLI overrides on top of envs
-	applyCLIOverrides(envCfg)
+	if err := applyCLIOverrides(envCfg); err != nil {
+		return nil, fmt.Errorf("failed to apply CLI overrides: %w", err)
+	}
+
 	// Validate after merging
 	validate := validator.New()
 	if err = validate.Struct(envCfg); err != nil {
@@ -48,34 +52,67 @@ func LoadConfig() (cfg *Config, err error) {
 //	--config-format <yaml|yml|json> | --config-format=<yaml|yml|json>
 //
 // CLI values take precedence over environment variables.
-func applyCLIOverrides(cfg *EnvConfig) {
+func applyCLIOverrides(cfg *EnvConfig) error {
 	args := os.Args[1:]
+	supportedFormats := map[string]bool{"yaml": true, "yml": true, "json": true}
+
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		switch {
 		case strings.HasPrefix(a, "--config-file-path="):
-			cfg.ConfigFilePath = strings.TrimPrefix(a, "--config-file-path=")
+			path := strings.TrimPrefix(a, "--config-file-path=")
+			if strings.TrimSpace(path) == "" {
+				return fmt.Errorf("--config-file-path cannot be empty")
+			}
+			cfg.ConfigFilePath = path
 		case a == "--config-file-path":
 			if i+1 < len(args) {
-				cfg.ConfigFilePath = args[i+1]
+				path := args[i+1]
+				if strings.TrimSpace(path) == "" {
+					return fmt.Errorf("--config-file-path cannot be empty")
+				}
+				cfg.ConfigFilePath = path
 				i++
+			} else {
+				return fmt.Errorf("--config-file-path requires a value")
 			}
 		case strings.HasPrefix(a, "--config-content="):
-			cfg.ConfigContent = strings.TrimPrefix(a, "--config-content=")
+			content := strings.TrimPrefix(a, "--config-content=")
+			if strings.TrimSpace(content) == "" {
+				return fmt.Errorf("--config-content cannot be empty")
+			}
+			cfg.ConfigContent = content
 		case a == "--config-content":
 			if i+1 < len(args) {
-				cfg.ConfigContent = args[i+1]
+				content := args[i+1]
+				if strings.TrimSpace(content) == "" {
+					return fmt.Errorf("--config-content cannot be empty")
+				}
+				cfg.ConfigContent = content
 				i++
+			} else {
+				return fmt.Errorf("--config-content requires a value")
 			}
 		case strings.HasPrefix(a, "--config-format="):
-			cfg.ConfigFormat = strings.TrimPrefix(a, "--config-format=")
+			format := strings.TrimPrefix(a, "--config-format=")
+			if !supportedFormats[strings.ToLower(format)] {
+				return fmt.Errorf("unsupported config format: %s (supported: yaml, yml, json)", format)
+			}
+			cfg.ConfigFormat = format
 		case a == "--config-format":
 			if i+1 < len(args) {
-				cfg.ConfigFormat = args[i+1]
+				format := args[i+1]
+				if !supportedFormats[strings.ToLower(format)] {
+					return fmt.Errorf("unsupported config format: %s (supported: yaml, yml, json)", format)
+				}
+				cfg.ConfigFormat = format
 				i++
+			} else {
+				return fmt.Errorf("--config-format requires a value")
 			}
 		}
 	}
+	return nil
 
 }
 
