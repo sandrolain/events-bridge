@@ -41,10 +41,15 @@ type Plugin struct {
 	stopped bool
 	timeout time.Duration
 	slog    *slog.Logger
+	ctx     context.Context
+	cancel  context.CancelFunc
 }
 
 func (p *Plugin) Start() (err error) {
 	cfg := p.Config
+
+	// Initialize context for goroutine management
+	p.ctx, p.cancel = context.WithCancel(context.Background())
 
 	p.slog.Info("Starting plugin", "name", cfg.Name, "retries", cfg.Retry, "delay", cfg.Delay)
 
@@ -90,9 +95,20 @@ func (p *Plugin) Start() (err error) {
 		}
 
 		go func() {
+			defer stdout.Close()
 			// print the output of the subprocess
 			scanner := bufio.NewScanner(stdout)
-			for !p.stopped && scanner.Scan() {
+			for scanner.Scan() {
+				select {
+				case <-p.ctx.Done():
+					return
+				default:
+				}
+
+				if p.stopped {
+					return
+				}
+
 				m := scanner.Text()
 				s := fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m)
 				_, err := os.Stdout.WriteString(s)
@@ -109,9 +125,20 @@ func (p *Plugin) Start() (err error) {
 		}
 
 		go func() {
+			defer stderr.Close()
 			// print the error output of the subprocess
 			scanner := bufio.NewScanner(stderr)
-			for !p.stopped && scanner.Scan() {
+			for scanner.Scan() {
+				select {
+				case <-p.ctx.Done():
+					return
+				default:
+				}
+
+				if p.stopped {
+					return
+				}
+
 				m := scanner.Text()
 				s := fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m)
 				_, err := os.Stderr.WriteString(s)
@@ -173,14 +200,27 @@ func (p *Plugin) connect() (err error) {
 
 func (p *Plugin) startCheckStatus() {
 	cfg := p.Config
-	for !p.stopped {
-		sts, e := p.checkStatus()
-		if e != nil {
-			p.slog.Error("Failed to check status", "name", cfg.Name, "err", e)
+	ticker := time.NewTicker(cfg.StatusInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-p.ctx.Done():
+			p.slog.Debug("Status check stopped due to context cancellation", "name", cfg.Name)
+			return
+		case <-ticker.C:
+			if p.stopped {
+				return
+			}
+
+			sts, e := p.checkStatus()
+			if e != nil {
+				p.slog.Error("Failed to check status", "name", cfg.Name, "err", e)
+			} else {
+				p.slog.Debug("Plugin status", "name", cfg.Name, "status", sts.Status)
+				// TODO: handle status
+			}
 		}
-		p.slog.Debug("Plugin status", "name", cfg.Name, "status", sts.Status)
-		// TODO: handle status
-		time.Sleep(cfg.StatusInterval)
 	}
 }
 
@@ -195,6 +235,15 @@ func (p *Plugin) checkStatus() (sts *proto.StatusRes, err error) {
 
 func (p *Plugin) Stop() {
 	cfg := p.Config
+
+	// Cancel context to stop all goroutines
+	if p.cancel != nil {
+		p.cancel()
+	}
+
+	// Mark as stopped
+	p.stopped = true
+
 	if p.client != nil {
 		p.slog.Debug("Shutting down plugin", "name", cfg.Name)
 		_, err := p.client.Shutdown(context.Background(), &proto.ShutdownReq{})
