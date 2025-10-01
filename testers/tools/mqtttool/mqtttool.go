@@ -110,7 +110,7 @@ func main() {
 			opts := mqtt.NewClientOptions().AddBroker(subBroker).SetClientID(subClientID)
 			client := mqtt.NewClient(opts)
 			if token := client.Connect(); token.Wait() && token.Error() != nil {
-				return fmt.Errorf("Error connecting to MQTT broker: %w", token.Error())
+				return fmt.Errorf("error connecting to MQTT broker: %w", token.Error())
 			}
 			defer client.Disconnect(250)
 
@@ -123,7 +123,7 @@ func main() {
 				}
 				toolutil.PrintColoredMessage("MQTT", sections, msg.Payload(), ct)
 			}); token.Wait() && token.Error() != nil {
-				return fmt.Errorf("Error subscribing to topic: %w", token.Error())
+				return fmt.Errorf("error subscribing to topic: %w", token.Error())
 			}
 
 			sigc := make(chan os.Signal, 1)

@@ -97,7 +97,7 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			nc, err := nats.Connect(subAddr)
 			if err != nil {
-				return fmt.Errorf("Error connecting to NATS: %w", err)
+				return fmt.Errorf("error connecting to NATS: %w", err)
 			}
 			defer nc.Close()
 
@@ -136,13 +136,13 @@ func main() {
 				}
 				sub, err = js.Subscribe(subSubject, handler, opts...)
 				if err != nil {
-					return fmt.Errorf("Error subscribing (JetStream): %w", err)
+					return fmt.Errorf("error subscribing (JetStream): %w", err)
 				}
 			} else {
 				fmt.Printf("Listening on %s, subject '%s'\n", subAddr, subSubject)
 				sub, err = nc.Subscribe(subSubject, handler)
 				if err != nil {
-					return fmt.Errorf("Error subscribing to subject: %w", err)
+					return fmt.Errorf("error subscribing to subject: %w", err)
 				}
 			}
 			defer func() { _ = sub.Unsubscribe() }()

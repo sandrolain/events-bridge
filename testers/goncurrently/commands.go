@@ -94,11 +94,11 @@ func startProcess(c CommandConfig) (cmd *exec.Cmd, ctx context.Context, cancel c
 	return cmd, ctx, cancel, stdout, stderr, nil
 }
 
-func executeOnce(c CommandConfig, identifier string, stdoutWriter, stderrWriter func(string), signals stopSignals, killTimeout time.Duration) (error, bool, bool) {
+func executeOnce(c CommandConfig, identifier string, stdoutWriter, stderrWriter func(string), signals stopSignals, killTimeout time.Duration) (bool, bool, error) {
 	cmd, ctx, cancel, stdout, stderr, err := startProcess(c)
 	if err != nil {
 		logCommandLine(stdoutWriter, stderrWriter, identifier, fmt.Sprintf("failed to start: %v", err))
-		return err, false, false
+		return false, false, err
 	}
 	if !c.Silent {
 		go streamOutput(stdoutWriter, stdout)
@@ -115,11 +115,11 @@ func executeOnce(c CommandConfig, identifier string, stdoutWriter, stderrWriter 
 	select {
 	case err := <-done:
 		timedOut := ctx != nil && ctx.Err() == context.DeadlineExceeded
-		return err, timedOut, false
+		return timedOut, false, err
 	case <-signals.stop:
 		logCommandLine(stdoutWriter, stderrWriter, identifier, "interrupted")
 		terminateProcess(cmd, killTimeout, done, signals.immediate)
-		return nil, false, true
+		return false, true, nil
 	}
 }
 
@@ -171,7 +171,7 @@ func runManagedCommand(c CommandConfig, col *color.Color, sink outputRouter, sig
 	baseLog("[%s] starting", c.Name)
 	attempt := 1
 	for {
-		err, timedOut, interrupted := executeOnce(c, identifier, stdoutWriter, stderrWriter, signals, killTimeout)
+		timedOut, interrupted, err := executeOnce(c, identifier, stdoutWriter, stderrWriter, signals, killTimeout)
 		if interrupted {
 			baseLog("[%s] interrupted", c.Name)
 			return
@@ -240,7 +240,7 @@ func shouldRestart(err error, timedOut bool, triesLeft *int, restartTries int) b
 func runSetupWithRetries(c CommandConfig, identifier string, stdoutWriter, stderrWriter func(string)) bool {
 	triesLeft := c.RestartTries
 	for {
-		err, timedOut, _ := executeOnce(c, identifier, stdoutWriter, stderrWriter, stopSignals{}, 0)
+		timedOut, _, err := executeOnce(c, identifier, stdoutWriter, stderrWriter, stopSignals{}, 0)
 		if err == nil || timedOut {
 			return true
 		}

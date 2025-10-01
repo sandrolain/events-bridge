@@ -13,9 +13,9 @@ import (
 
 func printHTTPResponse(method, url string, resp *fasthttp.Response) {
 	var headerItems []toolutil.KV
-	resp.Header.VisitAll(func(key, value []byte) {
+	for key, value := range resp.Header.All() {
 		headerItems = append(headerItems, toolutil.KV{Key: string(key), Value: string(value)})
-	})
+	}
 
 	statusText := fasthttp.StatusMessage(resp.StatusCode())
 	sections := []toolutil.MessageSection{
