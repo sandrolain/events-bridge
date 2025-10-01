@@ -51,6 +51,8 @@ func (m *RunnerMessage) AddMetadata(key string, value string) {
 }
 
 func (m *RunnerMessage) SetMetadata(meta MessageMetadata) {
+	m.metaMx.Lock()
+	defer m.metaMx.Unlock()
 	m.metadata = make(MessageMetadata)
 	for k, v := range meta {
 		m.metadata[k] = v
@@ -66,6 +68,8 @@ func (m *RunnerMessage) GetSourceMetadata() (MessageMetadata, error) {
 }
 
 func (m *RunnerMessage) GetTargetMetadata() (MessageMetadata, error) {
+	m.metaMx.Lock()
+	defer m.metaMx.Unlock()
 	if m.metadata != nil {
 		return m.metadata, nil
 	}
@@ -84,6 +88,8 @@ func (m *RunnerMessage) GetTargetData() ([]byte, error) {
 }
 
 func (m *RunnerMessage) GetMetadata() MessageMetadata {
+	m.metaMx.Lock()
+	defer m.metaMx.Unlock()
 	return m.metadata
 }
 
