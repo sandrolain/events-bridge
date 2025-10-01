@@ -101,9 +101,6 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 		return nil, fmt.Errorf("error getting metadata from message: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
-	defer cancel()
-
 	inData, err := cliformat.Encode(meta, data)
 	if err != nil {
 		return nil, fmt.Errorf("error encoding input data: %w", err)
@@ -133,8 +130,14 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 		config = config.WithFS(os.DirFS(w.cfg.MountPath))
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
+	defer cancel()
+
 	module, err := w.rt.InstantiateModule(ctx, w.module, config)
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			w.slog.Warn("wasm execution timeout")
+		}
 		return nil, fmt.Errorf("failed to instantiate wasm module: %w", err)
 	}
 	defer func() {
