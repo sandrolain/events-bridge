@@ -19,6 +19,8 @@ func NewRunnerMessage(original SourceMessage) *RunnerMessage {
 	}
 }
 
+var _ SourceMessage = (*RunnerMessage)(nil)
+
 type RunnerMessage struct {
 	original SourceMessage
 	data     []byte
@@ -70,7 +72,7 @@ func (m *RunnerMessage) GetSourceMetadata() (MessageMetadata, error) {
 	return m.original.GetMetadata()
 }
 
-func (m *RunnerMessage) GetTargetMetadata() (MessageMetadata, error) {
+func (m *RunnerMessage) GetMetadata() (MessageMetadata, error) {
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
 	if m.metadata != nil {
@@ -83,7 +85,7 @@ func (m *RunnerMessage) GetSourceData() ([]byte, error) {
 	return m.original.GetData()
 }
 
-func (m *RunnerMessage) GetTargetData() ([]byte, error) {
+func (m *RunnerMessage) GetData() ([]byte, error) {
 	m.dataMx.Lock()
 	defer m.dataMx.Unlock()
 	if m.data != nil {
@@ -92,19 +94,11 @@ func (m *RunnerMessage) GetTargetData() ([]byte, error) {
 	return m.original.GetData()
 }
 
-func (m *RunnerMessage) GetMetadata() MessageMetadata {
-	m.metaMx.Lock()
-	defer m.metaMx.Unlock()
-	return m.metadata
+func (m *RunnerMessage) Reply(d *ReplyData) error {
+	return m.original.Reply(d)
 }
 
-func (m *RunnerMessage) GetData() []byte {
-	m.dataMx.Lock()
-	defer m.dataMx.Unlock()
-	return m.data
-}
-
-func (m *RunnerMessage) Reply() error {
+func (m *RunnerMessage) ReplySource() error {
 	return m.original.Reply(&ReplyData{
 		Data:     m.data,
 		Metadata: m.metadata,

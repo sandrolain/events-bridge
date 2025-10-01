@@ -165,7 +165,7 @@ func TestCoAPSourceUDPReplyContentJSON(t *testing.T) {
 	}
 	rm.SetData(expected)
 	rm.AddMetadata("Content-Type", "application/json")
-	_ = rm.Reply()
+	_ = rm.ReplySource()
 
 	select {
 	case err := <-errCh:
@@ -291,7 +291,7 @@ func TestCoAPSourceTCPReplyContentJSON(t *testing.T) {
 	}
 	rm.SetData(expected)
 	rm.AddMetadata("Content-Type", "application/json")
-	_ = rm.Reply()
+	_ = rm.ReplySource()
 
 	select {
 	case err := <-errCh:

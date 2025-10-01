@@ -50,11 +50,11 @@ type CoAPTarget struct {
 }
 
 func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
-	meta, _ := msg.GetTargetMetadata()
+	meta, _ := msg.GetMetadata()
 	contentFormat := coapmessage.TextPlain
 	if meta != nil {
 		contentFormat = coapTypeFromMetadata(meta)

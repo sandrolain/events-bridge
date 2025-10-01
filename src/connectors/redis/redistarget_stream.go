@@ -31,13 +31,13 @@ type RedisStreamTarget struct {
 }
 
 func (t *RedisStreamTarget) Consume(msg *message.RunnerMessage) error {
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 	stream := t.cfg.Stream
 	if t.cfg.StreamFromMetadataKey != "" {
-		metadata, _ := msg.GetTargetMetadata()
+		metadata, _ := msg.GetMetadata()
 		if v, ok := metadata[t.cfg.StreamFromMetadataKey]; ok && len(v) > 0 {
 			stream = v
 		}

@@ -318,14 +318,14 @@ func TestPluginRunnerReturnsResponse(t *testing.T) {
 	if len(fakeClient.runnerRequests) != 1 {
 		t.Fatalf("expected runner request to be sent")
 	}
-	respData, err := res.GetTargetData()
+	respData, err := res.GetData()
 	if err != nil {
 		t.Fatalf("unexpected error getting response data: %v", err)
 	}
 	if string(respData) != "response" {
 		t.Fatalf("unexpected response data: %q", respData)
 	}
-	respMeta, err := res.GetTargetMetadata()
+	respMeta, err := res.GetMetadata()
 	if err != nil {
 		t.Fatalf("unexpected error getting response metadata: %v", err)
 	}

@@ -158,7 +158,7 @@ func main() {
 
 			out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
 				if cfg.IfExpr != "" {
-					meta, err := msg.GetTargetMetadata()
+					meta, err := msg.GetMetadata()
 					if err != nil {
 						l.Error("failed to get message metadata for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
 						if err = msg.Nak(); err != nil {
@@ -167,7 +167,7 @@ func main() {
 						return msg, false, nil
 					}
 
-					data, err := msg.GetTargetData()
+					data, err := msg.GetData()
 					if err != nil {
 						l.Error("failed to get message data for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
 						if err = msg.Nak(); err != nil {
@@ -241,7 +241,7 @@ func main() {
 		}
 	} else {
 		err = rill.ForEach(out, 1, func(msg *message.RunnerMessage) error {
-			err := msg.Reply()
+			err := msg.ReplySource()
 			if err != nil {
 				l.Error("failed to reply message", "error", err)
 				err = msg.Nak()

@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/destel/rill"
-	"github.com/sandrolain/events-bridge/src/connectors/common/cliformat"
+	"github.com/sandrolain/events-bridge/src/common/cliformat"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -15,7 +15,11 @@ var _ MessageDecoder = (*CLIDecoder)(nil)
 
 type CLIDecoder struct{}
 
-func (e *CLIDecoder) Encode(msg message.SourceMessage) ([]byte, error) {
+func (e *CLIDecoder) Encode(d any) ([]byte, error) {
+	return nil, fmt.Errorf("CLI encoder does not support generic encoding")
+}
+
+func (e *CLIDecoder) EncodeMessage(msg message.SourceMessage) ([]byte, error) {
 	m, err := msg.GetMetadata()
 	if err != nil {
 		return nil, err
@@ -27,7 +31,7 @@ func (e *CLIDecoder) Encode(msg message.SourceMessage) ([]byte, error) {
 	return cliformat.Encode(m, d)
 }
 
-func (e *CLIDecoder) Decode(data []byte) (message.SourceMessage, error) {
+func (e *CLIDecoder) DecodeMessage(data []byte) (message.SourceMessage, error) {
 	m, d, err := cliformat.Decode(data)
 	if err != nil {
 		return nil, err

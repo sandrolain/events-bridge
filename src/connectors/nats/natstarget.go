@@ -51,7 +51,7 @@ type NATSTarget struct {
 }
 
 func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}

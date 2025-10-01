@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/sandrolain/events-bridge/src/connectors/common/cliformat"
+	"github.com/sandrolain/events-bridge/src/common/cliformat"
 )
 
 func main() {

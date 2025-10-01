@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/cliformat"
 	"github.com/sandrolain/events-bridge/src/connectors"
-	"github.com/sandrolain/events-bridge/src/connectors/common/cliformat"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
@@ -91,12 +91,12 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 
 // Process handles the logic for a single message
 func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return nil, fmt.Errorf("error getting data from message: %w", err)
 	}
 
-	meta, err := msg.GetTargetMetadata()
+	meta, err := msg.GetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("error getting metadata from message: %w", err)
 	}

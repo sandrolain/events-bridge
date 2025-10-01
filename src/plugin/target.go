@@ -12,13 +12,13 @@ import (
 func (p *Plugin) Target(ctx context.Context, msg *message.RunnerMessage) (err error) {
 	uid := uuid.New().String()
 
-	data, e := msg.GetTargetData()
+	data, e := msg.GetData()
 	if e != nil {
 		err = fmt.Errorf("failed to get message data: %w", e)
 		return
 	}
 
-	metadata, e := msg.GetTargetMetadata()
+	metadata, e := msg.GetMetadata()
 	if e != nil {
 		err = fmt.Errorf("failed to get message metadata: %w", e)
 		return

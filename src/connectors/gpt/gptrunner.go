@@ -103,7 +103,7 @@ func (g *GPTRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 
 // formatPromptItems builds the prompt for a batch of items
 func (g *GPTRunner) formatPrompt(msg *message.RunnerMessage) (string, error) {
-	b, err := msg.GetTargetData()
+	b, err := msg.GetData()
 	if err != nil {
 		return "", err
 	}
@@ -120,7 +120,7 @@ func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.Runn
 	batch := make([]inputItem, 0, len(msgs))
 	idToMsg := make(map[string]*message.RunnerMessage)
 	for i, msg := range msgs {
-		data, err := msg.GetTargetData()
+		data, err := msg.GetData()
 		if err != nil {
 			g.slog.Debug("GetData failed", "index", i, "error", err)
 			g.tryNak(msg)

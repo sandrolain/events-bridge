@@ -241,7 +241,10 @@ func TestGPTRunnerSuccessfulCompletion(t *testing.T) {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	resultData := result.GetData()
+	resultData, err := result.GetData()
+	if err != nil {
+		t.Fatalf("Failed to get target data: %v", err)
+	}
 	if len(resultData) == 0 {
 		t.Fatal("Expected non-empty result data")
 	}
@@ -370,7 +373,7 @@ func TestGPTRunnerMetadataPreservation(t *testing.T) {
 	}
 
 	// Check that metadata is preserved in the result
-	targetMetadata, err := result.GetTargetMetadata()
+	targetMetadata, err := result.GetMetadata()
 	if err != nil {
 		t.Fatalf("Failed to get target metadata: %v", err)
 	}

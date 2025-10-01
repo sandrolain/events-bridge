@@ -54,14 +54,14 @@ type PubSubTarget struct {
 }
 
 func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
 	// Get metadata and convert to PubSub attributes
 	attributes := make(map[string]string)
-	if meta, err := msg.GetTargetMetadata(); err == nil {
+	if meta, err := msg.GetMetadata(); err == nil {
 		for k, v := range meta {
 			if len(v) > 0 {
 				attributes[k] = v

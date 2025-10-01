@@ -57,13 +57,13 @@ type HTTPTarget struct {
 }
 
 func (s *HTTPTarget) Consume(result *message.RunnerMessage) (err error) {
-	metadata, err := result.GetTargetMetadata()
+	metadata, err := result.GetMetadata()
 	if err != nil {
 		err = fmt.Errorf("error getting metadata: %w", err)
 		return
 	}
 
-	data, err := result.GetTargetData()
+	data, err := result.GetData()
 	if err != nil {
 		err = fmt.Errorf("error getting data: %w", err)
 		return

@@ -75,12 +75,12 @@ func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) (*message.RunnerMe
 	ctx, cancel := context.WithTimeout(context.Background(), j.cfg.Timeout)
 	defer cancel()
 
-	meta, err := msg.GetTargetMetadata()
+	meta, err := msg.GetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
 
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}

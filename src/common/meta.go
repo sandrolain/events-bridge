@@ -10,7 +10,7 @@ func ResolveFromMetadata(msg *message.RunnerMessage, metaKey string, fallback st
 	if metaKey == "" {
 		return fallback
 	}
-	if meta, err := msg.GetTargetMetadata(); err == nil {
+	if meta, err := msg.GetMetadata(); err == nil {
 		if v, ok := meta[metaKey]; ok && len(v) > 0 {
 			return v
 		}

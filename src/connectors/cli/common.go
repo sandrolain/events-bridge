@@ -28,17 +28,6 @@ type BaseConfig struct {
 	Envs    map[string]string `mapstructure:"envs"`
 }
 
-// parseFormat validates and parses the format string
-func parseFormat(value string) (CLIFormat, error) {
-	v := CLIFormat(strings.ToUpper(strings.TrimSpace(value)))
-	switch v {
-	case FormatJSON, FormatCBOR:
-		return v, nil
-	default:
-		return "", fmt.Errorf("unsupported format %q", value)
-	}
-}
-
 // validateCommand validates the command and arguments to prevent command injection
 func validateCommand(command string, args []string) error {
 	// Check if command is a valid executable name or absolute path

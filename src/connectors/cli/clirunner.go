@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/sandrolain/events-bridge/src/cliformat"
+	"github.com/sandrolain/events-bridge/src/common/cliformat"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -62,12 +62,12 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	meta, err := msg.GetTargetMetadata()
+	meta, err := msg.GetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get metadata: %w", err)
 	}
 
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get data: %w", err)
 	}

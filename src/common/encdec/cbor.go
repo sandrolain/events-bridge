@@ -18,7 +18,11 @@ type CBORDecoder struct {
 	metaKey string
 }
 
-func (e *CBORDecoder) Encode(m message.SourceMessage) ([]byte, error) {
+func (e *CBORDecoder) Encode(d any) ([]byte, error) {
+	return cbor.Marshal(d)
+}
+
+func (e *CBORDecoder) EncodeMessage(m message.SourceMessage) ([]byte, error) {
 	v, err := messageToMap(m, e.metaKey, e.dataKey)
 	if err != nil {
 		return nil, err
@@ -26,12 +30,12 @@ func (e *CBORDecoder) Encode(m message.SourceMessage) ([]byte, error) {
 	return cbor.Marshal(v)
 }
 
-func (e *CBORDecoder) Decode(data []byte) (message.SourceMessage, error) {
+func (e *CBORDecoder) DecodeMessage(data []byte) (message.SourceMessage, error) {
 	var v map[string]any
 	if err := cbor.Unmarshal(data, &v); err != nil {
 		return nil, err
 	}
-	return mapToMessage(v, e.metaKey, e.dataKey)
+	return mapToMessage(e, v, e.metaKey, e.dataKey)
 }
 
 func (e *CBORDecoder) DecodeStream(in io.Reader) <-chan rill.Try[message.SourceMessage] {
@@ -50,7 +54,7 @@ func (e *CBORDecoder) DecodeStream(in io.Reader) <-chan rill.Try[message.SourceM
 				res <- rill.Wrap[message.SourceMessage](nil, fmt.Errorf("error decoding stream: %w", err))
 				return
 			}
-			msg, err := mapToMessage(v, e.metaKey, e.dataKey)
+			msg, err := mapToMessage(e, v, e.metaKey, e.dataKey)
 			if err != nil {
 				res <- rill.Wrap[message.SourceMessage](nil, fmt.Errorf("error mapping to message: %w", err))
 				return

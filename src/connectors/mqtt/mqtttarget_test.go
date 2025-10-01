@@ -50,7 +50,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		data, _ := got.GetTargetData()
+		data, _ := got.GetData()
 		if string(data) != "ping" {
 			t.Fatalf("unexpected payload: %s", string(data))
 		}
@@ -82,7 +82,7 @@ func TestMQTTTargetDynamicTopicFromMetadataIntegration(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		data, _ := got.GetTargetData()
+		data, _ := got.GetData()
 		if string(data) != "dyn" {
 			t.Fatalf("unexpected payload: %s", string(data))
 		}

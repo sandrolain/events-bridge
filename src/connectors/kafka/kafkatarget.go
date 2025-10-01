@@ -57,12 +57,12 @@ type KafkaTarget struct {
 }
 
 func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
-	meta, err := msg.GetTargetMetadata()
+	meta, err := msg.GetMetadata()
 	if err != nil {
 		return fmt.Errorf("error getting metadata: %w", err)
 	}
 
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}

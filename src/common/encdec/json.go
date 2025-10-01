@@ -18,7 +18,11 @@ type JSONDecoder struct {
 	metaKey string
 }
 
-func (e *JSONDecoder) Encode(msg message.SourceMessage) ([]byte, error) {
+func (e *JSONDecoder) Encode(d any) ([]byte, error) {
+	return sonic.Marshal(d)
+}
+
+func (e *JSONDecoder) EncodeMessage(msg message.SourceMessage) ([]byte, error) {
 	v, err := messageToMap(msg, e.metaKey, e.dataKey)
 	if err != nil {
 		return nil, err
@@ -26,12 +30,12 @@ func (e *JSONDecoder) Encode(msg message.SourceMessage) ([]byte, error) {
 	return sonic.Marshal(v)
 }
 
-func (e *JSONDecoder) Decode(in []byte) (message.SourceMessage, error) {
+func (e *JSONDecoder) DecodeMessage(in []byte) (message.SourceMessage, error) {
 	var v map[string]any
 	if err := sonic.Unmarshal(in, &v); err != nil {
 		return nil, err
 	}
-	return mapToMessage(v, e.metaKey, e.dataKey)
+	return mapToMessage(e, v, e.metaKey, e.dataKey)
 }
 
 func (e *JSONDecoder) DecodeStream(in io.Reader) <-chan rill.Try[message.SourceMessage] {
@@ -50,7 +54,7 @@ func (e *JSONDecoder) DecodeStream(in io.Reader) <-chan rill.Try[message.SourceM
 				res <- rill.Wrap[message.SourceMessage](nil, fmt.Errorf("error decoding stream: %w", err))
 				return
 			}
-			msg, err := mapToMessage(v, e.metaKey, e.dataKey)
+			msg, err := mapToMessage(e, v, e.metaKey, e.dataKey)
 			if err != nil {
 				res <- rill.Wrap[message.SourceMessage](nil, fmt.Errorf("error mapping to message: %w", err))
 				return

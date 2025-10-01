@@ -61,13 +61,13 @@ func (s *stubSourceMessage) Reply(d *ReplyData) error {
 	return s.replyErr
 }
 
-func TestRunnerMessageTargetDataFallback(t *testing.T) {
+func TestRunnerMessageDataFallback(t *testing.T) {
 	t.Parallel()
 
 	original := &stubSourceMessage{data: []byte("origin")}
 	msg := NewRunnerMessage(original)
 
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
@@ -76,14 +76,14 @@ func TestRunnerMessageTargetDataFallback(t *testing.T) {
 	}
 }
 
-func TestRunnerMessageTargetDataOverride(t *testing.T) {
+func TestRunnerMessageDataOverride(t *testing.T) {
 	t.Parallel()
 
 	original := &stubSourceMessage{data: []byte("origin")}
 	msg := NewRunnerMessage(original)
 	msg.SetData([]byte("override"))
 
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
@@ -92,7 +92,7 @@ func TestRunnerMessageTargetDataOverride(t *testing.T) {
 	}
 }
 
-func TestRunnerMessageTargetMetadataPreferredLocal(t *testing.T) {
+func TestRunnerMessageMetadataPreferredLocal(t *testing.T) {
 	t.Parallel()
 
 	original := &stubSourceMessage{metadata: MessageMetadata{"foo": "bar"}}
@@ -100,7 +100,7 @@ func TestRunnerMessageTargetMetadataPreferredLocal(t *testing.T) {
 	msg.AddMetadata("foo", "override")
 	msg.AddMetadata("baz", "qux")
 
-	metadata, err := msg.GetTargetMetadata()
+	metadata, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
@@ -115,13 +115,13 @@ func TestRunnerMessageTargetMetadataPreferredLocal(t *testing.T) {
 	}
 }
 
-func TestRunnerMessageTargetMetadataFallback(t *testing.T) {
+func TestRunnerMessageMetadataFallback(t *testing.T) {
 	t.Parallel()
 
 	original := &stubSourceMessage{metadata: MessageMetadata{"foo": "bar"}}
 	msg := NewRunnerMessage(original)
 
-	metadata, err := msg.GetTargetMetadata()
+	metadata, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
@@ -137,7 +137,10 @@ func TestRunnerMessageMergeMetadata(t *testing.T) {
 	msg.MergeMetadata(MessageMetadata{"a": "1"})
 	msg.MergeMetadata(MessageMetadata{"b": "2", "a": "3"})
 
-	metadata := msg.GetMetadata()
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
 	if len(metadata) != 2 {
 		t.Fatalf("unexpected metadata size: %d", len(metadata))
 	}
@@ -157,7 +160,7 @@ func TestRunnerMessageReplyDelegates(t *testing.T) {
 	msg.SetData([]byte("payload"))
 	msg.AddMetadata("k", "v")
 
-	if err := msg.Reply(); err != nil {
+	if err := msg.ReplySource(); err != nil {
 		t.Fatalf("unexpected error replying: %v", err)
 	}
 	if original.replyCalls != 1 {
@@ -209,11 +212,19 @@ func TestRunnerMessageGetters(t *testing.T) {
 	if string(msg.GetID()) != "id" {
 		t.Fatalf("unexpected id: %q", msg.GetID())
 	}
-	if string(msg.GetData()) != "dst" {
-		t.Fatalf("unexpected direct data: %q", msg.GetData())
+	data, err := msg.GetData()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
 	}
-	if msg.GetMetadata()["foo"] != "baz" {
-		t.Fatalf("unexpected metadata value: %q", msg.GetMetadata()["foo"])
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
+	if string(data) != "dst" {
+		t.Fatalf("unexpected direct data: %q", data)
+	}
+	if metadata["foo"] != "baz" {
+		t.Fatalf("unexpected metadata value: %q", metadata["foo"])
 	}
 }
 
@@ -228,7 +239,10 @@ func TestRunnerMessageSetMetadata(t *testing.T) {
 	// Replace with new metadata
 	msg.SetMetadata(MessageMetadata{"c": "3", "d": "4"})
 
-	metadata := msg.GetMetadata()
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
 	if len(metadata) != 2 {
 		t.Fatalf("expected 2 metadata entries after SetMetadata, got %d", len(metadata))
 	}
@@ -321,8 +335,8 @@ func TestRunnerMessageGetSourceDataError(t *testing.T) {
 	}
 }
 
-// TestRunnerMessageTargetMetadataError tests error handling when target metadata fetch fails
-func TestRunnerMessageTargetMetadataError(t *testing.T) {
+// TestRunnerMessageMetadataError tests error handling when target metadata fetch fails
+func TestRunnerMessageMetadataError(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("metadata error")
@@ -330,9 +344,9 @@ func TestRunnerMessageTargetMetadataError(t *testing.T) {
 	msg := NewRunnerMessage(original)
 	// No local metadata, should fall back to original
 
-	metadata, err := msg.GetTargetMetadata()
+	metadata, err := msg.GetMetadata()
 	if err == nil {
-		t.Fatalf(errMsgExpectedNilError, "GetTargetMetadata")
+		t.Fatalf(errMsgExpectedNilError, "GetMetadata")
 	}
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf(errMsgExpectedError, expectedErr, err)
@@ -342,8 +356,8 @@ func TestRunnerMessageTargetMetadataError(t *testing.T) {
 	}
 }
 
-// TestRunnerMessageTargetDataError tests error handling when target data fetch fails
-func TestRunnerMessageTargetDataError(t *testing.T) {
+// TestRunnerMessageDataError tests error handling when target data fetch fails
+func TestRunnerMessageDataError(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("data error")
@@ -351,9 +365,9 @@ func TestRunnerMessageTargetDataError(t *testing.T) {
 	msg := NewRunnerMessage(original)
 	// No local data, should fall back to original
 
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err == nil {
-		t.Fatalf(errMsgExpectedNilError, "GetTargetData")
+		t.Fatalf(errMsgExpectedNilError, "GetData")
 	}
 	if !errors.Is(err, expectedErr) {
 		t.Fatalf(errMsgExpectedError, expectedErr, err)
@@ -372,7 +386,7 @@ func TestRunnerMessageReplyError(t *testing.T) {
 	msg := NewRunnerMessage(original)
 	msg.SetData([]byte("test"))
 
-	err := msg.Reply()
+	err := msg.ReplySource()
 	if err == nil {
 		t.Fatalf(errMsgExpectedNilError, "Reply")
 	}
@@ -400,7 +414,10 @@ func TestRunnerMessageConcurrentMetadataAccess(t *testing.T) {
 	wg.Wait()
 
 	// Verify metadata was set (at least once)
-	metadata := msg.GetMetadata()
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
 	if metadata["concurrent"] != "value" {
 		t.Fatalf("expected concurrent metadata to be set")
 	}
@@ -429,7 +446,10 @@ func TestRunnerMessageConcurrentMergeMetadata(t *testing.T) {
 	wg.Wait()
 
 	// Verify both keys exist
-	metadata := msg.GetMetadata()
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
 	if metadata["key1"] != "value1" {
 		t.Fatalf("expected key1 to be set, got %#v", metadata)
 	}
@@ -457,7 +477,10 @@ func TestRunnerMessageConcurrentSetMetadata(t *testing.T) {
 	wg.Wait()
 
 	// Verify final state is consistent
-	metadata := msg.GetMetadata()
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
 	if len(metadata) != 1 {
 		t.Fatalf("expected exactly 1 metadata entry, got %d: %#v", len(metadata), metadata)
 	}
@@ -475,7 +498,7 @@ func TestRunnerMessageConcurrentReadWrite(t *testing.T) {
 	iterations := 100
 
 	// Concurrent reads and writes
-	wg.Add(iterations * 3)
+	wg.Add(iterations * 2)
 	for i := 0; i < iterations; i++ {
 		go func() {
 			defer wg.Done()
@@ -483,17 +506,16 @@ func TestRunnerMessageConcurrentReadWrite(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			_ = msg.GetMetadata()
-		}()
-		go func() {
-			defer wg.Done()
-			_, _ = msg.GetTargetMetadata()
+			_, _ = msg.GetMetadata()
 		}()
 	}
 	wg.Wait()
 
 	// Should not panic and should have valid state
-	metadata := msg.GetMetadata()
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
 	if metadata == nil {
 		t.Fatal("expected metadata to not be nil after concurrent operations")
 	}
@@ -506,13 +528,20 @@ func TestRunnerMessageNilMetadataInitialization(t *testing.T) {
 	msg := NewRunnerMessage(&stubSourceMessage{})
 
 	// Metadata should be nil initially
-	if msg.GetMetadata() != nil {
+	metadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
+	if metadata != nil {
 		t.Fatal("expected initial metadata to be nil")
 	}
 
 	// AddMetadata should initialize it
 	msg.AddMetadata("key", "value")
-	if msg.GetMetadata() == nil {
+	if metadata, err = msg.GetMetadata(); err != nil {
+		t.Fatalf(errMsgUnexpectedError, err)
+	}
+	if metadata == nil {
 		t.Fatal("expected metadata to be initialized after AddMetadata")
 	}
 }
@@ -524,7 +553,7 @@ func TestRunnerMessageEmptyData(t *testing.T) {
 	original := &stubSourceMessage{data: []byte{}}
 	msg := NewRunnerMessage(original)
 
-	data, err := msg.GetTargetData()
+	data, err := msg.GetData()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
@@ -557,7 +586,7 @@ func TestRunnerMessageReplyWithNilData(t *testing.T) {
 	msg := NewRunnerMessage(original)
 	// Don't set any data or metadata
 
-	err := msg.Reply()
+	err := msg.ReplySource()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
@@ -624,7 +653,7 @@ func TestRunnerMessageMetadataIsolation(t *testing.T) {
 	}
 
 	// Target metadata should have local changes
-	targetMeta, err := msg.GetTargetMetadata()
+	targetMeta, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
