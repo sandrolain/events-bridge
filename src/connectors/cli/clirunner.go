@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os/exec"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/cliformat"
@@ -17,9 +16,10 @@ import (
 var _ connectors.Runner = &CLIRunner{}
 
 type CLIRunner struct {
-	cfg     *RunnerConfig
-	slog    *slog.Logger
-	timeout time.Duration
+	cfg      *RunnerConfig
+	executor *CommandExecutor
+	slog     *slog.Logger
+	timeout  time.Duration
 }
 
 type RunnerConfig struct {
@@ -38,10 +38,23 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
+
+	// Validate using common validation
+	baseConfig := runnerToBaseConfig(cfg)
+	if err := validateBaseConfig(baseConfig); err != nil {
+		return nil, err
+	}
+
+	executor, err := NewCommandExecutor(baseConfig, slog.Default().With("context", "CLI Runner"))
+	if err != nil {
+		return nil, err
+	}
+
 	return &CLIRunner{
-		cfg:     cfg,
-		slog:    slog.Default().With("context", "CLI Runner"),
-		timeout: cfg.Timeout,
+		cfg:      cfg,
+		executor: executor,
+		slog:     executor.slog,
+		timeout:  cfg.Timeout,
 	}, nil
 }
 
@@ -65,15 +78,8 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 	}
 
 	stdin := bytes.NewReader(d)
-	cmd := exec.CommandContext(ctx, c.cfg.Command, c.cfg.Args...)
+	cmd := c.executor.CreateCommand(ctx)
 	cmd.Stdin = stdin
-	if len(c.cfg.Envs) > 0 {
-		env := make([]string, 0, len(c.cfg.Envs))
-		for k, v := range c.cfg.Envs {
-			env = append(env, k+"="+v)
-		}
-		cmd.Env = append(cmd.Env, env...)
-	}
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
@@ -97,5 +103,8 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 }
 
 func (c *CLIRunner) Close() error {
+	if c.executor != nil {
+		return c.executor.Close()
+	}
 	return nil
 }

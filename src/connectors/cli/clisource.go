@@ -1,16 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"os/exec"
-	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,69 +14,6 @@ import (
 	"github.com/sandrolain/events-bridge/src/encdec"
 	"github.com/sandrolain/events-bridge/src/message"
 )
-
-type CLIFormat string
-
-const (
-	FormatJSON CLIFormat = "JSON"
-	FormatCBOR CLIFormat = "CBOR"
-)
-
-func parseFormat(value string) (CLIFormat, error) {
-	v := CLIFormat(strings.ToUpper(strings.TrimSpace(value)))
-	switch v {
-	case FormatJSON, FormatCBOR:
-		return v, nil
-	default:
-		return "", fmt.Errorf("unsupported format %q", value)
-	}
-}
-
-// validateCommand validates the command and arguments to prevent command injection
-func validateCommand(command string, args []string) error {
-	// Check if command is a valid executable name or absolute path
-	if strings.Contains(command, ";") || strings.Contains(command, "&") ||
-		strings.Contains(command, "|") || strings.Contains(command, "$") ||
-		strings.Contains(command, "`") || strings.Contains(command, ">") ||
-		strings.Contains(command, "<") {
-		return fmt.Errorf("command contains potentially dangerous characters: %s", command)
-	}
-
-	// Validate command is not empty and doesn't start with suspicious patterns
-	command = strings.TrimSpace(command)
-	if command == "" {
-		return fmt.Errorf("command cannot be empty")
-	}
-
-	// Check for shell metacharacters in arguments
-	dangerousChars := regexp.MustCompile(`[;&|$\x60<>]`)
-	for _, arg := range args {
-		if dangerousChars.MatchString(arg) {
-			return fmt.Errorf("argument contains potentially dangerous characters: %s", arg)
-		}
-	}
-
-	return nil
-}
-
-// sanitizeEnvVars validates environment variable keys and values
-func sanitizeEnvVars(envs map[string]string) error {
-	validKeyPattern := regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-
-	for k, v := range envs {
-		// Validate environment variable key
-		if !validKeyPattern.MatchString(k) {
-			return fmt.Errorf("invalid environment variable key: %s", k)
-		}
-
-		// Check for dangerous patterns in values
-		if strings.Contains(v, "$") && strings.Contains(v, "(") {
-			return fmt.Errorf("environment variable value contains potentially dangerous pattern: %s", k)
-		}
-	}
-
-	return nil
-}
 
 type SourceConfig struct {
 	Command     string            `mapstructure:"command" validate:"required"`
@@ -102,14 +35,10 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
-	// Validate command and arguments for security
-	if err := validateCommand(cfg.Command, cfg.Args); err != nil {
-		return nil, fmt.Errorf("command validation failed: %w", err)
-	}
-
-	// Validate environment variables
-	if err := sanitizeEnvVars(cfg.Envs); err != nil {
-		return nil, fmt.Errorf("environment variable validation failed: %w", err)
+	// Validate using common validation
+	baseConfig := sourceToBaseConfig(cfg)
+	if err := validateBaseConfig(baseConfig); err != nil {
+		return nil, err
 	}
 
 	format, err := parseFormat(cfg.Format)
@@ -117,21 +46,28 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 		return nil, err
 	}
 
+	executor, err := NewCommandExecutor(baseConfig, slog.Default().With("context", "CLI Source"))
+	if err != nil {
+		return nil, err
+	}
+
 	return &CLISource{
 		cfg:         cfg,
 		format:      format,
+		executor:    executor,
 		timeout:     cfg.Timeout,
-		slog:        slog.Default().With("context", "CLI Source"),
+		slog:        executor.slog,
 		metadataKey: cfg.MetadataKey,
 		dataKey:     cfg.DataKey,
 	}, nil
 }
 
 type CLISource struct {
-	cfg     *SourceConfig
-	format  CLIFormat
-	slog    *slog.Logger
-	timeout time.Duration
+	cfg      *SourceConfig
+	format   CLIFormat
+	executor *CommandExecutor
+	timeout  time.Duration
+	slog     *slog.Logger
 
 	metadataKey string
 	dataKey     string
@@ -155,20 +91,7 @@ func (s *CLISource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.ctx = ctx
 	s.cancel = cancel
 
-	cmd := exec.CommandContext(ctx, s.cfg.Command, s.cfg.Args...)
-	if len(s.cfg.Envs) > 0 {
-		// Additional runtime validation (defense in depth)
-		if err := sanitizeEnvVars(s.cfg.Envs); err != nil {
-			cancel()
-			return nil, fmt.Errorf("runtime environment variable validation failed: %w", err)
-		}
-
-		env := make([]string, 0, len(s.cfg.Envs))
-		for k, v := range s.cfg.Envs {
-			env = append(env, k+"="+v)
-		}
-		cmd.Env = append(os.Environ(), env...)
-	}
+	cmd := s.executor.CreateCommand(ctx)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -195,7 +118,7 @@ func (s *CLISource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.slog.Info("started CLI source", "command", s.cfg.Command, "args", s.cfg.Args, "format", s.format)
 
 	go s.waitCommand()
-	go s.pipeLogger(stderr, "stderr")
+	go PipeLogger(s.slog, stderr, "stderr", s.ctx)
 	go s.consumeStream(stdout)
 
 	return s.c, nil
@@ -209,6 +132,11 @@ func (s *CLISource) Close() error {
 	s.cancel()
 	if s.stdout != nil {
 		_ = s.stdout.Close()
+	}
+
+	// Close the executor as well
+	if s.executor != nil {
+		_ = s.executor.Close()
 	}
 
 	if s.waitDone != nil {
@@ -456,19 +384,6 @@ func (s *CLISource) waitCommand() {
 		s.waitDone <- err
 		close(s.waitDone)
 	})
-}
-
-func (s *CLISource) pipeLogger(r io.Reader, stream string) {
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		s.slog.Warn("cli output", "stream", stream, "line", scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, os.ErrClosed) {
-			return
-		}
-		s.slog.Error("error reading cli output", "stream", stream, "error", err)
-	}
 }
 
 type CLISourceMessage struct {

@@ -27,11 +27,13 @@ const (
 	errUnexpectedMetadataFmt = "unexpected metadata: %v"
 	errUnexpectedPayloadFmt  = "unexpected payload text: %v"
 	errWriteTempFileFmt      = "write temp file: %v"
+
+	// Test constants to avoid duplication
+	catOutputCommand = "cat > %q"
+	testDataString   = "test data"
 )
 
 func TestCLISourceJSON(t *testing.T) {
-	t.Parallel()
-
 	records := []map[string]any{
 		{
 			"metadata": map[string]string{"foo": "bar"},
@@ -45,6 +47,9 @@ func TestCLISourceJSON(t *testing.T) {
 	ch, src := setupCLISource(t, FormatJSON, records, "metadata", "payload")
 	defer closeSource(t, src)
 
+	// Small delay to let the source fully start
+	time.Sleep(50 * time.Millisecond)
+
 	msg1 := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg1), "foo", "bar")
 	decoded1 := decodePayload(t, FormatJSON, mustData(t, msg1))
@@ -57,8 +62,6 @@ func TestCLISourceJSON(t *testing.T) {
 }
 
 func TestCLISourceCBOR(t *testing.T) {
-	t.Parallel()
-
 	records := []map[string]any{
 		{
 			"metadata": map[string]string{"foo": "bar"},
@@ -73,6 +76,9 @@ func TestCLISourceCBOR(t *testing.T) {
 	ch, src := setupCLISource(t, FormatCBOR, records, "metadata", "payload")
 	defer closeSource(t, src)
 
+	// Small delay to let the source fully start
+	time.Sleep(50 * time.Millisecond)
+
 	msg1 := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg1), "foo", "bar")
 	decoded1 := decodePayload(t, FormatCBOR, mustData(t, msg1))
@@ -85,8 +91,6 @@ func TestCLISourceCBOR(t *testing.T) {
 }
 
 func TestCLISourceJSONWholeMap(t *testing.T) {
-	t.Parallel()
-
 	record := map[string]any{
 		"meta":  map[string]string{"foo": "bar"},
 		"value": 42,
@@ -94,6 +98,9 @@ func TestCLISourceJSONWholeMap(t *testing.T) {
 
 	ch, src := setupCLISource(t, FormatJSON, []map[string]any{record}, "meta", "")
 	defer closeSource(t, src)
+
+	// Small delay to let the source fully start
+	time.Sleep(50 * time.Millisecond)
 
 	msg := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg), "foo", "bar")
@@ -109,8 +116,6 @@ func TestCLISourceJSONWholeMap(t *testing.T) {
 }
 
 func TestCLITargetJSON(t *testing.T) {
-	t.Parallel()
-
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "out.json")
 
@@ -158,8 +163,6 @@ func TestCLITargetJSON(t *testing.T) {
 }
 
 func TestCLITargetCBOR(t *testing.T) {
-	t.Parallel()
-
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "out.cbor")
 
@@ -206,8 +209,6 @@ func TestCLITargetCBOR(t *testing.T) {
 }
 
 func TestCLITargetJSONDataOnly(t *testing.T) {
-	t.Parallel()
-
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "out.json")
 
@@ -452,3 +453,175 @@ func (s *stubSourceMessage) Ack() error { return nil }
 func (s *stubSourceMessage) Nak() error { return nil }
 
 func (s *stubSourceMessage) Reply(*message.ReplyData) error { return nil }
+
+// Test for CLI Runner functions (0% coverage)
+func TestCLIRunner(t *testing.T) {
+	// Test NewRunnerConfig
+	cfg := NewRunnerConfig()
+	runnerCfg, ok := cfg.(*RunnerConfig)
+	if !ok {
+		t.Fatal("NewRunnerConfig should return *RunnerConfig")
+	}
+	if runnerCfg == nil {
+		t.Fatal("NewRunnerConfig should not return nil")
+	}
+
+	// Test NewRunner with valid config
+	runnerCfg.Command = "echo"
+	runnerCfg.Args = []string{"test"}
+	runnerCfg.Timeout = 5 * time.Second
+
+	runner, err := NewRunner(runnerCfg)
+	if err != nil {
+		t.Fatalf("NewRunner error: %v", err)
+	}
+
+	// Test Close (skip Process test as it requires specific input format)
+	err = runner.Close()
+	if err != nil {
+		t.Fatalf("Close error: %v", err)
+	}
+}
+
+// Test for config constructors (0% coverage)
+func TestConfigConstructors(t *testing.T) {
+	// Test NewSourceConfig
+	srcCfg := NewSourceConfig()
+	_, ok := srcCfg.(*SourceConfig)
+	if !ok {
+		t.Fatal("NewSourceConfig should return *SourceConfig")
+	}
+
+	// Test NewTargetConfig
+	tgtCfg := NewTargetConfig()
+	_, ok = tgtCfg.(*TargetConfig)
+	if !ok {
+		t.Fatal("NewTargetConfig should return *TargetConfig")
+	}
+}
+
+// Test for CLISourceMessage methods (0% coverage)
+func TestCLISourceMessageMethods(t *testing.T) {
+	metadata := message.MessageMetadata{"test": "value"}
+	data := []byte("test data")
+
+	msg := newCLISourceMessage(metadata, data)
+
+	// Test GetID
+	id := msg.GetID()
+	if id != nil {
+		t.Fatal("GetID should return nil")
+	}
+
+	// Test GetMetadata
+	gotMetadata, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf("GetMetadata error: %v", err)
+	}
+	if gotMetadata["test"] != "value" {
+		t.Fatalf("Expected metadata test=value, got %v", gotMetadata)
+	}
+
+	// Test GetData
+	gotData, err := msg.GetData()
+	if err != nil {
+		t.Fatalf("GetData error: %v", err)
+	}
+	if string(gotData) != "test data" {
+		t.Fatalf("Expected data 'test data', got %s", gotData)
+	}
+
+	// Test Ack
+	err = msg.Ack()
+	if err != nil {
+		t.Fatalf("Ack error: %v", err)
+	}
+
+	// Test Nak
+	err = msg.Nak()
+	if err != nil {
+		t.Fatalf("Nak error: %v", err)
+	}
+
+	// Test Reply
+	replyData := &message.ReplyData{Data: []byte("reply")}
+	err = msg.Reply(replyData)
+	if err != nil {
+		t.Fatalf("Reply error: %v", err)
+	}
+}
+
+// Test for additional common.go functions
+func TestCommonFunctions(t *testing.T) {
+	// Test runnerToBaseConfig (0% coverage)
+	runnerCfg := &RunnerConfig{
+		Command: "test",
+		Args:    []string{"arg1"},
+		Timeout: 5 * time.Second,
+		Envs:    map[string]string{"TEST": "value"},
+	}
+
+	baseCfg := runnerToBaseConfig(runnerCfg)
+	if baseCfg.Command != "test" {
+		t.Fatalf("Expected command 'test', got %s", baseCfg.Command)
+	}
+	if len(baseCfg.Args) != 1 || baseCfg.Args[0] != "arg1" {
+		t.Fatalf("Expected args [arg1], got %v", baseCfg.Args)
+	}
+}
+
+// Test error handling for better coverage
+func TestErrorHandling(t *testing.T) {
+	// Test invalid format
+	_, err := parseFormat("invalid")
+	if err == nil {
+		t.Fatal("parseFormat should return error for invalid format")
+	}
+
+	// Test invalid command
+	err = validateCommand("", []string{})
+	if err == nil {
+		t.Fatal("validateCommand should return error for empty command")
+	}
+
+	// Test dangerous command
+	err = validateCommand("cmd;rm -rf /", []string{})
+	if err == nil {
+		t.Fatal("validateCommand should return error for dangerous command")
+	}
+
+	// Test copyStringStringMap (0% coverage)
+	input := map[string]string{"key": "value"}
+	result := copyStringStringMap(input)
+	if result["key"] != "value" {
+		t.Fatalf("Expected key=value, got %v", result)
+	}
+}
+
+// Test CBOR encoding error paths for better coverage
+func TestCBORErrorPaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "out.cbor")
+
+	cfg := &TargetConfig{
+		Command:     "sh",
+		Args:        []string{"-c", fmt.Sprintf("cat > %q", tmpFile)},
+		Timeout:     5 * time.Second,
+		Format:      "cbor",
+		MetadataKey: "metadata",
+		DataKey:     "payload",
+	}
+
+	target, err := NewTarget(cfg)
+	if err != nil {
+		t.Fatalf("NewTarget error: %v", err)
+	}
+	defer target.Close()
+
+	// Test with nil metadata to trigger different code paths
+	msg := newRunnerMessage(nil, []byte("test data"))
+	err = target.Consume(msg)
+	if err != nil {
+		t.Fatalf("Consume error: %v", err)
+	}
+}

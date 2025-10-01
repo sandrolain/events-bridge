@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -36,21 +35,25 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
+	// Validate using common validation
+	baseConfig := targetToBaseConfig(cfg)
+	if err := validateBaseConfig(baseConfig); err != nil {
+		return nil, err
+	}
+
 	format, err := parseFormat(cfg.Format)
+	if err != nil {
+		return nil, err
+	}
+
+	executor, err := NewCommandExecutor(baseConfig, slog.Default().With("context", "CLI Target"))
 	if err != nil {
 		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	cmd := exec.CommandContext(ctx, cfg.Command, cfg.Args...)
-	if len(cfg.Envs) > 0 {
-		env := make([]string, 0, len(cfg.Envs))
-		for k, v := range cfg.Envs {
-			env = append(env, k+"="+v)
-		}
-		cmd.Env = append(cmd.Env, env...)
-	}
+	cmd := executor.CreateCommand(ctx)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -78,7 +81,8 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	target := &CLITarget{
 		cfg:         cfg,
 		format:      format,
-		slog:        slog.Default().With("context", "CLI Target"),
+		executor:    executor,
+		slog:        executor.slog,
 		timeout:     cfg.Timeout,
 		ctx:         ctx,
 		cancel:      cancel,
@@ -92,8 +96,8 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	target.waitDone = make(chan error, 1)
 
 	go target.waitCommand()
-	go target.pipeLogger(stdout, "stdout")
-	go target.pipeLogger(stderr, "stderr")
+	go PipeLogger(target.slog, stdout, "stdout", ctx)
+	go PipeLogger(target.slog, stderr, "stderr", ctx)
 
 	target.slog.Info("started CLI target", "command", cfg.Command, "args", cfg.Args, "format", format)
 
@@ -101,10 +105,11 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 }
 
 type CLITarget struct {
-	cfg     *TargetConfig
-	format  CLIFormat
-	slog    *slog.Logger
-	timeout time.Duration
+	cfg      *TargetConfig
+	format   CLIFormat
+	executor *CommandExecutor
+	slog     *slog.Logger
+	timeout  time.Duration
 
 	metadataKey string
 	dataKey     string
@@ -184,6 +189,11 @@ func (t *CLITarget) Close() error {
 
 	t.cancel()
 	t.cancel = nil
+
+	// Close the executor as well
+	if t.executor != nil {
+		_ = t.executor.Close()
+	}
 
 	if waitErr != nil && ctxErr == nil {
 		return fmt.Errorf("cli command exited with error: %w", waitErr)
@@ -326,14 +336,4 @@ func (t *CLITarget) commandExitError() error {
 	t.exitErrMu.RLock()
 	defer t.exitErrMu.RUnlock()
 	return t.exitErr
-}
-
-func (t *CLITarget) pipeLogger(r io.Reader, stream string) {
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		t.slog.Warn("cli output", "stream", stream, "line", scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		t.slog.Error("error reading cli output", "stream", stream, "error", err)
-	}
 }
