@@ -29,7 +29,6 @@ func (e *ExprEvaluator) Eval(input map[string]any) (bool, error) {
 	}
 
 	result, err := vm.Run(e.program, input)
-	fmt.Printf("result: %v\n", result)
 	if err != nil {
 		return false, fmt.Errorf("failed to evaluate expression: %w", err)
 	}
