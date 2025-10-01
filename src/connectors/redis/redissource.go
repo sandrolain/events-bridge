@@ -16,9 +16,10 @@ type SourceConfig struct {
 	Channel string `mapstructure:"channel"`
 	// Stream
 	Stream        string `mapstructure:"stream"`
-	ConsumerGroup string `mapstructure:"consumerGroup"`
-	ConsumerName  string `mapstructure:"consumerName"`
-	StreamDataKey string `mapstructure:"streamDataKey"`
+	ConsumerGroup string `mapstructure:"consumerGroup,omitempty" validate:"required_with=ConsumerName,omitempty"`
+	ConsumerName  string `mapstructure:"consumerName,omitempty" validate:"required_with=ConsumerGroup,omitempty"`
+	StreamDataKey string `mapstructure:"streamDataKey" default:"data"`
+	LastID        string `mapstructure:"lastID" default:"$" validate:"oneof=0 $ > + -"` // Stream starting position: "0" (beginning), "$" (newest), ">" (consumer group), "+" (end), "-" (start), or specific ID
 }
 
 type RedisSource struct {
