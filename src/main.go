@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/destel/rill"
@@ -16,6 +19,19 @@ import (
 )
 
 func main() {
+	// Setup signal handling for graceful shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigChan
+		slog.Info("received signal, initiating graceful shutdown", "signal", sig.String())
+		cancel()
+	}()
+
 	w := os.Stdout
 
 	// Set global logger with custom options
@@ -241,11 +257,20 @@ func main() {
 	}
 
 	// Log any close errors
+	// Monitor for shutdown signal
+	select {
+	case <-ctx.Done():
+		l.Info("shutdown signal received, cleaning up resources")
+		// Cleanup will be handled by deferred functions
+	}
+
 	if len(closeErrors) > 0 {
 		for _, err := range closeErrors {
 			l.Error("close error", "error", err)
 		}
 	}
+
+	l.Info("graceful shutdown completed")
 }
 
 func connectorPath(connectorType string) string {
