@@ -36,6 +36,7 @@ func main() {
 	var source connectors.Source
 	var runners = make([]RunnerItem, len(cfg.Runners))
 	var target connectors.Target
+	var closeErrors []error
 
 	// Setup source, runner, and target
 	l.Info("creating source", "type", cfg.Source.Type, "buffer", cfg.Source.Buffer)
@@ -50,8 +51,8 @@ func main() {
 		fatal(l, err, "failed to create source")
 	}
 	defer func() {
-		if err := source.Close(); err != nil {
-			l.Error("failed to close source", "error", err)
+		if err := closeWithRetry(source.Close, 3, time.Second); err != nil {
+			closeErrors = append(closeErrors, fmt.Errorf("failed to close source: %w", err))
 		}
 	}()
 
@@ -70,10 +71,9 @@ func main() {
 			if err != nil {
 				fatal(l, err, "failed to create runner")
 			}
-			l.Info("runner created, deferring close")
 			defer func() {
-				if err := runner.Close(); err != nil {
-					l.Error("failed to close runner", "error", err)
+				if err := closeWithRetry(runner.Close, 3, time.Second); err != nil {
+					closeErrors = append(closeErrors, fmt.Errorf("failed to close runner: %w", err))
 				}
 			}()
 			runners[i] = RunnerItem{
@@ -99,8 +99,8 @@ func main() {
 		}
 		l.Info("target created, deferring close")
 		defer func() {
-			if err := target.Close(); err != nil {
-				l.Error("failed to close target", "error", err)
+			if err := closeWithRetry(target.Close, 3, time.Second); err != nil {
+				closeErrors = append(closeErrors, fmt.Errorf("failed to close target: %w", err))
 			}
 		}()
 	} else {
@@ -119,6 +119,9 @@ func main() {
 	}()
 
 	out := rill.FromChan(c, nil)
+	defer func() {
+		rill.Drain(out)
+	}()
 
 	if len(runners) > 0 {
 		l.Info("runner starting to consume messages from source")
@@ -237,9 +240,12 @@ func main() {
 		}
 	}
 
-	rill.Drain(out)
-
-	select {}
+	// Log any close errors
+	if len(closeErrors) > 0 {
+		for _, err := range closeErrors {
+			l.Error("close error", "error", err)
+		}
+	}
 }
 
 func connectorPath(connectorType string) string {
@@ -254,4 +260,19 @@ func fatal(l *slog.Logger, err error, log string) {
 type RunnerItem struct {
 	Config connectors.RunnerConfig
 	Runner connectors.Runner
+}
+
+// closeWithRetry attempts to close with retries on failure
+func closeWithRetry(closeFunc func() error, maxRetries int, delay time.Duration) error {
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		err = closeFunc()
+		if err == nil {
+			return nil
+		}
+		if i < maxRetries-1 {
+			time.Sleep(delay)
+		}
+	}
+	return err
 }
