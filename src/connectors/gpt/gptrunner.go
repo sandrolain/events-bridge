@@ -111,6 +111,9 @@ func (g *GPTRunner) formatPrompt(msg *message.RunnerMessage) (string, error) {
 }
 
 // ProcessBatch handles batches of messages by batching prompts to the GPT API.
+// It collects data from each message, assigns unique IDs, formats a single batch prompt,
+// sends it to OpenAI, parses the response, and updates each message with its result.
+// If any step fails, it attempts to NAK (negative acknowledge) failed messages.
 func (g *GPTRunner) ProcessBatch(msgs []*message.RunnerMessage) ([]*message.RunnerMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.cfg.Timeout)
 	defer cancel()
