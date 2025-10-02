@@ -76,8 +76,6 @@ func TestCLITargetJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf(targetErrGetDataFmt, err)
 	}
-	fmt.Printf("metadata: %v\n", metadata)
-	fmt.Printf("payload: %s\n", string(payload))
 
 	if metadata["foo"] != "bar" {
 		t.Fatalf(targetErrUnexpectedMetadataFmt, metadata)

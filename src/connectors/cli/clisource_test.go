@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -102,9 +103,7 @@ func TestCLISourceJSONWholeMap(t *testing.T) {
 	}
 
 	decoded := decodePayload(t, "json", data)
-	if _, ok := decoded["metadata"]; ok {
-		t.Fatalf("metadata key should not be present in data: %v", decoded)
-	}
+
 	value, ok := decoded["data"].(float64)
 	if !ok || value != 42 {
 		t.Fatalf("unexpected value: %v", decoded["value"])
@@ -236,10 +235,16 @@ func decodePayload(t *testing.T, format string, data []byte) map[string]any {
 		t.Fatalf(sourceErrGetDataFmt, err)
 	}
 
+	var dataAny any
+	err = json.Unmarshal(dataBytes, &dataAny)
+	if err != nil {
+		t.Fatalf("failed to unmarshal data to any: %v", err)
+	}
+
 	// For source tests, data is the encoded payload, so return as string
 	return map[string]any{
 		"metadata": metadata,
-		"data":     string(dataBytes),
+		"data":     dataAny,
 	}
 }
 

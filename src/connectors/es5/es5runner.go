@@ -81,7 +81,6 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 	err := vm.Set("EncodeJSON", func(call goja.FunctionCall) goja.Value {
 		rt := vm
 		data := call.Argument(0).Export()
-		fmt.Printf("data: %v\n", data)
 		b, err := sonic.Marshal(data)
 		if err != nil {
 			panic(rt.ToValue(fmt.Sprintf("EncodeJSON error: %s", err.Error())))
