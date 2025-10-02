@@ -12,6 +12,7 @@ import (
 
 	"github.com/destel/rill"
 	"github.com/lmittmann/tint"
+	"github.com/sandrolain/events-bridge/src/common/expreval"
 	"github.com/sandrolain/events-bridge/src/config"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -146,12 +147,9 @@ func main() {
 			runner := runnerItem.Runner
 			cfg := runnerItem.Config
 
-			runnerRoutines := cfg.Routines
-			if runnerRoutines < 1 {
-				runnerRoutines = 1
-			}
+			runnerRoutines := min(cfg.Routines, 1)
 
-			evaluator, err := utils.NewExprEvaluator(cfg.IfExpr)
+			evaluator, err := expreval.NewExprEvaluator(cfg.IfExpr)
 			if err != nil {
 				fatal(l, err, fmt.Sprintf("failed to create expression evaluator for runner %d ifExpr: %s", i, cfg.IfExpr))
 			}
@@ -160,20 +158,12 @@ func main() {
 				if cfg.IfExpr != "" {
 					meta, err := msg.GetMetadata()
 					if err != nil {
-						l.Error("failed to get message metadata for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
-						if err = msg.Nak(); err != nil {
-							l.Error("failed to nak message after ifExpr metadata retrieval error", "error", err)
-						}
-						return msg, false, nil
+						return handleRunnerError(l, msg, err, "failed to get message metadata for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr)
 					}
 
 					data, err := msg.GetData()
 					if err != nil {
-						l.Error("failed to get message data for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
-						if err = msg.Nak(); err != nil {
-							l.Error("failed to nak message after ifExpr data retrieval error", "error", err)
-						}
-						return msg, false, nil
+						return handleRunnerError(l, msg, err, "failed to get message data for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr)
 					}
 
 					pass, err := evaluator.Eval(map[string]any{
@@ -181,12 +171,7 @@ func main() {
 						"data":     data,
 					})
 					if err != nil {
-						l.Error("failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr, "error", err)
-						if err = msg.Nak(); err != nil {
-							l.Error("failed to nak message after ifExpr evaluation error", "error", err)
-						}
-						// If expression evaluation fails, we skip processing but do not drop the message
-						return msg, false, nil
+						return handleRunnerError(l, msg, err, "failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr)
 					}
 
 					if !pass {
@@ -197,12 +182,7 @@ func main() {
 
 				res, err := runner.Process(msg)
 				if err != nil {
-					l.Error("error processing message", "error", err)
-
-					if err = msg.Nak(); err != nil {
-						l.Error("failed to nak message after processing error", "error", err)
-					}
-					return nil, false, nil
+					return handleRunnerError(l, msg, err, "error processing message")
 				}
 
 				return res, true, nil
@@ -213,10 +193,7 @@ func main() {
 	}
 
 	if target != nil {
-		targetRoutines := cfg.Target.Routines
-		if targetRoutines < 1 {
-			targetRoutines = 1
-		}
+		targetRoutines := min(cfg.Target.Routines, 1)
 
 		l.Info("target starting to consume messages", "routines", targetRoutines)
 
@@ -279,6 +256,18 @@ func fatal(l *slog.Logger, err error, log string) {
 	os.Exit(1)
 }
 
+// handleRunnerError handles error cases in runner processing with consistent logging and nak behavior
+func handleRunnerError(l *slog.Logger, msg *message.RunnerMessage, err error, operation string, additionalFields ...any) (*message.RunnerMessage, bool, error) {
+	// Build log arguments dynamically
+	logArgs := append([]any{"error", err}, additionalFields...)
+	l.Error(operation, logArgs...)
+
+	if nakErr := msg.Nak(); nakErr != nil {
+		l.Error("failed to nak message after "+operation, "error", nakErr)
+	}
+	return nil, false, nil
+}
+
 type RunnerItem struct {
 	Config connectors.RunnerConfig
 	Runner connectors.Runner
@@ -297,4 +286,11 @@ func closeWithRetry(closeFunc func() error, maxRetries int, delay time.Duration)
 		}
 	}
 	return err
+}
+
+func min(a, b int) int {
+	if a < 1 {
+		return b
+	}
+	return a
 }
