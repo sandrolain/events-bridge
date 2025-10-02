@@ -1,6 +1,7 @@
 package encdec
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/sandrolain/events-bridge/src/message"
@@ -76,9 +77,15 @@ func mapToMessage(decoder MessageDecoder, v map[string]any, metaKey string, data
 			return nil, fmt.Errorf("failed to encode JSON data: %w", err)
 		}
 	case string:
-		data = []byte(d)
+		if decoded, err := base64.StdEncoding.DecodeString(d); err == nil {
+			data = decoded
+		} else {
+			data = []byte(d)
+		}
 	case []byte:
 		data = d
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+		data = []byte(fmt.Sprintf("%v", d))
 	case nil:
 		// no data
 	default:

@@ -148,12 +148,12 @@ func (s *CLISource) Close() error {
 		}
 	}
 
+	close(s.c)
+
 	return nil
 }
 
 func (s *CLISource) consumeStream(r io.Reader) error {
-	defer close(s.c)
-
 	stream := s.decoder.DecodeStream(r)
 	for {
 		select {
@@ -172,25 +172,6 @@ func (s *CLISource) consumeStream(r io.Reader) error {
 		}
 	}
 }
-
-// func (s *CLISource) extractData(payload map[string]any) (any, error) {
-// 	if s.cfg.DataKey != "" {
-// 		raw, ok := payload[s.cfg.DataKey]
-// 		if !ok {
-// 			return nil, fmt.Errorf("data key %q not found", s.cfg.DataKey)
-// 		}
-// 		return raw, nil
-// 	}
-
-// 	dataCopy := make(map[string]any, len(payload))
-// 	for k, v := range payload {
-// 		if s.cfg.MetadataKey != "" && k == s.cfg.MetadataKey {
-// 			continue
-// 		}
-// 		dataCopy[k] = v
-// 	}
-// 	return dataCopy, nil
-// }
 
 func (s *CLISource) waitCommand() {
 	err := s.cmd.Wait()

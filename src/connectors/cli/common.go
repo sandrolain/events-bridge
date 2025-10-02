@@ -12,14 +12,6 @@ import (
 	"time"
 )
 
-// CLIFormat represents the data format for CLI operations
-type CLIFormat string
-
-const (
-	FormatJSON CLIFormat = "JSON"
-	FormatCBOR CLIFormat = "CBOR"
-)
-
 // BaseConfig contains common configuration fields for internal use
 type BaseConfig struct {
 	Command string            `mapstructure:"command" validate:"required"`

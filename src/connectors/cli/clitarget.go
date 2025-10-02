@@ -111,7 +111,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 
 type CLITarget struct {
 	cfg      *TargetConfig
-	format   CLIFormat
+	format   string
 	decoder  encdec.MessageDecoder
 	executor *CommandExecutor
 	slog     *slog.Logger
