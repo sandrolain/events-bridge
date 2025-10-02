@@ -79,20 +79,25 @@ func main() {
 		for i, runnerConfig := range cfg.Runners {
 			l.Info("creating runner", "type", runnerConfig.Type)
 
-			runner, err := utils.LoadPluginAndConfig[connectors.Runner](
-				connectorPath(runnerConfig.Type),
-				connectors.NewRunnerMethodName,
-				connectors.NewRunnerConfigName,
-				runnerConfig.Options,
-			)
-			if err != nil {
-				fatal(l, err, "failed to create runner")
-			}
-			defer func() {
-				if err := closeWithRetry(runner.Close, 3, time.Second); err != nil {
-					closeErrors = append(closeErrors, fmt.Errorf("failed to close runner: %w", err))
+			var runner connectors.Runner
+			var err error
+
+			if runnerConfig.Type != "pass" {
+				runner, err = utils.LoadPluginAndConfig[connectors.Runner](
+					connectorPath(runnerConfig.Type),
+					connectors.NewRunnerMethodName,
+					connectors.NewRunnerConfigName,
+					runnerConfig.Options,
+				)
+				if err != nil {
+					fatal(l, err, "failed to create runner")
 				}
-			}()
+				defer func() {
+					if err := closeWithRetry(runner.Close, 3, time.Second); err != nil {
+						closeErrors = append(closeErrors, fmt.Errorf("failed to close runner: %w", err))
+					}
+				}()
+			}
 			runners[i] = RunnerItem{
 				Config: runnerConfig,
 				Runner: runner,
@@ -149,27 +154,19 @@ func main() {
 
 			runnerRoutines := min(cfg.Routines, 1)
 
-			evaluator, err := expreval.NewExprEvaluator(cfg.IfExpr)
+			ifEval, err := expreval.NewExprEvaluator(cfg.IfExpr)
+			if err != nil {
+				fatal(l, err, fmt.Sprintf("failed to create expression evaluator for runner %d ifExpr: %s", i, cfg.IfExpr))
+			}
+
+			filterEval, err := expreval.NewExprEvaluator(cfg.FilterExpr)
 			if err != nil {
 				fatal(l, err, fmt.Sprintf("failed to create expression evaluator for runner %d ifExpr: %s", i, cfg.IfExpr))
 			}
 
 			out = rill.OrderedFilterMap(out, runnerRoutines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
-				if cfg.IfExpr != "" {
-					meta, err := msg.GetMetadata()
-					if err != nil {
-						return handleRunnerError(l, msg, err, "failed to get message metadata for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr)
-					}
-
-					data, err := msg.GetData()
-					if err != nil {
-						return handleRunnerError(l, msg, err, "failed to get message data for ifExpr evaluation, skipping runner processing", "ifExpr", cfg.IfExpr)
-					}
-
-					pass, err := evaluator.Eval(map[string]any{
-						"metadata": meta,
-						"data":     data,
-					})
+				if ifEval != nil {
+					pass, err := ifEval.EvalMessage(msg)
 					if err != nil {
 						return handleRunnerError(l, msg, err, "failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr)
 					}
@@ -180,11 +177,24 @@ func main() {
 					}
 				}
 
-				res, err := runner.Process(msg)
-				if err != nil {
-					return handleRunnerError(l, msg, err, "error processing message")
+				var res *message.RunnerMessage = msg
+				if runner != nil {
+					res, err = runner.Process(msg)
+					if err != nil {
+						return handleRunnerError(l, msg, err, "error processing message")
+					}
 				}
 
+				if filterEval != nil {
+					pass, err := filterEval.EvalMessage(res)
+					if err != nil {
+						return handleRunnerError(l, msg, err, "failed to evaluate filterExpr, skipping message", "filterExpr", cfg.FilterExpr)
+					}
+					if !pass {
+						handleAck(l, msg, "message filtered out by filterExpr", "filterExpr", cfg.FilterExpr)
+						return nil, false, nil
+					}
+				}
 				return res, true, nil
 			})
 		}
@@ -198,19 +208,11 @@ func main() {
 		l.Info("target starting to consume messages", "routines", targetRoutines)
 
 		err = rill.ForEach(out, targetRoutines, func(msg *message.RunnerMessage) error {
-			err := target.Consume(msg)
-			if err != nil {
-				l.Error("failed to consume message", "error", err)
-				err = msg.Nak()
-				if err != nil {
-					l.Error("failed to nak message after consume failure", "error", err)
-				}
-			} else {
-				err = msg.Ack()
-				if err != nil {
-					l.Error("failed to ack message after consume", "error", err)
-				}
+			if err := target.Consume(msg); err != nil {
+				handleTargetError(l, msg, err, "failed to consume message with target")
+				return nil
 			}
+			handleAck(l, msg, "message consumed by target")
 			return nil
 		})
 		if err != nil {
@@ -218,13 +220,8 @@ func main() {
 		}
 	} else {
 		err = rill.ForEach(out, 1, func(msg *message.RunnerMessage) error {
-			err := msg.ReplySource()
-			if err != nil {
-				l.Error("failed to reply message", "error", err)
-				err = msg.Nak()
-				if err != nil {
-					l.Error("failed to nak message after reply", "error", err)
-				}
+			if err := msg.ReplySource(); err != nil {
+				handleTargetError(l, msg, err, "failed to reply message back to source")
 			}
 			return nil
 		})
@@ -266,6 +263,25 @@ func handleRunnerError(l *slog.Logger, msg *message.RunnerMessage, err error, op
 		l.Error("failed to nak message after "+operation, "error", nakErr)
 	}
 	return nil, false, nil
+}
+
+func handleTargetError(l *slog.Logger, msg *message.RunnerMessage, err error, operation string, additionalFields ...any) {
+	// Build log arguments dynamically
+	logArgs := append([]any{"error", err}, additionalFields...)
+	l.Error(operation, logArgs...)
+
+	if nakErr := msg.Nak(); nakErr != nil {
+		l.Error("failed to nak message after "+operation, "error", nakErr)
+	}
+}
+
+func handleAck(l *slog.Logger, msg *message.RunnerMessage, operation string, logArgs ...any) {
+	// Build log arguments dynamically
+	l.Info(operation, logArgs...)
+
+	if ackErr := msg.Ack(); ackErr != nil {
+		l.Error("failed to ack message after "+operation, "error", ackErr)
+	}
 }
 
 type RunnerItem struct {

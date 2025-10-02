@@ -102,12 +102,6 @@ func Encode(metadata message.MessageMetadata, data []byte) ([]byte, error) {
 	if len(data) > maxFrameSegment {
 		return nil, fmt.Errorf("data too large: %d bytes", len(data))
 	}
-	if len(metaBytes) > int(maxFrameValue) {
-		return nil, fmt.Errorf("metadata too large: %d bytes", len(metaBytes))
-	}
-	if len(data) > int(maxFrameValue) {
-		return nil, fmt.Errorf("data too large: %d bytes", len(data))
-	}
 
 	frameLen := frameHeaderSize + len(metaBytes) + len(data)
 	buf := bytes.NewBuffer(make([]byte, 0, frameLen))

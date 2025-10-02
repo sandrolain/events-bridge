@@ -18,15 +18,16 @@ func main() {
 
 	newMeta := make(map[string]string)
 
-	// Example processing: add a key to metadata and modify data
-	newMeta["wasm-processed"] = "true"
-	newMeta["eb-status"] = "400"
-
 	fileName := os.Getenv("FILE_NAME")
 	pfix, err := fs.ReadFile(os.DirFS("/"), fileName)
 	if err != nil {
 		log.Fatalf("failed to read prefix file: %v", err)
 	}
+
+	// Example processing: add a key to metadata and modify data
+	newMeta["wasm-processed"] = "true"
+	newMeta["eb-status"] = "400"
+	newMeta["x-file"] = fileName
 
 	jsonData, err := json.Marshal(meta)
 	if err != nil {

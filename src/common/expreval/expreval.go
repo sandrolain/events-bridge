@@ -6,6 +6,7 @@ import (
 
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
+	"github.com/sandrolain/events-bridge/src/message"
 )
 
 type ExprEvaluator struct {
@@ -24,16 +25,22 @@ func NewExprEvaluator(expression string) (*ExprEvaluator, error) {
 }
 
 func (e *ExprEvaluator) Eval(input map[string]any) (bool, error) {
-	if e.program == nil {
-		return true, nil // If no expression is set, always return true
-	}
-
 	result, err := vm.Run(e.program, input)
 	if err != nil {
 		return false, fmt.Errorf("failed to evaluate expression: %w", err)
 	}
-
 	return toBool(result), nil
+}
+
+func (e *ExprEvaluator) EvalMessage(msg *message.RunnerMessage) (bool, error) {
+	meta, err := msg.GetMetadata()
+	fmt.Printf("meta: %v\n", meta)
+	if err != nil {
+		return false, fmt.Errorf("failed to get message metadata: %w", err)
+	}
+	return e.Eval(map[string]any{
+		"metadata": meta,
+	})
 }
 
 func toBool(v any) bool {

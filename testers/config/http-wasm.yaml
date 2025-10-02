@@ -25,6 +25,8 @@ commands:
                 FILE_NAME: "test2.txt"
             routines: 8
             ifExpr: 'string(metadata.path) matches "^/hook$"'
+          - type: "pass"
+            filterExpr: 'string(metadata["x-file"]) matches "test2"'
     args: []
     restartTries: 0
   - name: http-source-1
@@ -39,7 +41,7 @@ commands:
         "--payload",
         "{counter} - {nowtime}",
       ]
-    startAfter: "2s"
+    startAfter: "1500ms"
   - name: http-source-2
     cmd: "./testers/bin/httptool"
     args:
@@ -52,6 +54,6 @@ commands:
         "--payload",
         "{counter} - {nowtime}",
       ]
-    startAfter: "2s"
+    startAfter: "2000ms"
 killOthers: true
-enableTUI: true
+#enableTUI: true
