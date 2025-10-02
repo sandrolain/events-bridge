@@ -64,6 +64,9 @@ func TestCLITargetJSON(t *testing.T) {
 	}
 
 	dmsg, err := decoder.DecodeMessage(data)
+	if err != nil {
+		t.Fatalf(targetErrDecodeJSONFmt, err)
+	}
 
 	metadata, err := dmsg.GetMetadata()
 	if err != nil {
@@ -73,6 +76,8 @@ func TestCLITargetJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf(targetErrGetDataFmt, err)
 	}
+	fmt.Printf("metadata: %v\n", metadata)
+	fmt.Printf("payload: %s\n", string(payload))
 
 	if metadata["foo"] != "bar" {
 		t.Fatalf(targetErrUnexpectedMetadataFmt, metadata)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/sandrolain/events-bridge/src/common/encdec"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -33,7 +34,7 @@ func TestCLISourceJSON(t *testing.T) {
 			"data":     map[string]any{"text": "world"},
 		},
 	}
-	ch, src := setupCLISource(t, FormatJSON, records, "metadata", "data")
+	ch, src := setupCLISource(t, "json", records, "metadata", "data")
 	defer closeSource(t, src)
 
 	// Small delay to let the source fully start
@@ -41,13 +42,11 @@ func TestCLISourceJSON(t *testing.T) {
 
 	msg1 := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg1), "foo", "bar")
-	decoded1 := decodePayload(t, FormatJSON, mustData(t, msg1))
-	expectPayloadText(t, decoded1, "data", `{"text":"hello"}`)
+	expectPayloadText(t, mustData(t, msg1), `{"text":"hello"}`)
 
 	msg2 := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg2), "foo", "baz")
-	decoded2 := decodePayload(t, FormatJSON, mustData(t, msg2))
-	expectPayloadText(t, decoded2, "data", `{"text":"world"}`)
+	expectPayloadText(t, mustData(t, msg2), `{"text":"world"}`)
 }
 
 func TestCLISourceCBOR(t *testing.T) {
@@ -62,7 +61,7 @@ func TestCLISourceCBOR(t *testing.T) {
 		},
 	}
 
-	ch, src := setupCLISource(t, FormatCBOR, records, "metadata", "data")
+	ch, src := setupCLISource(t, "cbor", records, "metadata", "data")
 	defer closeSource(t, src)
 
 	// Small delay to let the source fully start
@@ -70,22 +69,20 @@ func TestCLISourceCBOR(t *testing.T) {
 
 	msg1 := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg1), "foo", "bar")
-	decoded1 := decodePayload(t, FormatCBOR, mustData(t, msg1))
-	expectPayloadText(t, decoded1, "data", `{"text":"hello"}`)
+	expectPayloadBytes(t, mustData(t, msg1), mustMarshalCBOR(t, map[string]any{"text": "hello"}))
 
 	msg2 := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg2), "foo", "baz")
-	decoded2 := decodePayload(t, FormatCBOR, mustData(t, msg2))
-	expectPayloadText(t, decoded2, "data", `{"text":"world"}`)
+	expectPayloadBytes(t, mustData(t, msg2), mustMarshalCBOR(t, map[string]any{"text": "world"}))
 }
 
 func TestCLISourceJSONWholeMap(t *testing.T) {
 	record := map[string]any{
-		"meta":  map[string]string{"foo": "bar"},
-		"value": 42,
+		"metadata": map[string]string{"foo": "bar"},
+		"data":     42,
 	}
 
-	ch, src := setupCLISource(t, FormatJSON, []map[string]any{record}, "meta", "")
+	ch, src := setupCLISource(t, "json", []map[string]any{record}, "metadata", "data")
 	defer closeSource(t, src)
 
 	// Small delay to let the source fully start
@@ -94,17 +91,27 @@ func TestCLISourceJSONWholeMap(t *testing.T) {
 	msg := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg), "foo", "bar")
 
-	decoded := decodePayload(t, FormatJSON, mustData(t, msg))
-	if _, ok := decoded["meta"]; ok {
+	encoder, err := encdec.NewMessageDecoder("json", "metadata", "data")
+	if err != nil {
+		t.Fatalf("failed to create encoder: %v", err)
+	}
+
+	data, err := encoder.Encode(record)
+	if err != nil {
+		t.Fatalf("failed to encode record: %v", err)
+	}
+
+	decoded := decodePayload(t, "json", data)
+	if _, ok := decoded["metadata"]; ok {
 		t.Fatalf("metadata key should not be present in data: %v", decoded)
 	}
-	value, ok := decoded["value"].(float64)
+	value, ok := decoded["data"].(float64)
 	if !ok || value != 42 {
 		t.Fatalf("unexpected value: %v", decoded["value"])
 	}
 }
 
-func setupCLISource(t *testing.T, format CLIFormat, records []map[string]any, metadataKey, dataKey string) (<-chan *message.RunnerMessage, *CLISource) {
+func setupCLISource(t *testing.T, format string, records []map[string]any, metadataKey, dataKey string) (<-chan *message.RunnerMessage, *CLISource) {
 	t.Helper()
 	file := writeRecordsFile(t, format, records)
 
@@ -131,7 +138,7 @@ func setupCLISource(t *testing.T, format CLIFormat, records []map[string]any, me
 	return ch, src
 }
 
-func writeRecordsFile(t *testing.T, format CLIFormat, records []map[string]any) string {
+func writeRecordsFile(t *testing.T, format string, records []map[string]any) string {
 	t.Helper()
 
 	buf := bytes.NewBuffer(nil)
@@ -146,14 +153,14 @@ func writeRecordsFile(t *testing.T, format CLIFormat, records []map[string]any) 
 			t.Fatalf("failed to encode record: %v", err)
 		}
 		buf.Write(data)
-		if format == FormatJSON {
+		if format == "json" {
 			buf.WriteByte('\n')
 		}
 	}
 
 	dir := t.TempDir()
 	filename := "events.json"
-	if format == FormatCBOR {
+	if format == "cbor" {
 		filename = "events.cbor"
 	}
 	path := filepath.Join(dir, filename)
@@ -170,6 +177,15 @@ func closeSource(t *testing.T, src *CLISource) {
 	if err := src.Close(); err != nil {
 		t.Fatalf(sourceErrCloseFmt, err)
 	}
+}
+
+func mustMarshalCBOR(t *testing.T, v any) []byte {
+	t.Helper()
+	data, err := cbor.Marshal(v)
+	if err != nil {
+		t.Fatalf("failed to marshal CBOR: %v", err)
+	}
+	return data
 }
 
 func mustMetadata(t *testing.T, msg *message.RunnerMessage) message.MessageMetadata {
@@ -197,7 +213,7 @@ func mustData(t *testing.T, msg *message.RunnerMessage) []byte {
 	return data
 }
 
-func decodePayload(t *testing.T, format CLIFormat, data []byte) map[string]any {
+func decodePayload(t *testing.T, format string, data []byte) map[string]any {
 	t.Helper()
 
 	encoder, err := encdec.NewMessageDecoder(string(format), "metadata", "data")
@@ -227,15 +243,17 @@ func decodePayload(t *testing.T, format CLIFormat, data []byte) map[string]any {
 	}
 }
 
-func expectPayloadText(t *testing.T, decoded map[string]any, key, expected string) {
+func expectPayloadText(t *testing.T, data []byte, expected string) {
 	t.Helper()
-	dataStr, ok := decoded["data"].(string)
-	if !ok {
-		t.Fatalf("data is not string: %v", decoded["data"])
+	if string(data) != expected {
+		t.Fatalf("data is not string: %v", string(data))
 	}
-	// For simplicity, check if expected is in dataStr
-	if dataStr != expected {
-		t.Fatalf(sourceErrUnexpectedPayloadFmt, dataStr)
+}
+
+func expectPayloadBytes(t *testing.T, data []byte, expected []byte) {
+	t.Helper()
+	if !bytes.Equal(data, expected) {
+		t.Fatalf(sourceErrUnexpectedPayloadFmt, data)
 	}
 }
 
