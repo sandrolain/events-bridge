@@ -44,6 +44,8 @@ func NewRunnerConfig() any {
 }
 
 // New creates a new instance of WasmRunner
+var runtimeCreateMu sync.Mutex
+
 func NewRunner(anyCfg any) (connectors.Runner, error) {
 	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
@@ -60,6 +62,9 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 		return nil, fmt.Errorf("failed to read wasm file: %w", err)
 	}
 
+	// Protect wazero runtime creation from data races in concurrent tests
+	runtimeCreateMu.Lock()
+	defer runtimeCreateMu.Unlock()
 	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig())
 
 	// Instantiate WASI before loading the module
