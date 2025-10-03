@@ -1,0 +1,19 @@
+# HTTP to PostgreSQL example
+# Receives HTTP requests and inserts them into a PostgreSQL table
+
+sources:
+  - type: http
+    options:
+      port: 8080
+      path: "/events"
+
+targets:
+  - type: pgsql
+    routines: 3
+    options:
+      connString: "postgres://testuser:testpass@localhost:5432/testdb?sslmode=disable"
+      table: "events"
+      otherColumn: "extra_data"
+      onConflict: "DO UPDATE"
+      conflictColumns: "event_id"
+      batchSize: 100

@@ -10,7 +10,7 @@ commands:
         source:
           type: "pgsql"
           options:
-            conn_string: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+            connString: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
             table: "test_table"
 
         target:
