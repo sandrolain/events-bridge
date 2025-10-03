@@ -51,8 +51,28 @@ tasks:
       - echo "Running go vet..."
       - go vet ./src/...
 
+  build-wasm-test-assets:
+    desc: Build WASM test assets for unit tests
+    dir: ./src/connectors/wasm/testassets
+    cmds:
+      - echo "Building WASM test assets..."
+      - GOOS=wasip1 GOARCH=wasm go build -o testrunner.wasm testrunner.go
+      - GOOS=wasip1 GOARCH=wasm go build -o errorrunner.wasm errorrunner.go
+      - GOOS=wasip1 GOARCH=wasm go build -o timeoutrunner.wasm timeoutrunner.go
+      - echo "WASM test assets built successfully"
+      - du -h *.wasm
+
+  clean-wasm-test-assets:
+    desc: Clean WASM test assets
+    dir: ./src/connectors/wasm/testassets
+    cmds:
+      - echo "Cleaning WASM test assets..."
+      - rm -f *.wasm
+
   test:
     desc: Run tests with race detector and coverage (suppress linker warnings)
+    deps:
+      - build-wasm-test-assets
     cmds:
       - echo "Running tests with coverage (clean output)..."
       - |
@@ -65,6 +85,8 @@ tasks:
 
   test-verbose:
     desc: Run tests with race detector and coverage (show all output including warnings)
+    deps:
+      - build-wasm-test-assets
     cmds:
       - echo "Running tests with coverage (verbose mode)..."
       - go test -race -coverprofile=coverage.out -covermode=atomic ./src/...
@@ -125,6 +147,7 @@ tasks:
       - rm -f coverage.html
       - rm -f security-report.json
       - rm -f trivy-results.json
+      - task: clean-wasm-test-assets
 
   rebuild:
     desc: Clean and then build everything
@@ -182,7 +205,8 @@ tasks:
       - echo "Building test plugin..."
       - go build -o ./bin/plugin ./plugins/plugin && du -h ./bin/plugin
       - echo "Building test wasm..."
-      - tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
+      #- tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
+      - GOOS=wasip1 GOARCH=wasm go build -o ./bin/wasmrunner.wasm ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
 
   run:*:
     desc: Run a specified task (e.g., run-mqtt-to-http)
