@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
