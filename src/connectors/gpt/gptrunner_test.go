@@ -27,7 +27,7 @@ const (
 // mockSourceMessage implements message.SourceMessage for testing
 type mockSourceMessage struct {
 	id       []byte
-	metadata message.MessageMetadata
+	metadata map[string]string
 	data     []byte
 }
 
@@ -35,7 +35,7 @@ func (m *mockSourceMessage) GetID() []byte {
 	return m.id
 }
 
-func (m *mockSourceMessage) GetMetadata() (message.MessageMetadata, error) {
+func (m *mockSourceMessage) GetMetadata() (map[string]string, error) {
 	return m.metadata, nil
 }
 
@@ -201,7 +201,7 @@ func createMockOpenAIServer(t *testing.T) *httptest.Server {
 	}))
 }
 
-func createTestMessage(data []byte, metadata message.MessageMetadata) *message.RunnerMessage {
+func createTestMessage(data []byte, metadata map[string]string) *message.RunnerMessage {
 	sourceMsg := &mockSourceMessage{
 		id:       []byte("test-id"),
 		data:     data,
@@ -360,7 +360,7 @@ func TestGPTRunnerMetadataPreservation(t *testing.T) {
 
 	// Test with metadata
 	testData := []byte("Hello with metadata")
-	metadata := message.MessageMetadata{
+	metadata := map[string]string{
 		"original_source": "test_system",
 		"request_id":      "12345",
 	}

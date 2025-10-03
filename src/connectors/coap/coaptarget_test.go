@@ -23,12 +23,12 @@ type mockMessage struct {
 	ack, nak bool
 }
 
-func (m *mockMessage) GetID() []byte                                 { return []byte("mock-id") }
-func (m *mockMessage) GetMetadata() (message.MessageMetadata, error) { return nil, nil }
-func (m *mockMessage) GetData() ([]byte, error)                      { return m.data, nil }
-func (m *mockMessage) Ack() error                                    { m.ack = true; return nil }
-func (m *mockMessage) Nak() error                                    { m.nak = true; return nil }
-func (m *mockMessage) Reply(data *message.ReplyData) error           { return nil }
+func (m *mockMessage) GetID() []byte                           { return []byte("mock-id") }
+func (m *mockMessage) GetMetadata() (map[string]string, error) { return nil, nil }
+func (m *mockMessage) GetData() ([]byte, error)                { return m.data, nil }
+func (m *mockMessage) Ack() error                              { m.ack = true; return nil }
+func (m *mockMessage) Nak() error                              { m.nak = true; return nil }
+func (m *mockMessage) Reply(data *message.ReplyData) error     { return nil }
 
 // Dummy client to avoid real network calls
 // You can expand this with a build tag for integration tests
@@ -130,12 +130,12 @@ func TestSendSuccessUnsupportedNetworkTCP(t *testing.T) {
 
 type mockMessageWithError struct{}
 
-func (m *mockMessageWithError) GetID() []byte                                 { return []byte("mock-id-error") }
-func (m *mockMessageWithError) GetMetadata() (message.MessageMetadata, error) { return nil, nil }
-func (m *mockMessageWithError) GetData() ([]byte, error)                      { return nil, errors.New("fail") }
-func (m *mockMessageWithError) Ack() error                                    { return nil }
-func (m *mockMessageWithError) Nak() error                                    { return nil }
-func (m *mockMessageWithError) Reply(data *message.ReplyData) error           { return nil }
+func (m *mockMessageWithError) GetID() []byte                           { return []byte("mock-id-error") }
+func (m *mockMessageWithError) GetMetadata() (map[string]string, error) { return nil, nil }
+func (m *mockMessageWithError) GetData() ([]byte, error)                { return nil, errors.New("fail") }
+func (m *mockMessageWithError) Ack() error                              { return nil }
+func (m *mockMessageWithError) Nak() error                              { return nil }
+func (m *mockMessageWithError) Reply(data *message.ReplyData) error     { return nil }
 
 // --- Moved integration tests from coaptarget_integration_test.go ---
 
@@ -144,12 +144,12 @@ type dummyMessage struct {
 	acked, naked bool
 }
 
-func (m *dummyMessage) GetID() []byte                                 { return []byte("dummy-id") }
-func (m *dummyMessage) GetMetadata() (message.MessageMetadata, error) { return nil, nil }
-func (m *dummyMessage) GetData() ([]byte, error)                      { return m.data, nil }
-func (m *dummyMessage) Ack() error                                    { m.acked = true; return nil }
-func (m *dummyMessage) Nak() error                                    { m.naked = true; return nil }
-func (m *dummyMessage) Reply(data *message.ReplyData) error           { return nil }
+func (m *dummyMessage) GetID() []byte                           { return []byte("dummy-id") }
+func (m *dummyMessage) GetMetadata() (map[string]string, error) { return nil, nil }
+func (m *dummyMessage) GetData() ([]byte, error)                { return m.data, nil }
+func (m *dummyMessage) Ack() error                              { m.acked = true; return nil }
+func (m *dummyMessage) Nak() error                              { m.naked = true; return nil }
+func (m *dummyMessage) Reply(data *message.ReplyData) error     { return nil }
 
 // UDP test server that uses mux logic like coapsource
 func startUDPServer(t *testing.T, addr string, onMsg func()) {

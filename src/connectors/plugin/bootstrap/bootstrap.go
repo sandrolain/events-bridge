@@ -1,7 +1,8 @@
-package plugin
+package bootstrap
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"net"
@@ -10,9 +11,7 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
-	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/plugin/proto"
+	"github.com/sandrolain/events-bridge/src/connectors/plugin/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -161,20 +160,19 @@ func Shutdown(delay *string) *proto.ShutdownRes {
 	return &proto.ShutdownRes{}
 }
 
-func ResponseMessage(meta message.MessageMetadata, data []byte) *proto.PluginMessage {
-	uid := uuid.New().String()
-
-	var metadata []*proto.Metadata
-	for k, v := range meta {
-		metadata = append(metadata, &proto.Metadata{
-			Name:  k,
-			Value: v,
-		})
+func GenerateId() ([]byte, error) {
+	id := make([]byte, 16)
+	_, err := rand.Read(id)
+	if err != nil {
+		return nil, err
 	}
+	return id, nil
+}
 
+func ResponseMessage(id []byte, meta map[string]string, data []byte) *proto.PluginMessage {
 	return &proto.PluginMessage{
-		Uuid:     uid,
-		Metadata: metadata,
+		Uuid:     id,
+		Metadata: meta,
 		Data:     data,
 	}
 }

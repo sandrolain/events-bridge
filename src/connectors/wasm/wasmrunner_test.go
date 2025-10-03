@@ -16,7 +16,7 @@ const (
 // stubSourceMessage is a minimal implementation of message.SourceMessage for testing
 type stubSourceMessage struct {
 	id       []byte
-	metadata message.MessageMetadata
+	metadata map[string]string
 	data     []byte
 }
 
@@ -24,7 +24,7 @@ func (s *stubSourceMessage) GetID() []byte {
 	return s.id
 }
 
-func (s *stubSourceMessage) GetMetadata() (message.MessageMetadata, error) {
+func (s *stubSourceMessage) GetMetadata() (map[string]string, error) {
 	return s.metadata, nil
 }
 
@@ -53,7 +53,7 @@ func getTestAssetPath(filename string) string {
 func createTestMessage() *message.RunnerMessage {
 	stub := &stubSourceMessage{
 		id: []byte("test-id"),
-		metadata: message.MessageMetadata{
+		metadata: map[string]string{
 			"source": "test",
 			"type":   "test-message",
 		},
@@ -414,7 +414,7 @@ func TestProcess_MultipleMessages(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		stub := &stubSourceMessage{
 			id: []byte("test-id"),
-			metadata: message.MessageMetadata{
+			metadata: map[string]string{
 				"iteration": string(rune(i)),
 			},
 			data: []byte("test data"),
@@ -462,7 +462,7 @@ func TestProcess_EmptyMetadata(t *testing.T) {
 
 	stub := &stubSourceMessage{
 		id:       []byte("test-id"),
-		metadata: message.MessageMetadata{},
+		metadata: map[string]string{},
 		data:     []byte("test data"),
 	}
 	msg := message.NewRunnerMessage(stub)
@@ -497,7 +497,7 @@ func TestProcess_EmptyData(t *testing.T) {
 
 	stub := &stubSourceMessage{
 		id: []byte("test-id"),
-		metadata: message.MessageMetadata{
+		metadata: map[string]string{
 			"test": "value",
 		},
 		data: []byte{},

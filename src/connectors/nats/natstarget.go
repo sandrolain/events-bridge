@@ -6,7 +6,6 @@ import (
 	"time"
 
 	nats "github.com/nats-io/nats.go"
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -56,7 +55,7 @@ func (t *NATSTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	subject := common.ResolveFromMetadata(msg, t.cfg.SubjectFromMetadataKey, t.cfg.Subject)
+	subject := message.ResolveFromMetadata(msg, t.cfg.SubjectFromMetadataKey, t.cfg.Subject)
 
 	t.slog.Debug("publishing NATS message", "subject", subject, "bodysize", len(data))
 

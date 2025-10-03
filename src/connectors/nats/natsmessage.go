@@ -17,8 +17,8 @@ func (m *NATSMessage) GetID() []byte {
 	return []byte(m.msg.Header.Get(NatsMessageIdHeader))
 }
 
-func (m *NATSMessage) GetMetadata() (message.MessageMetadata, error) {
-	return message.MessageMetadata{"subject": m.msg.Subject}, nil
+func (m *NATSMessage) GetMetadata() (map[string]string, error) {
+	return map[string]string{"subject": m.msg.Subject}, nil
 }
 
 func (m *NATSMessage) GetData() ([]byte, error) {

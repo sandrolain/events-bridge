@@ -18,8 +18,8 @@ func (m *PGSQLMessage) GetID() []byte {
 	return hash[:]
 }
 
-func (m *PGSQLMessage) GetMetadata() (message.MessageMetadata, error) {
-	return message.MessageMetadata{"channel": m.notification.Channel}, nil
+func (m *PGSQLMessage) GetMetadata() (map[string]string, error) {
+	return map[string]string{"channel": m.notification.Channel}, nil
 }
 
 func (m *PGSQLMessage) GetData() ([]byte, error) {

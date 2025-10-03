@@ -1,27 +1,25 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/plugin/manager"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/plugin"
 )
 
 var _ connectors.Source = &PluginSource{}
 
 type SourceConfig struct {
-	Plugin plugin.PluginConfig `mapstructure:"plugin" validate:"required"`
-	Config map[string]string   `mapstructure:"config"`
+	Plugin manager.PluginConfig `mapstructure:"plugin" validate:"required"`
+	Config map[string]string    `mapstructure:"config"`
 }
 
 type PluginSource struct {
 	cfg   *SourceConfig
 	slog  *slog.Logger
-	c     <-chan *message.RunnerMessage
-	plg   *plugin.Plugin
+	plg   *manager.Plugin
 	close func()
 }
 
@@ -35,7 +33,7 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
-	mgr, err := plugin.GetPluginManager()
+	mgr, err := manager.GetPluginManager()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get plugin manager: %w", err)
 	}
@@ -56,14 +54,22 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 func (s *PluginSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.slog.Info("starting plugin source", "id", s.cfg.Plugin.Name, "exec", s.cfg.Plugin.Exec)
 
-	ctx := context.Background()
+	c, closeSource, err := s.plg.Source(buffer, s.cfg.Config)
+	s.close = closeSource
 
-	var err error
-	s.c, s.close, err = s.plg.Source(ctx, buffer, s.cfg.Config)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to start plugin source: %w", err)
 	}
-	return s.c, nil
+
+	res := make(chan *message.RunnerMessage, buffer)
+	go func() {
+		defer close(res)
+		for m := range c {
+			res <- message.NewRunnerMessage(m)
+		}
+	}()
+
+	return res, nil
 }
 
 func (s *PluginSource) Close() error {

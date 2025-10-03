@@ -6,7 +6,6 @@ import (
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -26,8 +25,8 @@ func (m *CoAPMessage) GetID() []byte {
 	return m.req.Token()
 }
 
-func (m *CoAPMessage) GetMetadata() (message.MessageMetadata, error) {
-	res := make(message.MessageMetadata)
+func (m *CoAPMessage) GetMetadata() (map[string]string, error) {
+	res := make(map[string]string)
 	for _, opt := range m.req.Options() {
 		key := opt.ID.String()
 		var val string
@@ -56,16 +55,16 @@ func (m *CoAPMessage) GetData() ([]byte, error) {
 }
 
 func (m *CoAPMessage) Ack() error {
-	common.SendResponseStatus(m.done, message.ResponseStatusAck)
+	message.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *CoAPMessage) Nak() error {
-	common.SendResponseStatus(m.done, message.ResponseStatusNak)
+	message.SendResponseStatus(m.done, message.ResponseStatusNak)
 	return nil
 }
 
 func (m *CoAPMessage) Reply(data *message.ReplyData) error {
-	common.SendReply(m.reply, data)
+	message.SendReply(m.reply, data)
 	return nil
 }

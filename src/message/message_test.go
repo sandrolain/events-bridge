@@ -14,7 +14,7 @@ const (
 
 type stubSourceMessage struct {
 	id          []byte
-	metadata    MessageMetadata
+	metadata    map[string]string
 	metadataErr error
 	data        []byte
 	dataErr     error
@@ -31,7 +31,7 @@ func (s *stubSourceMessage) GetID() []byte {
 	return s.id
 }
 
-func (s *stubSourceMessage) GetMetadata() (MessageMetadata, error) {
+func (s *stubSourceMessage) GetMetadata() (map[string]string, error) {
 	if s.metadataErr != nil {
 		return nil, s.metadataErr
 	}
@@ -95,7 +95,7 @@ func TestRunnerMessageDataOverride(t *testing.T) {
 func TestRunnerMessageMetadataPreferredLocal(t *testing.T) {
 	t.Parallel()
 
-	original := &stubSourceMessage{metadata: MessageMetadata{"foo": "bar"}}
+	original := &stubSourceMessage{metadata: map[string]string{"foo": "bar"}}
 	msg := NewRunnerMessage(original)
 	msg.AddMetadata("foo", "override")
 	msg.AddMetadata("baz", "qux")
@@ -118,7 +118,7 @@ func TestRunnerMessageMetadataPreferredLocal(t *testing.T) {
 func TestRunnerMessageMetadataFallback(t *testing.T) {
 	t.Parallel()
 
-	original := &stubSourceMessage{metadata: MessageMetadata{"foo": "bar"}}
+	original := &stubSourceMessage{metadata: map[string]string{"foo": "bar"}}
 	msg := NewRunnerMessage(original)
 
 	metadata, err := msg.GetMetadata()
@@ -134,8 +134,8 @@ func TestRunnerMessageMergeMetadata(t *testing.T) {
 	t.Parallel()
 
 	msg := NewRunnerMessage(&stubSourceMessage{})
-	msg.MergeMetadata(MessageMetadata{"a": "1"})
-	msg.MergeMetadata(MessageMetadata{"b": "2", "a": "3"})
+	msg.MergeMetadata(map[string]string{"a": "1"})
+	msg.MergeMetadata(map[string]string{"b": "2", "a": "3"})
 
 	metadata, err := msg.GetMetadata()
 	if err != nil {
@@ -204,7 +204,7 @@ func TestRunnerMessageAckNakDelegate(t *testing.T) {
 func TestRunnerMessageGetters(t *testing.T) {
 	t.Parallel()
 
-	original := &stubSourceMessage{id: []byte("id"), metadata: MessageMetadata{"foo": "bar"}, data: []byte("src")}
+	original := &stubSourceMessage{id: []byte("id"), metadata: map[string]string{"foo": "bar"}, data: []byte("src")}
 	msg := NewRunnerMessage(original)
 	msg.SetData([]byte("dst"))
 	msg.AddMetadata("foo", "baz")
@@ -237,7 +237,7 @@ func TestRunnerMessageSetMetadata(t *testing.T) {
 	msg.AddMetadata("b", "2")
 
 	// Replace with new metadata
-	msg.SetMetadata(MessageMetadata{"c": "3", "d": "4"})
+	msg.SetMetadata(map[string]string{"c": "3", "d": "4"})
 
 	metadata, err := msg.GetMetadata()
 	if err != nil {
@@ -262,7 +262,7 @@ func TestRunnerMessageSetMetadata(t *testing.T) {
 func TestRunnerMessageGetSourceMetadata(t *testing.T) {
 	t.Parallel()
 
-	original := &stubSourceMessage{metadata: MessageMetadata{"source": "original"}}
+	original := &stubSourceMessage{metadata: map[string]string{"source": "original"}}
 	msg := NewRunnerMessage(original)
 	msg.AddMetadata("local", "added")
 
@@ -436,11 +436,11 @@ func TestRunnerMessageConcurrentMergeMetadata(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		go func(idx int) {
 			defer wg.Done()
-			msg.MergeMetadata(MessageMetadata{"key1": "value1"})
+			msg.MergeMetadata(map[string]string{"key1": "value1"})
 		}(i)
 		go func(idx int) {
 			defer wg.Done()
-			msg.MergeMetadata(MessageMetadata{"key2": "value2"})
+			msg.MergeMetadata(map[string]string{"key2": "value2"})
 		}(i)
 	}
 	wg.Wait()
@@ -471,7 +471,7 @@ func TestRunnerMessageConcurrentSetMetadata(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		go func(idx int) {
 			defer wg.Done()
-			msg.SetMetadata(MessageMetadata{"concurrent": "set"})
+			msg.SetMetadata(map[string]string{"concurrent": "set"})
 		}(i)
 	}
 	wg.Wait()
@@ -493,7 +493,7 @@ func TestRunnerMessageConcurrentSetMetadata(t *testing.T) {
 func TestRunnerMessageConcurrentReadWrite(t *testing.T) {
 	t.Parallel()
 
-	msg := NewRunnerMessage(&stubSourceMessage{metadata: MessageMetadata{"initial": "value"}})
+	msg := NewRunnerMessage(&stubSourceMessage{metadata: map[string]string{"initial": "value"}})
 	var wg sync.WaitGroup
 	iterations := 100
 
@@ -632,7 +632,7 @@ func TestRunnerMessageMultipleAckNakCalls(t *testing.T) {
 func TestRunnerMessageMetadataIsolation(t *testing.T) {
 	t.Parallel()
 
-	sourceMetadata := MessageMetadata{"source": "value"}
+	sourceMetadata := map[string]string{"source": "value"}
 	original := &stubSourceMessage{metadata: sourceMetadata}
 	msg := NewRunnerMessage(original)
 

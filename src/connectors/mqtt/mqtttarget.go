@@ -7,7 +7,6 @@ import (
 	"log/slog"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -67,7 +66,7 @@ func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
 	}
 
 	topic := t.cfg.Topic
-	topic = common.ResolveFromMetadata(msg, t.cfg.TopicFromMetadataKey, topic)
+	topic = message.ResolveFromMetadata(msg, t.cfg.TopicFromMetadataKey, topic)
 
 	qos := byte(t.cfg.QoS)
 	if qos > 2 {

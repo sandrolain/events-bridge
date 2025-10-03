@@ -1,4 +1,4 @@
-package plugin
+package manager
 
 import (
 	"bufio"
@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/eapache/go-resiliency/retrier"
-	"github.com/sandrolain/events-bridge/src/plugin/proto"
+	"github.com/sandrolain/events-bridge/src/connectors/plugin/proto"
 )
 
 type PluginConfig struct {

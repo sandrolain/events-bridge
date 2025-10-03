@@ -3,8 +3,6 @@ package encdec
 import (
 	"bytes"
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 func TestCLIDecoder_Encode(t *testing.T) {
@@ -17,7 +15,7 @@ func TestCLIDecoder_Encode(t *testing.T) {
 
 func TestCLIDecoder_EncodeMessage(t *testing.T) {
 	decoder := &CLIDecoder{}
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	encoded, err := decoder.EncodeMessage(msg)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -29,7 +27,7 @@ func TestCLIDecoder_EncodeMessage(t *testing.T) {
 
 func TestCLIDecoder_DecodeMessage(t *testing.T) {
 	decoder := &CLIDecoder{}
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	encoded, _ := decoder.EncodeMessage(msg)
 	decoded, err := decoder.DecodeMessage(encoded)
 	if err != nil {
@@ -47,7 +45,7 @@ func TestCLIDecoder_DecodeMessage(t *testing.T) {
 
 func TestCLIDecoder_DecodeStream(t *testing.T) {
 	decoder := &CLIDecoder{}
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	encoded, _ := decoder.EncodeMessage(msg)
 	reader := bytes.NewReader(encoded)
 	stream := decoder.DecodeStream(reader)

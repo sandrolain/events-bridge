@@ -200,11 +200,11 @@ type targetPayload struct {
 }
 
 type targetStubSourceMessage struct {
-	metadata message.MessageMetadata
+	metadata map[string]string
 	data     []byte
 }
 
-func newRunnerMessage(metadata message.MessageMetadata, data []byte) *message.RunnerMessage {
+func newRunnerMessage(metadata map[string]string, data []byte) *message.RunnerMessage {
 	stub := &targetStubSourceMessage{
 		metadata: metadata,
 		data:     data,
@@ -223,9 +223,9 @@ func (s *targetStubSourceMessage) GetID() []byte {
 	return nil
 }
 
-func (s *targetStubSourceMessage) GetMetadata() (message.MessageMetadata, error) {
+func (s *targetStubSourceMessage) GetMetadata() (map[string]string, error) {
 	if s.metadata == nil {
-		return message.MessageMetadata{}, nil
+		return map[string]string{}, nil
 	}
 	return s.metadata, nil
 }

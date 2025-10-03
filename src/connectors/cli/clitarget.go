@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/common/encdec"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -212,7 +213,7 @@ func (t *CLITarget) waitForExit(timeout time.Duration) error {
 	}
 }
 
-func (t *CLITarget) buildPayload(metadata message.MessageMetadata, data []byte) (any, error) {
+func (t *CLITarget) buildPayload(metadata map[string]string, data []byte) (any, error) {
 	if t.cfg.DataKey == "" {
 		if len(data) == 0 {
 			return nil, errors.New("data key not specified and message data is empty")
@@ -235,15 +236,11 @@ func (t *CLITarget) buildPayload(metadata message.MessageMetadata, data []byte) 
 	return payload, nil
 }
 
-func copyMetadata(src message.MessageMetadata) map[string]string {
+func copyMetadata(src map[string]string) map[string]string {
 	if len(src) == 0 {
 		return map[string]string{}
 	}
-	res := make(map[string]string, len(src))
-	for k, v := range src {
-		res[k] = v
-	}
-	return res
+	return common.CopyMap(src, nil)
 }
 
 func (t *CLITarget) waitCommand() {

@@ -18,8 +18,8 @@ func (m *RedisStreamMessage) GetID() []byte {
 	return []byte(m.msg.ID)
 }
 
-func (m *RedisStreamMessage) GetMetadata() (message.MessageMetadata, error) {
-	meta := message.MessageMetadata{"id": m.msg.ID}
+func (m *RedisStreamMessage) GetMetadata() (map[string]string, error) {
+	meta := map[string]string{"id": m.msg.ID}
 	for k, v := range m.msg.Values {
 		meta[k] = fmt.Sprintf("%v", v)
 	}

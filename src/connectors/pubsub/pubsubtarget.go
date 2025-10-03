@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub/v2"
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -59,15 +60,13 @@ func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	// Get metadata and convert to PubSub attributes
-	attributes := make(map[string]string)
-	if meta, err := msg.GetMetadata(); err == nil {
-		for k, v := range meta {
-			if len(v) > 0 {
-				attributes[k] = v
-			}
-		}
+	meta, err := msg.GetMetadata()
+	if err != nil {
+		return fmt.Errorf("error getting metadata: %w", err)
 	}
+
+	// Get metadata and convert to PubSub attributes
+	attributes := common.CopyMap(meta, nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

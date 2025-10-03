@@ -2,8 +2,6 @@ package encdec
 
 import (
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 func TestConvertToStringMap_MapStringString(t *testing.T) {
@@ -68,12 +66,12 @@ func TestMapToMessage(t *testing.T) {
 }
 
 func TestMessageToMap(t *testing.T) {
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	v, err := messageToMap(msg, "meta", "data")
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if v["meta"].(message.MessageMetadata)["id"] != "123" {
+	if v["meta"].(map[string]string)["id"] != "123" {
 		t.Fatalf("Expected '123', got %v", v["meta"])
 	}
 	if string(v["data"].([]byte)) != "test data" {

@@ -43,7 +43,7 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	tIface := mustNewMQTTTarget(t, map[string]any{"address": addr, "topic": "ab/cd", "clientId": "tgt1", "topicFromMetadataKey": "topic", "qos": 1})
 	defer tIface.Close() //nolint:errcheck
 
-	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: message.MessageMetadata{"topic": "ab/cd"}})
+	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: map[string]string{"topic": "ab/cd"}})
 	if err := tIface.Consume(rm); err != nil {
 		t.Fatalf("target consume: %v", err)
 	}

@@ -56,12 +56,12 @@ func mustAtoi(s string) int {
 // testSrcMsg is a minimal implementation of message.SourceMessage for tests
 type testSrcMsg struct {
 	data []byte
-	meta message.MessageMetadata
+	meta map[string]string
 }
 
-func (t *testSrcMsg) GetID() []byte                                 { return []byte{0, 1} }
-func (t *testSrcMsg) GetMetadata() (message.MessageMetadata, error) { return t.meta, nil }
-func (t *testSrcMsg) GetData() ([]byte, error)                      { return t.data, nil }
-func (t *testSrcMsg) Ack() error                                    { return nil }
-func (t *testSrcMsg) Nak() error                                    { return nil }
-func (t *testSrcMsg) Reply(_ *message.ReplyData) error              { return nil }
+func (t *testSrcMsg) GetID() []byte                           { return []byte{0, 1} }
+func (t *testSrcMsg) GetMetadata() (map[string]string, error) { return t.meta, nil }
+func (t *testSrcMsg) GetData() ([]byte, error)                { return t.data, nil }
+func (t *testSrcMsg) Ack() error                              { return nil }
+func (t *testSrcMsg) Nak() error                              { return nil }
+func (t *testSrcMsg) Reply(_ *message.ReplyData) error        { return nil }

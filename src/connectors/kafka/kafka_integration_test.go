@@ -296,12 +296,8 @@ func (m *TestMessage) GetID() []byte {
 	return m.id
 }
 
-func (m *TestMessage) GetMetadata() (message.MessageMetadata, error) {
-	meta := make(message.MessageMetadata)
-	for k, v := range m.metadata {
-		meta[k] = v
-	}
-	return meta, nil
+func (m *TestMessage) GetMetadata() (map[string]string, error) {
+	return common.CopyMap(m.metadata, nil), nil
 }
 
 func (m *TestMessage) GetData() ([]byte, error) {

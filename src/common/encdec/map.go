@@ -4,34 +4,27 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-func convertToStringMap(value any) (message.MessageMetadata, error) {
+func convertToStringMap(value any) (map[string]string, error) {
 	switch typed := value.(type) {
 	case map[string]string:
-		return copyStringStringMap(typed), nil
+		return common.CopyMap(typed, nil), nil
 	case map[string]any:
 		return convertMapStringAny(typed)
 	case map[any]any:
 		return convertMapInterfaceAny(typed)
 	case nil:
-		return make(message.MessageMetadata), nil
+		return make(map[string]string), nil
 	default:
 		return nil, fmt.Errorf("metadata must be map[string]string (got %T)", value)
 	}
 }
 
-func copyStringStringMap(src map[string]string) message.MessageMetadata {
-	res := make(message.MessageMetadata, len(src))
-	for k, v := range src {
-		res[k] = v
-	}
-	return res
-}
-
-func convertMapStringAny(src map[string]any) (message.MessageMetadata, error) {
-	res := make(message.MessageMetadata, len(src))
+func convertMapStringAny(src map[string]any) (map[string]string, error) {
+	res := make(map[string]string, len(src))
 	for k, v := range src {
 		str, ok := v.(string)
 		if !ok {
@@ -42,8 +35,8 @@ func convertMapStringAny(src map[string]any) (message.MessageMetadata, error) {
 	return res, nil
 }
 
-func convertMapInterfaceAny(src map[any]any) (message.MessageMetadata, error) {
-	res := make(message.MessageMetadata, len(src))
+func convertMapInterfaceAny(src map[any]any) (map[string]string, error) {
+	res := make(map[string]string, len(src))
 	for k, v := range src {
 		key, ok := k.(string)
 		if !ok {

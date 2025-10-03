@@ -3,13 +3,11 @@ package cliformat
 import (
 	"bufio"
 	"io"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 // Frame represents a single CLI-formatted event composed of metadata and payload.
 type Frame struct {
-	Metadata message.MessageMetadata
+	Metadata map[string]string
 	Data     []byte
 }
 

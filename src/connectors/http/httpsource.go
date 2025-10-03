@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
@@ -89,7 +88,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 			s.c <- message.NewRunnerMessage(msg)
 
 			// Wait for Ack/Nak or reply using helper
-			r, status, timeout := common.AwaitReplyOrStatus(s.cfg.Timeout, done, reply)
+			r, status, timeout := message.AwaitReplyOrStatus(s.cfg.Timeout, done, reply)
 			if timeout {
 				ctx.SetStatusCode(fasthttp.StatusGatewayTimeout)
 				return

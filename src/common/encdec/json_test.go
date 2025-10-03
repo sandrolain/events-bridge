@@ -3,8 +3,6 @@ package encdec
 import (
 	"bytes"
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 func TestJSONDecoder_Encode(t *testing.T) {
@@ -21,7 +19,7 @@ func TestJSONDecoder_Encode(t *testing.T) {
 
 func TestJSONDecoder_EncodeMessage(t *testing.T) {
 	decoder := &JSONDecoder{metaKey: "meta", dataKey: "data"}
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	encoded, err := decoder.EncodeMessage(msg)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)

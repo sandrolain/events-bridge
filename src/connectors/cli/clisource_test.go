@@ -187,7 +187,7 @@ func mustMarshalCBOR(t *testing.T, v any) []byte {
 	return data
 }
 
-func mustMetadata(t *testing.T, msg *message.RunnerMessage) message.MessageMetadata {
+func mustMetadata(t *testing.T, msg *message.RunnerMessage) map[string]string {
 	t.Helper()
 	metadata, err := msg.GetMetadata()
 	if err != nil {
@@ -196,7 +196,7 @@ func mustMetadata(t *testing.T, msg *message.RunnerMessage) message.MessageMetad
 	return metadata
 }
 
-func expectMetadataValue(t *testing.T, metadata message.MessageMetadata, key, expected string) {
+func expectMetadataValue(t *testing.T, metadata map[string]string, key, expected string) {
 	t.Helper()
 	if metadata[key] != expected {
 		t.Fatalf(sourceErrUnexpectedMetadataFmt, metadata)

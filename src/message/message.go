@@ -1,12 +1,14 @@
 package message
 
-import "sync"
+import (
+	"sync"
 
-type MessageMetadata = map[string]string
+	"github.com/sandrolain/events-bridge/src/common"
+)
 
 type SourceMessage interface {
 	GetID() []byte
-	GetMetadata() (MessageMetadata, error)
+	GetMetadata() (map[string]string, error)
 	GetData() ([]byte, error)
 	Ack() error
 	Nak() error
@@ -24,7 +26,7 @@ var _ SourceMessage = (*RunnerMessage)(nil)
 type RunnerMessage struct {
 	original SourceMessage
 	data     []byte
-	metadata MessageMetadata
+	metadata map[string]string
 	metaMx   sync.Mutex
 	dataMx   sync.Mutex
 }
@@ -33,33 +35,25 @@ func (m *RunnerMessage) GetID() []byte {
 	return m.original.GetID()
 }
 
-func (m *RunnerMessage) MergeMetadata(meta MessageMetadata) {
+func (m *RunnerMessage) MergeMetadata(meta map[string]string) {
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
-	if m.metadata == nil {
-		m.metadata = make(MessageMetadata)
-	}
-	for k, v := range meta {
-		m.metadata[k] = v
-	}
+	m.metadata = common.CopyMap(meta, m.metadata)
 }
 
 func (m *RunnerMessage) AddMetadata(key string, value string) {
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
 	if m.metadata == nil {
-		m.metadata = make(MessageMetadata)
+		m.metadata = make(map[string]string)
 	}
 	m.metadata[key] = value
 }
 
-func (m *RunnerMessage) SetMetadata(meta MessageMetadata) {
+func (m *RunnerMessage) SetMetadata(meta map[string]string) {
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
-	m.metadata = make(MessageMetadata)
-	for k, v := range meta {
-		m.metadata[k] = v
-	}
+	m.metadata = common.CopyMap(meta, nil)
 }
 
 func (m *RunnerMessage) SetData(data []byte) {
@@ -68,11 +62,11 @@ func (m *RunnerMessage) SetData(data []byte) {
 	m.data = data
 }
 
-func (m *RunnerMessage) GetSourceMetadata() (MessageMetadata, error) {
+func (m *RunnerMessage) GetSourceMetadata() (map[string]string, error) {
 	return m.original.GetMetadata()
 }
 
-func (m *RunnerMessage) GetMetadata() (MessageMetadata, error) {
+func (m *RunnerMessage) GetMetadata() (map[string]string, error) {
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
 	if m.metadata != nil {
@@ -122,5 +116,5 @@ const (
 
 type ReplyData struct {
 	Data     []byte
-	Metadata MessageMetadata
+	Metadata map[string]string
 }

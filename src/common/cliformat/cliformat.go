@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 // Binary separators used for metadata encoding
@@ -30,7 +28,7 @@ var (
 
 // EncodeMetadata encodes a map of metadata using binary separators.
 // Format: key1<US>val1<RS>key2<US>val2...
-func EncodeMetadata(metadata message.MessageMetadata) ([]byte, error) {
+func EncodeMetadata(metadata map[string]string) ([]byte, error) {
 	if len(metadata) == 0 {
 		return []byte{}, nil
 	}
@@ -63,8 +61,8 @@ func EncodeMetadata(metadata message.MessageMetadata) ([]byte, error) {
 }
 
 // DecodeMetadata decodes metadata encoded with EncodeMetadata.
-func DecodeMetadata(b []byte) (message.MessageMetadata, error) {
-	m := make(message.MessageMetadata)
+func DecodeMetadata(b []byte) (map[string]string, error) {
+	m := make(map[string]string)
 	if len(b) == 0 {
 		return m, nil
 	}
@@ -91,7 +89,7 @@ func DecodeMetadata(b []byte) (message.MessageMetadata, error) {
 //	marker(4B) | metadata length (uint32 BE) | data length (uint32 BE) | metadata | data
 //
 // The marker provides an easily recognizable frame start when decoding streams.
-func Encode(metadata message.MessageMetadata, data []byte) ([]byte, error) {
+func Encode(metadata map[string]string, data []byte) ([]byte, error) {
 	metaBytes, err := EncodeMetadata(metadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode metadata: %w", err)
@@ -117,7 +115,7 @@ func Encode(metadata message.MessageMetadata, data []byte) ([]byte, error) {
 }
 
 // Decode extracts metadata and payload from a CLI frame produced by Encode.
-func Decode(input []byte) (message.MessageMetadata, []byte, error) {
+func Decode(input []byte) (map[string]string, []byte, error) {
 	if len(input) < frameHeaderSize {
 		return nil, nil, fmt.Errorf("frame too small: %d bytes", len(input))
 	}
@@ -146,11 +144,11 @@ func Decode(input []byte) (message.MessageMetadata, []byte, error) {
 }
 
 // DecodeFromReader reads a single CLI frame from the provided reader.
-func DecodeFromReader(r io.Reader) (message.MessageMetadata, []byte, error) {
+func DecodeFromReader(r io.Reader) (map[string]string, []byte, error) {
 	return readFrame(r)
 }
 
-func readFrame(r io.Reader) (message.MessageMetadata, []byte, error) {
+func readFrame(r io.Reader) (map[string]string, []byte, error) {
 	header := make([]byte, frameHeaderSize)
 	n, err := io.ReadFull(r, header)
 	if err != nil {

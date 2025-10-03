@@ -13,7 +13,6 @@ import (
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 	coapnet "github.com/plgd-dev/go-coap/v3/net"
 
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -107,7 +106,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 
 	s.c <- message.NewRunnerMessage(msg)
 
-	r, status, timeout := common.AwaitReplyOrStatus(s.cfg.Timeout, done, reply)
+	r, status, timeout := message.AwaitReplyOrStatus(s.cfg.Timeout, done, reply)
 	var err error
 	if timeout {
 		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)
@@ -172,7 +171,7 @@ func coapTypeFromContentType(ct string) coapmessage.MediaType {
 	}
 }
 
-func coapTypeFromMetadata(md message.MessageMetadata) coapmessage.MediaType {
+func coapTypeFromMetadata(md map[string]string) coapmessage.MediaType {
 	for k, v := range md {
 		if bytes.EqualFold([]byte(k), []byte("Content-Type")) {
 			return coapTypeFromContentType(v)

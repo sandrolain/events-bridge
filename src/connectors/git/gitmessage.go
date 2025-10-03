@@ -18,8 +18,8 @@ func (m *GitMessage) GetID() []byte {
 	return nil
 }
 
-func (m *GitMessage) GetMetadata() (message.MessageMetadata, error) {
-	return message.MessageMetadata{}, nil
+func (m *GitMessage) GetMetadata() (map[string]string, error) {
+	return map[string]string{}, nil
 }
 
 func (m *GitMessage) GetData() ([]byte, error) {

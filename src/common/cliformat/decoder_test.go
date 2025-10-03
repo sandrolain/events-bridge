@@ -5,8 +5,6 @@ import (
 	"errors"
 	"io"
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 const (
@@ -18,18 +16,18 @@ func TestDecoderNextMultipleFrames(t *testing.T) {
 	t.Parallel()
 
 	frames := []struct {
-		metadata message.MessageMetadata
+		metadata map[string]string
 		data     []byte
 	}{
 		{
-			metadata: message.MessageMetadata{
+			metadata: map[string]string{
 				"id":   "1",
 				"type": "greeting",
 			},
 			data: []byte("hello"),
 		},
 		{
-			metadata: message.MessageMetadata{
+			metadata: map[string]string{
 				"id":      "2",
 				"type":    "informative",
 				"version": "v1",
@@ -67,7 +65,7 @@ func TestDecoderNextMultipleFrames(t *testing.T) {
 func TestDecodeInvalidMarker(t *testing.T) {
 	t.Parallel()
 
-	metadata := message.MessageMetadata{"id": "corrupt"}
+	metadata := map[string]string{"id": "corrupt"}
 	data := []byte("payload")
 
 	payload, err := Encode(metadata, data)
@@ -86,7 +84,7 @@ func TestDecodeInvalidMarker(t *testing.T) {
 func TestDecodeFromReader(t *testing.T) {
 	t.Parallel()
 
-	originalMeta := message.MessageMetadata{
+	originalMeta := map[string]string{
 		"id":   "reader",
 		"type": "single",
 	}
@@ -108,7 +106,7 @@ func TestDecodeFromReader(t *testing.T) {
 	}
 }
 
-func assertMetadataEqual(t *testing.T, got, want message.MessageMetadata) {
+func assertMetadataEqual(t *testing.T, got, want map[string]string) {
 	t.Helper()
 	if len(got) != len(want) {
 		t.Fatalf("unexpected metadata size: got %d want %d", len(got), len(want))

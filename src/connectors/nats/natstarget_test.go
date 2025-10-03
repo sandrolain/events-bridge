@@ -38,7 +38,7 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 	tIface := mustNewNATSTarget(t, map[string]any{"address": addr, "subject": "ab.cd"})
 	defer tIface.Close() //nolint:errcheck
 
-	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: message.MessageMetadata{"subject": "ab.cd"}})
+	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: map[string]string{"subject": "ab.cd"}})
 	if err := tIface.Consume(rm); err != nil {
 		t.Fatalf("target consume: %v", err)
 	}

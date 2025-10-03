@@ -3,8 +3,6 @@ package encdec
 import (
 	"bytes"
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 func TestCBORDecoder_Encode(t *testing.T) {
@@ -21,7 +19,7 @@ func TestCBORDecoder_Encode(t *testing.T) {
 
 func TestCBORDecoder_EncodeMessage(t *testing.T) {
 	decoder := &CBORDecoder{metaKey: "meta", dataKey: "data"}
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	encoded, err := decoder.EncodeMessage(msg)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -34,7 +32,7 @@ func TestCBORDecoder_EncodeMessage(t *testing.T) {
 func TestCBORDecoder_DecodeMessage(t *testing.T) {
 	decoder := &CBORDecoder{metaKey: "meta", dataKey: "data"}
 	// For CBOR, we need to encode first to get valid CBOR data
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	encoded, _ := decoder.EncodeMessage(msg)
 	decoded, err := decoder.DecodeMessage(encoded)
 	if err != nil {
@@ -52,7 +50,7 @@ func TestCBORDecoder_DecodeMessage(t *testing.T) {
 
 func TestCBORDecoder_DecodeStream(t *testing.T) {
 	decoder := &CBORDecoder{metaKey: "meta", dataKey: "data"}
-	msg := NewEncDecMessage(message.MessageMetadata{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
 	encoded, _ := decoder.EncodeMessage(msg)
 	reader := bytes.NewReader(encoded)
 	stream := decoder.DecodeStream(reader)

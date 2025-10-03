@@ -7,8 +7,6 @@ import (
 	"io"
 	"strings"
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 type staticErrorReader struct {
@@ -24,7 +22,7 @@ const errUnexpectedFmt = "unexpected error: %v"
 func TestEncodeMetadataEmpty(t *testing.T) {
 	t.Parallel()
 
-	encoded, err := EncodeMetadata(message.MessageMetadata{})
+	encoded, err := EncodeMetadata(map[string]string{})
 	if err != nil {
 		t.Fatalf(errUnexpectedFmt, err)
 	}
@@ -64,7 +62,7 @@ func TestDecodeFrameTooSmall(t *testing.T) {
 func TestDecodeInvalidFrameLength(t *testing.T) {
 	t.Parallel()
 
-	frame, err := Encode(message.MessageMetadata{"k": "v"}, []byte("data"))
+	frame, err := Encode(map[string]string{"k": "v"}, []byte("data"))
 	if err != nil {
 		t.Fatalf(errUnexpectedFmt, err)
 	}
@@ -78,7 +76,7 @@ func TestDecodeInvalidFrameLength(t *testing.T) {
 func TestDecodeMetadataDecodeError(t *testing.T) {
 	t.Parallel()
 
-	meta := message.MessageMetadata{"key": "value"}
+	meta := map[string]string{"key": "value"}
 	payload := []byte("payload")
 	frame, err := Encode(meta, payload)
 	if err != nil {

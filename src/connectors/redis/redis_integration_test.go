@@ -429,8 +429,8 @@ func (m *TestMessage) GetID() []byte {
 	return m.id
 }
 
-func (m *TestMessage) GetMetadata() (message.MessageMetadata, error) {
-	meta := make(message.MessageMetadata)
+func (m *TestMessage) GetMetadata() (map[string]string, error) {
+	meta := make(map[string]string)
 	for k, v := range m.metadata {
 		meta[k] = v
 	}

@@ -4,7 +4,7 @@ import "github.com/sandrolain/events-bridge/src/message"
 
 var _ message.SourceMessage = (*EncDecMessage)(nil)
 
-func NewEncDecMessage(metadata message.MessageMetadata, data []byte) *EncDecMessage {
+func NewEncDecMessage(metadata map[string]string, data []byte) *EncDecMessage {
 	return &EncDecMessage{
 		metadata: metadata,
 		data:     data,
@@ -12,7 +12,7 @@ func NewEncDecMessage(metadata message.MessageMetadata, data []byte) *EncDecMess
 }
 
 type EncDecMessage struct {
-	metadata message.MessageMetadata
+	metadata map[string]string
 	data     []byte
 }
 
@@ -20,7 +20,7 @@ func (m *EncDecMessage) GetID() []byte {
 	return nil
 }
 
-func (m *EncDecMessage) GetMetadata() (message.MessageMetadata, error) {
+func (m *EncDecMessage) GetMetadata() (map[string]string, error) {
 	return m.metadata, nil
 }
 

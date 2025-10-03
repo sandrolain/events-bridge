@@ -2,7 +2,6 @@ package main
 
 import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -18,8 +17,8 @@ func (m *MQTTMessage) GetID() []byte {
 	return []byte{byte(id >> 8), byte(id & 0xff)}
 }
 
-func (m *MQTTMessage) GetMetadata() (message.MessageMetadata, error) {
-	return message.MessageMetadata{"topic": m.orig.Topic()}, nil
+func (m *MQTTMessage) GetMetadata() (map[string]string, error) {
+	return map[string]string{"topic": m.orig.Topic()}, nil
 }
 
 func (m *MQTTMessage) GetData() ([]byte, error) {
@@ -27,12 +26,12 @@ func (m *MQTTMessage) GetData() ([]byte, error) {
 }
 
 func (m *MQTTMessage) Ack() error {
-	common.SendResponseStatus(m.done, message.ResponseStatusAck)
+	message.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *MQTTMessage) Nak() error {
-	common.SendResponseStatus(m.done, message.ResponseStatusNak)
+	message.SendResponseStatus(m.done, message.ResponseStatusNak)
 	return nil
 }
 

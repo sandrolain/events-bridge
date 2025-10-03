@@ -1,10 +1,11 @@
-package plugin
+package manager
 
 import (
 	"fmt"
 
+	"github.com/sandrolain/events-bridge/src/common"
+	"github.com/sandrolain/events-bridge/src/connectors/plugin/proto"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/plugin/proto"
 )
 
 var _ message.SourceMessage = &PluginMessage{}
@@ -20,12 +21,8 @@ func (m *PluginMessage) GetID() []byte {
 	return []byte(m.res.Uuid)
 }
 
-func (m *PluginMessage) GetMetadata() (message.MessageMetadata, error) {
-	metadata := make(message.MessageMetadata)
-	for _, md := range m.res.Metadata {
-		metadata[md.Name] = md.Value
-	}
-	return metadata, nil
+func (m *PluginMessage) GetMetadata() (map[string]string, error) {
+	return common.CopyMap(m.res.Metadata, nil), nil
 }
 
 func (m *PluginMessage) GetData() ([]byte, error) {

@@ -2,12 +2,10 @@ package encdec
 
 import (
 	"testing"
-
-	"github.com/sandrolain/events-bridge/src/message"
 )
 
 func TestNewEncDecMessage(t *testing.T) {
-	meta := message.MessageMetadata{"id": "123"}
+	meta := map[string]string{"id": "123"}
 	data := []byte("test data")
 	msg := NewEncDecMessage(meta, data)
 	if msg == nil {
@@ -24,7 +22,7 @@ func TestEncDecMessage_GetID(t *testing.T) {
 }
 
 func TestEncDecMessage_GetMetadata(t *testing.T) {
-	meta := message.MessageMetadata{"id": "123"}
+	meta := map[string]string{"id": "123"}
 	msg := NewEncDecMessage(meta, nil)
 	result, err := msg.GetMetadata()
 	if err != nil {

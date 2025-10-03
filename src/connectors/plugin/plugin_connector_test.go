@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/sandrolain/events-bridge/src/connectors/plugin/manager"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/plugin"
 )
 
 // locateTestPlugin returns the path to the pre-built test plugin binary.
@@ -43,8 +43,8 @@ func locateTestPlugin(t *testing.T) string {
 	return "" // unreachable
 }
 
-func newPluginConfig(execPath string, name string) plugin.PluginConfig {
-	return plugin.PluginConfig{
+func newPluginConfig(execPath string, name string) manager.PluginConfig {
+	return manager.PluginConfig{
 		Name:           name,
 		Exec:           execPath,
 		Protocol:       "unix",
@@ -103,7 +103,7 @@ func TestPluginRunner(t *testing.T) {
 	payload := map[string]any{"hello": "world", "num": 42}
 	data, _ := json.Marshal(payload)
 	// Compose a RunnerMessage from a stub source message
-	sm := &stubSourceMessage{meta: message.MessageMetadata{"content-type": "application/json"}, data: data, id: []byte("id1")}
+	sm := &stubSourceMessage{meta: map[string]string{"content-type": "application/json"}, data: data, id: []byte("id1")}
 	msg := message.NewRunnerMessage(sm)
 
 	res, err := r.Process(msg)
@@ -155,7 +155,7 @@ func TestPluginTarget(t *testing.T) {
 	}
 	tgt := tAny.(*PluginTarget)
 
-	sm := &stubSourceMessage{meta: message.MessageMetadata{"k": "v"}, data: []byte("data"), id: []byte("id2")}
+	sm := &stubSourceMessage{meta: map[string]string{"k": "v"}, data: []byte("data"), id: []byte("id2")}
 	msg := message.NewRunnerMessage(sm)
 	if err := tgt.Consume(msg); err != nil {
 		t.Fatalf("Consume error: %v", err)
@@ -168,16 +168,16 @@ func TestPluginTarget(t *testing.T) {
 // stubSourceMessage implements message.SourceMessage for tests
 type stubSourceMessage struct {
 	id   []byte
-	meta message.MessageMetadata
+	meta map[string]string
 	data []byte
 }
 
-func (s *stubSourceMessage) GetID() []byte                                 { return s.id }
-func (s *stubSourceMessage) GetMetadata() (message.MessageMetadata, error) { return s.meta, nil }
-func (s *stubSourceMessage) GetData() ([]byte, error)                      { return s.data, nil }
-func (s *stubSourceMessage) Ack() error                                    { return nil }
-func (s *stubSourceMessage) Nak() error                                    { return errors.New("nak not implemented in stub") }
-func (s *stubSourceMessage) Reply(d *message.ReplyData) error              { return nil }
+func (s *stubSourceMessage) GetID() []byte                           { return s.id }
+func (s *stubSourceMessage) GetMetadata() (map[string]string, error) { return s.meta, nil }
+func (s *stubSourceMessage) GetData() ([]byte, error)                { return s.data, nil }
+func (s *stubSourceMessage) Ack() error                              { return nil }
+func (s *stubSourceMessage) Nak() error                              { return errors.New("nak not implemented in stub") }
+func (s *stubSourceMessage) Reply(d *message.ReplyData) error        { return nil }
 
 // sanitizeName replaces problematic characters in test names
 func sanitizeName(s string) string {

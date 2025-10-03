@@ -3,7 +3,6 @@ package main
 import (
 	"strings"
 
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
@@ -20,8 +19,8 @@ func (m *HTTPMessage) GetID() []byte {
 	return m.httpCtx.Request.Header.Peek("X-Request-ID")
 }
 
-func (m HTTPMessage) GetMetadata() (res message.MessageMetadata, err error) {
-	res = make(message.MessageMetadata)
+func (m HTTPMessage) GetMetadata() (res map[string]string, err error) {
+	res = make(map[string]string)
 	header := &m.httpCtx.Request.Header
 	keys := header.PeekKeys()
 	for _, k := range keys {
@@ -43,16 +42,16 @@ func (m HTTPMessage) GetData() ([]byte, error) {
 }
 
 func (m *HTTPMessage) Ack() error {
-	common.SendResponseStatus(m.done, message.ResponseStatusAck)
+	message.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *HTTPMessage) Nak() error {
-	common.SendResponseStatus(m.done, message.ResponseStatusNak)
+	message.SendResponseStatus(m.done, message.ResponseStatusNak)
 	return nil
 }
 
 func (m *HTTPMessage) Reply(data *message.ReplyData) error {
-	common.SendReply(m.reply, data)
+	message.SendReply(m.reply, data)
 	return nil
 }

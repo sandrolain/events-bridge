@@ -19,8 +19,8 @@ func (m *KafkaMessage) GetID() []byte {
 	return m.msg.Key
 }
 
-func (m *KafkaMessage) GetMetadata() (message.MessageMetadata, error) {
-	return message.MessageMetadata{
+func (m *KafkaMessage) GetMetadata() (map[string]string, error) {
+	return map[string]string{
 		"topic":     m.msg.Topic,
 		"partition": fmt.Sprint(m.msg.Partition),
 		"offset":    fmt.Sprint(m.msg.Offset),

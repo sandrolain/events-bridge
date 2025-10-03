@@ -1,4 +1,4 @@
-package plugin
+package manager
 
 import (
 	"bytes"
@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/connectors/plugin/proto"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/plugin/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -137,13 +137,13 @@ func (f *fakeSourceStream) RecvMsg(any) error {
 type runnerSourceStub struct {
 	data        []byte
 	dataErr     error
-	metadata    message.MessageMetadata
+	metadata    map[string]string
 	metadataErr error
 }
 
 func (s *runnerSourceStub) GetID() []byte { return nil }
 
-func (s *runnerSourceStub) GetMetadata() (message.MessageMetadata, error) {
+func (s *runnerSourceStub) GetMetadata() (map[string]string, error) {
 	if s.metadataErr != nil {
 		return nil, s.metadataErr
 	}
@@ -252,12 +252,11 @@ func TestPluginTargetSendsMessage(t *testing.T) {
 		slog:   newTestLogger(io.Discard),
 	}
 
-	original := &runnerSourceStub{metadata: message.MessageMetadata{"trace": "source"}, data: []byte("origin")}
-	msg := message.NewRunnerMessage(original)
-	msg.SetData([]byte("payload"))
-	msg.AddMetadata("foo", "bar")
+	metadata := map[string]string{"trace": "source", "foo": "bar"}
+	data := []byte("payload")
+	id := []byte("id-1")
 
-	if err := p.Target(context.Background(), msg); err != nil {
+	if err := p.Target(context.Background(), id, metadata, data); err != nil {
 		t.Fatalf("Target returned error: %v", err)
 	}
 	if len(fakeClient.targetRequests) != 1 {
@@ -267,51 +266,36 @@ func TestPluginTargetSendsMessage(t *testing.T) {
 	if string(req.Data) != "payload" {
 		t.Fatalf("unexpected target data sent: %q", req.Data)
 	}
-	md := make(map[string]string)
-	for _, kv := range req.Metadata {
-		md[kv.Name] = kv.Value
-	}
-	if md["foo"] != "bar" {
-		t.Fatalf("unexpected metadata sent: %#v", md)
+	if req.Metadata["foo"] != "bar" {
+		t.Fatalf("unexpected metadata sent: %#v", req.Metadata)
 	}
 }
 
-func TestPluginTargetHandlesMetadataError(t *testing.T) {
+// Metadata errors are now handled before calling Target; Target just forwards provided data.
+// Keep a simple test to ensure Target handles empty metadata gracefully.
+func TestPluginTargetHandlesEmptyMetadata(t *testing.T) {
 	fakeClient := &fakePluginClient{}
-	p := &Plugin{
-		Config: PluginConfig{Name: "target"},
-		client: fakeClient,
-		slog:   newTestLogger(io.Discard),
-	}
-	errMeta := errors.New("metadata failure")
-	msg := message.NewRunnerMessage(&runnerSourceStub{metadataErr: errMeta})
-
-	if err := p.Target(context.Background(), msg); !errors.Is(err, errMeta) {
-		t.Fatalf("expected metadata error, got %v", err)
+	p := &Plugin{Config: PluginConfig{Name: "target"}, client: fakeClient, slog: newTestLogger(io.Discard)}
+	if err := p.Target(context.Background(), []byte("id-2"), nil, []byte("data")); err != nil {
+		t.Fatalf("Target returned error with empty metadata: %v", err)
 	}
 }
 
 func TestPluginRunnerReturnsResponse(t *testing.T) {
 	fakeClient := &fakePluginClient{
 		runnerResp: &proto.PluginMessage{
-			Uuid: "resp",
-			Data: []byte("response"),
-			Metadata: []*proto.Metadata{
-				{Name: "status", Value: "ok"},
-			},
+			Uuid:     []byte("resp"),
+			Data:     []byte("response"),
+			Metadata: map[string]string{"status": "ok"},
 		},
 	}
-	p := &Plugin{
-		Config: PluginConfig{Name: "runner"},
-		client: fakeClient,
-		slog:   newTestLogger(io.Discard),
-	}
+	p := &Plugin{Config: PluginConfig{Name: "runner"}, client: fakeClient, slog: newTestLogger(io.Discard)}
 
-	msg := message.NewRunnerMessage(&runnerSourceStub{})
-	msg.SetData([]byte("payload"))
-	msg.AddMetadata("foo", "bar")
+	metadata := map[string]string{"foo": "bar"}
+	data := []byte("payload")
+	id := []byte("id-3")
 
-	res, err := p.Runner(context.Background(), msg)
+	res, err := p.Runner(context.Background(), id, metadata, data)
 	if err != nil {
 		t.Fatalf("Runner returned error: %v", err)
 	}
@@ -334,54 +318,35 @@ func TestPluginRunnerReturnsResponse(t *testing.T) {
 	}
 }
 
-func TestPluginRunnerHandlesMetadataError(t *testing.T) {
-	p := &Plugin{
-		Config: PluginConfig{Name: "runner"},
-		client: &fakePluginClient{},
-		slog:   newTestLogger(io.Discard),
-	}
-	errMeta := errors.New("metadata failure")
-	msg := message.NewRunnerMessage(&runnerSourceStub{metadataErr: errMeta})
-
-	if _, err := p.Runner(context.Background(), msg); !errors.Is(err, errMeta) {
-		t.Fatalf("expected metadata error, got %v", err)
+// Runner no longer extracts metadata from a message abstraction; provide simple call test.
+func TestPluginRunnerHandlesEmptyMetadata(t *testing.T) {
+	p := &Plugin{Config: PluginConfig{Name: "runner"}, client: &fakePluginClient{}, slog: newTestLogger(io.Discard)}
+	if _, err := p.Runner(context.Background(), []byte("id-4"), nil, []byte("data")); err != nil {
+		t.Fatalf("Runner returned error with empty metadata: %v", err)
 	}
 }
 
-func TestPluginRunnerHandlesDataError(t *testing.T) {
-	p := &Plugin{
-		Config: PluginConfig{Name: "runner"},
-		client: &fakePluginClient{},
-		slog:   newTestLogger(io.Discard),
-	}
-	errData := errors.New("data failure")
-	msg := message.NewRunnerMessage(&runnerSourceStub{dataErr: errData})
-
-	if _, err := p.Runner(context.Background(), msg); !errors.Is(err, errData) {
-		t.Fatalf("expected data error, got %v", err)
+// Data errors are handled by callers before invoking Runner; ensure simple call works.
+func TestPluginRunnerHandlesNilData(t *testing.T) {
+	p := &Plugin{Config: PluginConfig{Name: "runner"}, client: &fakePluginClient{}, slog: newTestLogger(io.Discard)}
+	if _, err := p.Runner(context.Background(), []byte("id-5"), map[string]string{"k": "v"}, nil); err != nil {
+		t.Fatalf("Runner returned error with nil data: %v", err)
 	}
 }
 
 func TestPluginSourceEmitsMessages(t *testing.T) {
 	fakeStream := &fakeSourceStream{
 		messages: []*proto.PluginMessage{
-			{Uuid: "1", Data: []byte("a"), Metadata: []*proto.Metadata{{Name: "k", Value: "v"}}},
-			{Uuid: "2", Data: []byte("b")},
+			{Uuid: []byte("1"), Data: []byte("a"), Metadata: map[string]string{"k": "v"}},
+			{Uuid: []byte("2"), Data: []byte("b")},
 		},
 		errors: []error{io.EOF},
 	}
 
 	fakeClient := &fakePluginClient{sourceStream: fakeStream}
-	p := &Plugin{
-		Config: PluginConfig{Name: "source"},
-		client: fakeClient,
-		slog:   newTestLogger(io.Discard),
-	}
+	p := &Plugin{Config: PluginConfig{Name: "source"}, client: fakeClient, slog: newTestLogger(io.Discard)}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	output, closeFn, err := p.Source(ctx, 2, map[string]string{"foo": "bar"})
+	output, closeFn, err := p.Source(2, map[string]string{"foo": "bar"})
 	if err != nil {
 		t.Fatalf("Source returned error: %v", err)
 	}
@@ -411,19 +376,11 @@ func TestPluginSourceEmitsMessages(t *testing.T) {
 
 func TestPluginSourceLogsErrors(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	fakeStream := &fakeSourceStream{
-		messages: nil,
-		errors:   []error{errors.New("boom"), io.EOF},
-	}
-
+	fakeStream := &fakeSourceStream{messages: nil, errors: []error{errors.New("boom"), io.EOF}}
 	fakeClient := &fakePluginClient{sourceStream: fakeStream}
-	p := &Plugin{
-		Config: PluginConfig{Name: "source"},
-		client: fakeClient,
-		slog:   newTestLogger(buf),
-	}
+	p := &Plugin{Config: PluginConfig{Name: "source"}, client: fakeClient, slog: newTestLogger(buf)}
 
-	output, closeFn, err := p.Source(context.Background(), 1, nil)
+	output, closeFn, err := p.Source(1, nil)
 	if err != nil {
 		t.Fatalf("Source returned error: %v", err)
 	}
@@ -447,13 +404,8 @@ func TestPluginSourceLogsErrors(t *testing.T) {
 
 func TestPluginSourceReturnsErrorWhenClientFails(t *testing.T) {
 	fakeClient := &fakePluginClient{sourceErr: errors.New("dial failed")}
-	p := &Plugin{
-		Config: PluginConfig{Name: "source"},
-		client: fakeClient,
-		slog:   newTestLogger(io.Discard),
-	}
-
-	if _, _, err := p.Source(context.Background(), 1, nil); err == nil {
+	p := &Plugin{Config: PluginConfig{Name: "source"}, client: fakeClient, slog: newTestLogger(io.Discard)}
+	if _, _, err := p.Source(1, nil); err == nil {
 		t.Fatalf("expected error when source client fails")
 	}
 }

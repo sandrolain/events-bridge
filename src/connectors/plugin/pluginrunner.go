@@ -7,21 +7,21 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
+	"github.com/sandrolain/events-bridge/src/connectors/plugin/manager"
 	"github.com/sandrolain/events-bridge/src/message"
-	"github.com/sandrolain/events-bridge/src/plugin"
 )
 
 var _ connectors.Runner = &PluginRunner{}
 
 type RunnerConfig struct {
-	Plugin  plugin.PluginConfig `mapstructure:"plugin" validate:"required"`
-	Timeout time.Duration       `mapstructure:"timeout" default:"5s" validate:"required"`
+	Plugin  manager.PluginConfig `mapstructure:"plugin" validate:"required"`
+	Timeout time.Duration        `mapstructure:"timeout" default:"5s" validate:"required"`
 }
 
 type PluginRunner struct {
 	cfg  *RunnerConfig
 	slog *slog.Logger
-	plg  *plugin.Plugin
+	plg  *manager.Plugin
 }
 
 func NewRunnerConfig() any {
@@ -35,7 +35,7 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
-	mgr, err := plugin.GetPluginManager()
+	mgr, err := manager.GetPluginManager()
 	if err != nil {
 		return nil, fmt.Errorf("cannot get plugin manager: %w", err)
 	}
@@ -56,9 +56,25 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 }
 
 func (p *PluginRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
+	uid := msg.GetID()
+
+	metadata, e := msg.GetMetadata()
+	if e != nil {
+		return nil, fmt.Errorf("failed to get message metadata: %w", e)
+	}
+
+	data, e := msg.GetData()
+	if e != nil {
+		return nil, fmt.Errorf("failed to get message data: %w", e)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), p.cfg.Timeout)
 	defer cancel()
-	return p.plg.Runner(ctx, msg)
+	res, err := p.plg.Runner(ctx, uid, metadata, data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process message: %w", err)
+	}
+	return message.NewRunnerMessage(res), nil
 }
 
 func (p *PluginRunner) Close() error {

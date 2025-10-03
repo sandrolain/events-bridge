@@ -17,8 +17,8 @@ func (m *PubSubMessage) GetID() []byte {
 	return []byte(m.msg.ID)
 }
 
-func (m *PubSubMessage) GetMetadata() (message.MessageMetadata, error) {
-	return message.MessageMetadata{"attributes": fmt.Sprint(m.msg.Attributes)}, nil
+func (m *PubSubMessage) GetMetadata() (map[string]string, error) {
+	return map[string]string{"attributes": fmt.Sprint(m.msg.Attributes)}, nil
 }
 
 func (m *PubSubMessage) GetData() ([]byte, error) {
