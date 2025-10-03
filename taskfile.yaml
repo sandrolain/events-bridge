@@ -69,10 +69,25 @@ tasks:
       - echo "Cleaning WASM test assets..."
       - rm -f *.wasm
 
+  build-plugin-test-asset:
+    desc: Build test plugin asset for plugin connector unit tests
+    dir: ./src/connectors/plugin/testassets
+    cmds:
+      - echo "Building test plugin asset for connector tests..."
+      - go build -o test-plugin-connector testplugin.go && du -h test-plugin-connector
+
+  clean-plugin-test-assets:
+    desc: Clean test assets
+    dir: ./src/connectors/plugin/testassets
+    cmds:
+      - echo "Cleaning test assets..."
+      - rm -f test-plugin-connector
+
   test:
     desc: Run tests with race detector and coverage (suppress linker warnings)
     deps:
       - build-wasm-test-assets
+      - build-plugin-test-asset
     cmds:
       - echo "Running tests with coverage (clean output)..."
       - |
@@ -87,6 +102,7 @@ tasks:
     desc: Run tests with race detector and coverage (show all output including warnings)
     deps:
       - build-wasm-test-assets
+      - build-plugin-test-asset
     cmds:
       - echo "Running tests with coverage (verbose mode)..."
       - go test -race -coverprofile=coverage.out -covermode=atomic ./src/...
@@ -148,6 +164,7 @@ tasks:
       - rm -f security-report.json
       - rm -f trivy-results.json
       - task: clean-wasm-test-assets
+      - task: clean-plugin-test-assets
 
   rebuild:
     desc: Clean and then build everything
