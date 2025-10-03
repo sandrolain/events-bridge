@@ -16,6 +16,8 @@ import (
 const (
 	testModel            = "gpt-4o-mini"
 	testTimeout          = 30 * time.Second
+	testPrompt           = "Process this message:"
+	testMessage          = "Test message"
 	baseURL              = "/chat/completions"
 	authPrefix           = "Bearer "
 	contentType          = "application/json"
@@ -57,9 +59,19 @@ func (m *mockSourceMessage) Reply(data *message.ReplyData) error {
 
 // Simple structures for mock responses
 type mockChatRequest struct {
-	Model     string            `json:"model"`
-	Messages  []mockChatMessage `json:"messages"`
-	MaxTokens *int              `json:"max_tokens,omitempty"`
+	Model     string                 `json:"model"`
+	Messages  []mockChatMessageInput `json:"messages"`
+	MaxTokens *int                   `json:"max_tokens,omitempty"`
+}
+
+type mockChatMessageInput struct {
+	Role    string                `json:"role"`
+	Content []mockChatMessagePart `json:"content,omitempty"`
+}
+
+type mockChatMessagePart struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
 }
 
 type mockChatMessage struct {
@@ -152,8 +164,14 @@ func createMockOpenAIServer(t *testing.T) *httptest.Server {
 		}
 
 		// Handle different test scenarios based on request content
-		if len(req.Messages) > 0 {
-			content := req.Messages[0].Content
+		if len(req.Messages) > 0 && len(req.Messages[0].Content) > 0 {
+			var content string
+			// Extract text from Content parts
+			for _, part := range req.Messages[0].Content {
+				if part.Type == "text" {
+					content += part.Text + " "
+				}
+			}
 
 			// Test timeout scenario
 			if strings.Contains(content, "timeout") {
@@ -179,6 +197,18 @@ func createMockOpenAIServer(t *testing.T) *httptest.Server {
 		}
 
 		// Return successful response
+		var responseContent string
+		if len(req.Messages) > 0 && len(req.Messages[0].Content) > 0 {
+			// Extract text from Content for response
+			var texts []string
+			for _, part := range req.Messages[0].Content {
+				if part.Type == "text" {
+					texts = append(texts, part.Text)
+				}
+			}
+			responseContent = fmt.Sprintf("Response to: %s", strings.Join(texts, " "))
+		}
+
 		response := mockChatResponse{
 			ID:      "chatcmpl-test123",
 			Object:  "chat.completion",
@@ -189,7 +219,7 @@ func createMockOpenAIServer(t *testing.T) *httptest.Server {
 					Index: 0,
 					Message: mockChatMessage{
 						Role:    assistantRole,
-						Content: fmt.Sprintf("Response to: %s", req.Messages[0].Content),
+						Content: responseContent,
 					},
 					FinishReason: "stop",
 				},
@@ -218,7 +248,7 @@ func TestGPTRunnerSuccessfulCompletion(t *testing.T) {
 	cfg := &RunnerConfig{
 		ApiURL:    server.URL,
 		ApiKey:    testAPIKey,
-		Action:    "chat",
+		Prompt:    testPrompt,
 		Model:     testModel,
 		MaxTokens: 100,
 		Timeout:   testTimeout,
@@ -250,8 +280,11 @@ func TestGPTRunnerSuccessfulCompletion(t *testing.T) {
 	}
 
 	resultStr := string(resultData)
-	if !strings.Contains(resultStr, "Hello, how are you?") {
-		t.Errorf("Expected response to contain original message, got: %s", resultStr)
+	if !strings.Contains(resultStr, "Response to:") {
+		t.Errorf("Expected response to contain 'Response to:', got: %s", resultStr)
+	}
+	if !strings.Contains(resultStr, "Process this message:") {
+		t.Errorf("Expected response to contain prompt, got: %s", resultStr)
 	}
 }
 
@@ -262,7 +295,7 @@ func TestGPTRunnerInvalidModel(t *testing.T) {
 	cfg := &RunnerConfig{
 		ApiURL:    server.URL,
 		ApiKey:    testAPIKey,
-		Action:    "chat",
+		Prompt:    testPrompt,
 		Model:     "", // Invalid model
 		MaxTokens: 100,
 		Timeout:   testTimeout,
@@ -274,7 +307,7 @@ func TestGPTRunnerInvalidModel(t *testing.T) {
 	}
 
 	// Test data
-	testData := []byte("Test message")
+	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
 	_, err = runner.Process(msg)
@@ -290,7 +323,7 @@ func TestGPTRunnerUnauthorizedRequest(t *testing.T) {
 	cfg := &RunnerConfig{
 		ApiURL:    server.URL,
 		ApiKey:    "", // Invalid API key
-		Action:    "chat",
+		Prompt:    testPrompt,
 		Model:     testModel,
 		MaxTokens: 100,
 		Timeout:   testTimeout,
@@ -302,7 +335,7 @@ func TestGPTRunnerUnauthorizedRequest(t *testing.T) {
 	}
 
 	// Test data
-	testData := []byte("Test message")
+	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
 	_, err = runner.Process(msg)
@@ -318,7 +351,7 @@ func TestGPTRunnerErrorResponse(t *testing.T) {
 	cfg := &RunnerConfig{
 		ApiURL:    server.URL,
 		ApiKey:    testAPIKey,
-		Action:    "chat",
+		Prompt:    "error trigger", // Use error in prompt to trigger error response
 		Model:     testModel,
 		MaxTokens: 100,
 		Timeout:   testTimeout,
@@ -329,8 +362,8 @@ func TestGPTRunnerErrorResponse(t *testing.T) {
 		t.Fatalf(failedToCreateRunner, err)
 	}
 
-	// Use "error" in message to trigger error response from mock server
-	testData := []byte("This should trigger an error response")
+	// Use any message data
+	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
 	_, err = runner.Process(msg)
@@ -347,7 +380,7 @@ func TestGPTRunnerMetadataPreservation(t *testing.T) {
 	cfg := &RunnerConfig{
 		ApiURL:    server.URL,
 		ApiKey:    testAPIKey,
-		Action:    "chat",
+		Prompt:    testPrompt,
 		Model:     testModel,
 		MaxTokens: 100,
 		Timeout:   testTimeout,
@@ -394,7 +427,7 @@ func TestGPTRunnerTimeout(t *testing.T) {
 	cfg := &RunnerConfig{
 		ApiURL:    server.URL,
 		ApiKey:    testAPIKey,
-		Action:    "chat",
+		Prompt:    "timeout trigger", // Use timeout in prompt to trigger delay
 		Model:     testModel,
 		MaxTokens: 100,
 		Timeout:   500 * time.Millisecond, // Short timeout
@@ -405,8 +438,8 @@ func TestGPTRunnerTimeout(t *testing.T) {
 		t.Fatalf(failedToCreateRunner, err)
 	}
 
-	// Use "timeout" in message to trigger delay in mock server
-	testData := []byte("This should timeout")
+	// Use any message data
+	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
 	_, err = runner.Process(msg)
