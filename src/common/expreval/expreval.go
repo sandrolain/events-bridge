@@ -34,7 +34,6 @@ func (e *ExprEvaluator) Eval(input map[string]any) (bool, error) {
 
 func (e *ExprEvaluator) EvalMessage(msg *message.RunnerMessage) (bool, error) {
 	meta, err := msg.GetMetadata()
-	fmt.Printf("meta: %v\n", meta)
 	if err != nil {
 		return false, fmt.Errorf("failed to get message metadata: %w", err)
 	}
@@ -53,12 +52,32 @@ func toBool(v any) bool {
 		return val
 	case string:
 		return val != "" && val != "0" && val != "false"
-	case int, int8, int16, int32, int64:
-		return val != 0
-	case uint, uint8, uint16, uint32, uint64:
-		return val != 0
-	case float32, float64:
-		return val != 0
+	case int:
+		return val != int(0)
+	case int8:
+		return val != int8(0)
+	case int16:
+		return val != int16(0)
+	case int32:
+		return val != int32(0)
+	case int64:
+		return val != int64(0)
+	case uint:
+		return val != uint(0)
+	case uint8:
+		return val != uint8(0)
+	case uint16:
+		return val != uint16(0)
+	case uint32:
+		return val != uint32(0)
+	case uint64:
+		return val != uint64(0)
+	case float32:
+		return val != float32(0)
+	case float64:
+		return val != float64(0)
+	case uintptr:
+		return val != uintptr(0)
 	}
 
 	// handle empty collections

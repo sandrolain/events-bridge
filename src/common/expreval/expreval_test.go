@@ -164,3 +164,66 @@ func TestToBoolCasts(t *testing.T) {
 		})
 	}
 }
+
+func TestToBool(t *testing.T) {
+	cases := []struct {
+		name  string
+		input any
+		want  bool
+	}{
+		{"bool true", true, true},
+		{"bool false", false, false},
+		{"non-empty string", "hello", true},
+		{"empty string", "", false},
+		{"non-zero int", int(42), true},
+		{"negative int", int(-42), true},
+		{"zero int", int(0), false},
+		{"non-zero int8", int8(7), true},
+		{"negative int8", int8(-7), true},
+		{"zero int8", int8(0), false},
+		{"non-zero int16", int16(7), true},
+		{"negative int16", int16(-7), true},
+		{"zero int16", int16(0), false},
+		{"non-zero int32", int32(7), true},
+		{"negative int32", int32(-7), true},
+		{"zero int32", int32(0), false},
+		{"non-zero int64", int64(7), true},
+		{"negative int64", int64(-7), true},
+		{"zero int64", int64(0), false},
+		{"non-zero uint", uint(7), true},
+		{"zero uint", uint(0), false},
+		{"non-zero uint8", uint8(7), true},
+		{"zero uint8", uint8(0), false},
+		{"non-zero uint16", uint16(7), true},
+		{"zero uint16", uint16(0), false},
+		{"non-zero uint32", uint32(7), true},
+		{"zero uint32", uint32(0), false},
+		{"non-zero uint64", uint64(7), true},
+		{"zero uint64", uint64(0), false},
+		{"non-zero uintptr", uintptr(1), true},
+		{"zero uintptr", uintptr(0), false},
+		{"non-zero float64", 3.14, true},
+		{"negative float64", -3.14, true},
+		{"zero float64", 0.0, false},
+		{"non-zero float32", float32(3.14), true},
+		{"negative float32", float32(-3.14), true},
+		{"zero float32", float32(0), false},
+		{"non-empty slice", []int{1, 2, 3}, true},
+		{"empty slice", []int{}, false},
+		{"non-empty map", map[string]int{"a": 1}, true},
+		{"empty map", map[string]int{}, false},
+		{"non-zero struct", nonZeroStruct{A: 1}, true},
+		{"zero struct", zeroStruct{}, false},
+		{"nil value", nil, false},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			got := toBool(c.input)
+			if got != c.want {
+				t.Fatalf("with %v (%T) expected %v, got %v", c.input, c.input, c.want, got)
+			}
+		})
+	}
+}
