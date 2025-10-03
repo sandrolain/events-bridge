@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -11,7 +13,45 @@ import (
 const (
 	errMsgUnexpectedError = "unexpected error: %v"
 	errMsgExpectedError   = "expected error, got nil"
+	testWasmFile          = "testrunner.wasm"
+	msgErrClosingRunner   = "error closing runner: %v"
+	msgProcessReturnedNil = "Process returned nil result"
+	msgErrGettingMetadata = "error getting metadata: %v"
+	testMsgID             = "test-id"
+	testMsgData           = "test data"
+	msgExpectedNilRunner  = "expected nil runner on error"
 )
+
+var sharedRunner *WasmRunner
+
+// getSharedRunner returns the shared runner instance (panics if not initialized)
+func getSharedRunner() *WasmRunner {
+	if sharedRunner == nil {
+		panic("sharedRunner not initialized")
+	}
+	return sharedRunner
+}
+
+func TestMain(m *testing.M) {
+	// Initialize a shared runner for tests that only need default config
+	cfg := &RunnerConfig{
+		Path:    getTestAssetPath("testrunner.wasm"),
+		Timeout: 5 * time.Second,
+	}
+	r, err := NewRunner(cfg)
+	if err != nil {
+		panic(err)
+	}
+	sharedRunner = r.(*WasmRunner)
+
+	code := m.Run()
+
+	// Close shared runner once after all tests
+	if sharedRunner != nil {
+		_ = sharedRunner.Close()
+	}
+	os.Exit(code)
+}
 
 // stubSourceMessage is a minimal implementation of message.SourceMessage for testing
 type stubSourceMessage struct {
@@ -52,12 +92,12 @@ func getTestAssetPath(filename string) string {
 // createTestMessage creates a simple test message
 func createTestMessage() *message.RunnerMessage {
 	stub := &stubSourceMessage{
-		id: []byte("test-id"),
+		id: []byte(testMsgID),
 		metadata: map[string]string{
 			"source": "test",
 			"type":   "test-message",
 		},
-		data: []byte("test data"),
+		data: []byte(testMsgData),
 	}
 	return message.NewRunnerMessage(stub)
 }
@@ -76,11 +116,11 @@ func TestNewRunnerConfig(t *testing.T) {
 	}
 }
 
-func TestNewRunner_Success(t *testing.T) {
+func TestNewRunnerSuccess(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
+		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
 	}
 
@@ -90,7 +130,7 @@ func TestNewRunner_Success(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
+			t.Errorf(msgErrClosingRunner, err)
 		}
 	}()
 
@@ -112,7 +152,7 @@ func TestNewRunner_Success(t *testing.T) {
 	}
 }
 
-func TestNewRunner_InvalidConfigType(t *testing.T) {
+func TestNewRunnerInvalidConfigType(t *testing.T) {
 	t.Parallel()
 
 	cfg := "invalid config type"
@@ -122,11 +162,11 @@ func TestNewRunner_InvalidConfigType(t *testing.T) {
 		t.Fatal(errMsgExpectedError)
 	}
 	if runner != nil {
-		t.Error("expected nil runner on error")
+		t.Error(msgExpectedNilRunner)
 	}
 }
 
-func TestNewRunner_FileNotFound(t *testing.T) {
+func TestNewRunnerFileNotFound(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
@@ -139,11 +179,11 @@ func TestNewRunner_FileNotFound(t *testing.T) {
 		t.Fatal(errMsgExpectedError)
 	}
 	if runner != nil {
-		t.Error("expected nil runner on error")
+		t.Error(msgExpectedNilRunner)
 	}
 }
 
-func TestNewRunner_InvalidWasmFile(t *testing.T) {
+func TestNewRunnerInvalidWasmFile(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
@@ -156,27 +196,13 @@ func TestNewRunner_InvalidWasmFile(t *testing.T) {
 		t.Fatal(errMsgExpectedError)
 	}
 	if runner != nil {
-		t.Error("expected nil runner on error")
+		t.Error(msgExpectedNilRunner)
 	}
 }
 
-func TestProcess_Success(t *testing.T) {
+func TestProcessSuccess(t *testing.T) {
 	t.Parallel()
-
-	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
-		Timeout: 5 * time.Second,
-	}
-
-	runner, err := NewRunner(cfg)
-	if err != nil {
-		t.Fatalf(errMsgUnexpectedError, err)
-	}
-	defer func() {
-		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
-		}
-	}()
+	runner := getSharedRunner()
 
 	msg := createTestMessage()
 
@@ -186,13 +212,13 @@ func TestProcess_Success(t *testing.T) {
 	}
 
 	if result == nil {
-		t.Fatal("Process returned nil result")
+		t.Fatal(msgProcessReturnedNil)
 	}
 
 	// Check that metadata was added by WASM
 	meta, err := result.GetMetadata()
 	if err != nil {
-		t.Fatalf("error getting metadata: %v", err)
+		t.Fatalf(msgErrGettingMetadata, err)
 	}
 
 	if meta["wasm-processed"] != "true" {
@@ -210,11 +236,11 @@ func TestProcess_Success(t *testing.T) {
 	}
 }
 
-func TestProcess_WithEnvironment(t *testing.T) {
+func TestProcessWithEnvironment(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
+		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
 		Env: map[string]string{
 			"TEST_ENV": "test-value",
@@ -227,7 +253,7 @@ func TestProcess_WithEnvironment(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
+			t.Errorf(msgErrClosingRunner, err)
 		}
 	}()
 
@@ -240,7 +266,7 @@ func TestProcess_WithEnvironment(t *testing.T) {
 
 	meta, err := result.GetMetadata()
 	if err != nil {
-		t.Fatalf("error getting metadata: %v", err)
+		t.Fatalf(msgErrGettingMetadata, err)
 	}
 
 	if meta["test-env-value"] != "test-value" {
@@ -248,14 +274,15 @@ func TestProcess_WithEnvironment(t *testing.T) {
 	}
 }
 
-func TestProcess_WithArgs(t *testing.T) {
+func TestProcessWithArgs(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
+		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
 		Args:    []string{"arg1", "arg2", "arg3"},
 	}
+	fmt.Printf("cfg: %v\n", cfg)
 
 	runner, err := NewRunner(cfg)
 	if err != nil {
@@ -263,7 +290,7 @@ func TestProcess_WithArgs(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
+			t.Errorf(msgErrClosingRunner, err)
 		}
 	}()
 
@@ -284,7 +311,7 @@ func TestProcess_WithArgs(t *testing.T) {
 	}
 }
 
-func TestProcess_Timeout(t *testing.T) {
+func TestProcessTimeout(t *testing.T) {
 	t.Skip("Timeout behavior with WASM is inconsistent across platforms")
 
 	t.Parallel()
@@ -300,7 +327,7 @@ func TestProcess_Timeout(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
+			t.Errorf(msgErrClosingRunner, err)
 		}
 	}()
 
@@ -320,7 +347,7 @@ func TestProcess_Timeout(t *testing.T) {
 	}
 }
 
-func TestProcess_WasmError(t *testing.T) {
+func TestProcessWasmError(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
@@ -334,7 +361,7 @@ func TestProcess_WasmError(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
+			t.Errorf(msgErrClosingRunner, err)
 		}
 	}()
 
@@ -346,11 +373,11 @@ func TestProcess_WasmError(t *testing.T) {
 	}
 }
 
-func TestClose_Success(t *testing.T) {
+func TestCloseSuccess(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
+		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
 	}
 
@@ -371,11 +398,11 @@ func TestClose_Success(t *testing.T) {
 	}
 }
 
-func TestClose_MultipleCalls(t *testing.T) {
+func TestCloseMultipleCalls(t *testing.T) {
 	t.Parallel()
 
 	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
+		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
 	}
 
@@ -392,28 +419,14 @@ func TestClose_MultipleCalls(t *testing.T) {
 	}
 }
 
-func TestProcess_MultipleMessages(t *testing.T) {
+func TestProcessMultipleMessages(t *testing.T) {
 	t.Parallel()
-
-	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
-		Timeout: 5 * time.Second,
-	}
-
-	runner, err := NewRunner(cfg)
-	if err != nil {
-		t.Fatalf(errMsgUnexpectedError, err)
-	}
-	defer func() {
-		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
-		}
-	}()
+	runner := getSharedRunner()
 
 	// Process multiple messages
 	for i := 0; i < 5; i++ {
 		stub := &stubSourceMessage{
-			id: []byte("test-id"),
+			id: []byte(testMsgID),
 			metadata: map[string]string{
 				"iteration": string(rune(i)),
 			},
@@ -442,28 +455,14 @@ func TestProcess_MultipleMessages(t *testing.T) {
 	}
 }
 
-func TestProcess_EmptyMetadata(t *testing.T) {
+func TestProcessEmptyMetadata(t *testing.T) {
 	t.Parallel()
-
-	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
-		Timeout: 5 * time.Second,
-	}
-
-	runner, err := NewRunner(cfg)
-	if err != nil {
-		t.Fatalf(errMsgUnexpectedError, err)
-	}
-	defer func() {
-		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
-		}
-	}()
+	runner := getSharedRunner()
 
 	stub := &stubSourceMessage{
-		id:       []byte("test-id"),
+		id:       []byte(testMsgID),
 		metadata: map[string]string{},
-		data:     []byte("test data"),
+		data:     []byte(testMsgData),
 	}
 	msg := message.NewRunnerMessage(stub)
 
@@ -473,30 +472,16 @@ func TestProcess_EmptyMetadata(t *testing.T) {
 	}
 
 	if result == nil {
-		t.Fatal("Process returned nil result")
+		t.Fatal(msgProcessReturnedNil)
 	}
 }
 
-func TestProcess_EmptyData(t *testing.T) {
+func TestProcessEmptyData(t *testing.T) {
 	t.Parallel()
-
-	cfg := &RunnerConfig{
-		Path:    getTestAssetPath("testrunner.wasm"),
-		Timeout: 5 * time.Second,
-	}
-
-	runner, err := NewRunner(cfg)
-	if err != nil {
-		t.Fatalf(errMsgUnexpectedError, err)
-	}
-	defer func() {
-		if err := runner.Close(); err != nil {
-			t.Errorf("error closing runner: %v", err)
-		}
-	}()
+	runner := getSharedRunner()
 
 	stub := &stubSourceMessage{
-		id: []byte("test-id"),
+		id: []byte(testMsgID),
 		metadata: map[string]string{
 			"test": "value",
 		},
@@ -510,6 +495,6 @@ func TestProcess_EmptyData(t *testing.T) {
 	}
 
 	if result == nil {
-		t.Fatal("Process returned nil result")
+		t.Fatal(msgProcessReturnedNil)
 	}
 }
