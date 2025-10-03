@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/sandrolain/events-bridge/src/common/cliformat"
+	"github.com/sandrolain/events-bridge/src/common/encdec"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -15,18 +15,14 @@ import (
 // Ensure CLIRunner implements runner.Runner
 var _ connectors.Runner = &CLIRunner{}
 
-type CLIRunner struct {
-	cfg      *RunnerConfig
-	executor *CommandExecutor
-	slog     *slog.Logger
-	timeout  time.Duration
-}
-
 type RunnerConfig struct {
-	Command string            `mapstructure:"command" validate:"required"`
-	Timeout time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
-	Args    []string          `mapstructure:"args"`
-	Envs    map[string]string `mapstructure:"envs"`
+	Command     string            `mapstructure:"command" validate:"required"`
+	Timeout     time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Args        []string          `mapstructure:"args"`
+	Envs        map[string]string `mapstructure:"envs"`
+	Format      string            `mapstructure:"format" validate:"required"`
+	MetadataKey string            `mapstructure:"metadataKey"`
+	DataKey     string            `mapstructure:"dataKey"`
 }
 
 func NewRunnerConfig() any {
@@ -45,6 +41,11 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 		return nil, err
 	}
 
+	decoder, err := encdec.NewMessageDecoder(cfg.Format, cfg.MetadataKey, cfg.DataKey)
+	if err != nil {
+		return nil, fmt.Errorf("invalid format: %w", err)
+	}
+
 	executor, err := NewCommandExecutor(baseConfig, slog.Default().With("context", "CLI Runner"))
 	if err != nil {
 		return nil, err
@@ -52,29 +53,26 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 
 	return &CLIRunner{
 		cfg:      cfg,
-		executor: executor,
 		slog:     executor.slog,
-		timeout:  cfg.Timeout,
+		executor: executor,
+		decoder:  decoder,
 	}, nil
 }
 
+type CLIRunner struct {
+	cfg      *RunnerConfig
+	slog     *slog.Logger
+	decoder  encdec.MessageDecoder
+	executor *CommandExecutor
+}
+
 func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), c.cfg.Timeout)
 	defer cancel()
 
-	meta, err := msg.GetMetadata()
+	d, err := c.decoder.EncodeMessage(msg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get metadata: %w", err)
-	}
-
-	data, err := msg.GetData()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get data: %w", err)
-	}
-
-	d, err := cliformat.Encode(meta, data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode input data: %w", err)
+		return nil, fmt.Errorf("failed to encode message: %w", err)
 	}
 
 	stdin := bytes.NewReader(d)
@@ -91,13 +89,22 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 		return nil, fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
 	}
 
-	outMeta, outData, err := cliformat.Decode(stdout.Bytes())
+	res, err := c.decoder.DecodeMessage(stdout.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode cli output: %w", err)
+		return nil, fmt.Errorf("failed to decode message: %w", err)
 	}
 
-	msg.MergeMetadata(outMeta)
-	msg.SetData(outData)
+	meta, err := res.GetMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get metadata: %w", err)
+	}
+	data, err := res.GetData()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get data: %w", err)
+	}
+
+	msg.SetMetadata(meta)
+	msg.SetData(data)
 
 	return msg, nil
 }

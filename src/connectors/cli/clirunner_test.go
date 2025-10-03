@@ -23,6 +23,7 @@ func TestCLIRunner(t *testing.T) {
 	runnerCfg.Command = "echo"
 	runnerCfg.Args = []string{"test"}
 	runnerCfg.Timeout = 5 * time.Second
+	runnerCfg.Format = "cli"
 
 	runner, err := NewRunner(runnerCfg)
 	if err != nil {
@@ -72,6 +73,7 @@ func TestCLIRunnerProcess(t *testing.T) {
 	runnerCfg := &RunnerConfig{
 		Command: "cat",
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(runnerCfg)
@@ -126,6 +128,7 @@ func TestCLIRunnerProcessError(t *testing.T) {
 	runnerCfg := &RunnerConfig{
 		Command: "false", // Command that always fails
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(runnerCfg)
@@ -157,6 +160,7 @@ func TestCLIRunnerProcessDecodeError(t *testing.T) {
 		Command: "echo", // echo will output the input as text, not binary frame
 		Args:    []string{"invalid output"},
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(runnerCfg)

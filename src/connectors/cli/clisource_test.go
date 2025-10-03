@@ -39,7 +39,7 @@ func TestCLISourceJSON(t *testing.T) {
 	defer closeSource(t, src)
 
 	// Small delay to let the source fully start
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	msg1 := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg1), "foo", "bar")
