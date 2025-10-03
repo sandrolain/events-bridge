@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,7 +11,6 @@ import (
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 	openai "github.com/sashabaranov/go-openai"
-	"github.com/sashabaranov/go-openai/jsonschema"
 )
 
 // Ensure GPTRunner implements connectors.Runner
@@ -39,12 +37,6 @@ type GPTRunner struct {
 	slog    *slog.Logger
 	client  *openai.Client
 	decoder encdec.MessageDecoder
-	schema  *jsonschema.Definition
-}
-
-type inputItem struct {
-	ID   string `json:"id"`
-	Data string `json:"data"`
 }
 
 func NewRunnerConfig() any {
@@ -198,15 +190,6 @@ func (g *GPTRunner) tryNak(msg *message.RunnerMessage) {
 	if err := msg.Nak(); err != nil {
 		g.slog.Error(logNakMessage, "err", err)
 	}
-}
-
-// formatPromptItems builds the prompt for a batch of items
-func (g *GPTRunner) formatPromptItems(batch []inputItem) (string, error) {
-	b, err := json.Marshal(batch)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s\nMESSAGES: %s\nReturn a JSON array of objects with the same 'id' and a 'result' field.", g.cfg.Prompt, string(b)), nil
 }
 
 func (g *GPTRunner) Close() error {
