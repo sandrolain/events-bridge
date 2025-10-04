@@ -1,3 +1,4 @@
+//nolint:unused,errcheck
 package main
 
 import (

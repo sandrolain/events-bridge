@@ -25,6 +25,7 @@ func (p *Plugin) Source(buffer int, config map[string]string) (<-chan *PluginMes
 		Configs: cfg,
 	})
 	if e != nil {
+		cancel()
 		return nil, nil, fmt.Errorf("failed to execute input: %w", e)
 	}
 

@@ -110,7 +110,12 @@ func (s *CLISource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 
 	go s.waitCommand()
 	go PipeLogger(s.slog, stderr, "stderr", s.ctx)
-	go s.consumeStream(stdout)
+	go func() {
+		err := s.consumeStream(stdout)
+		if err != nil && s.ctx.Err() == nil {
+			s.slog.Error("error consuming stream", "error", err)
+		}
+	}()
 
 	return s.c, nil
 }

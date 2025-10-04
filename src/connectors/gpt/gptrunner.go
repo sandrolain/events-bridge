@@ -186,12 +186,6 @@ func (g *GPTRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 // 	return msgs, nil
 // }
 
-func (g *GPTRunner) tryNak(msg *message.RunnerMessage) {
-	if err := msg.Nak(); err != nil {
-		g.slog.Error(logNakMessage, "err", err)
-	}
-}
-
 func (g *GPTRunner) Close() error {
 	return nil
 }

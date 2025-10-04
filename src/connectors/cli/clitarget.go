@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sandrolain/events-bridge/src/common"
 	"github.com/sandrolain/events-bridge/src/common/encdec"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -112,7 +111,6 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 
 type CLITarget struct {
 	cfg      *TargetConfig
-	format   string
 	decoder  encdec.MessageDecoder
 	executor *CommandExecutor
 	slog     *slog.Logger
@@ -211,36 +209,6 @@ func (t *CLITarget) waitForExit(timeout time.Duration) error {
 		}
 		return t.commandExitError()
 	}
-}
-
-func (t *CLITarget) buildPayload(metadata map[string]string, data []byte) (any, error) {
-	if t.cfg.DataKey == "" {
-		if len(data) == 0 {
-			return nil, errors.New("data key not specified and message data is empty")
-		}
-		return data, nil
-	}
-
-	if len(data) == 0 {
-		return nil, fmt.Errorf("data key %q specified but message has no data", t.cfg.DataKey)
-	}
-
-	payload := make(map[string]any, 2)
-
-	if t.cfg.MetadataKey != "" {
-		payload[t.cfg.MetadataKey] = copyMetadata(metadata)
-	}
-
-	payload[t.cfg.DataKey] = data
-
-	return payload, nil
-}
-
-func copyMetadata(src map[string]string) map[string]string {
-	if len(src) == 0 {
-		return map[string]string{}
-	}
-	return common.CopyMap(src, nil)
 }
 
 func (t *CLITarget) waitCommand() {
