@@ -20,9 +20,9 @@ type SourceConfig struct {
 	Timeout     time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 	Args        []string          `mapstructure:"args"`
 	Envs        map[string]string `mapstructure:"envs"`
-	Format      string            `mapstructure:"format" validate:"required"`
-	MetadataKey string            `mapstructure:"metadataKey"`
-	DataKey     string            `mapstructure:"dataKey"`
+	Format      string            `mapstructure:"format" validate:"required,oneof=json cbor cli"`
+	MetadataKey string            `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
+	DataKey     string            `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
 }
 
 func NewSourceConfig() any {

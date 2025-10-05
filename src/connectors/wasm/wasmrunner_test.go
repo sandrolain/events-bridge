@@ -37,6 +37,7 @@ func TestMain(m *testing.M) {
 	cfg := &RunnerConfig{
 		Path:    getTestAssetPath("testrunner.wasm"),
 		Timeout: 5 * time.Second,
+		Format:  "json",
 	}
 	r, err := NewRunner(cfg)
 	if err != nil {

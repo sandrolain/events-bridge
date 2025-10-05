@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sandrolain/events-bridge/src/common/cliformat"
+	"github.com/sandrolain/events-bridge/src/common/encdec"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/tetratelabs/wazero"
@@ -20,11 +20,14 @@ import (
 var _ connectors.Runner = &WasmRunner{}
 
 type RunnerConfig struct {
-	Path      string            `mapstructure:"path" validate:"required"`
-	MountPath string            `mapstructure:"mountPath"`
-	Timeout   time.Duration     `mapstructure:"timeout" default:"5s" validate:"required"`
-	Env       map[string]string `mapstructure:"env"`
-	Args      []string          `mapstructure:"args"`
+	Path        string            `mapstructure:"path" validate:"required"`
+	MountPath   string            `mapstructure:"mountPath"`
+	Timeout     time.Duration     `mapstructure:"timeout" default:"5s" validate:"required"`
+	Env         map[string]string `mapstructure:"env"`
+	Args        []string          `mapstructure:"args"`
+	Format      string            `mapstructure:"format" validate:"required,oneof=json cbor cli"`
+	MetadataKey string            `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
+	DataKey     string            `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
 }
 
 type WasmRunner struct {
@@ -36,7 +39,8 @@ type WasmRunner struct {
 	mu        sync.Mutex
 	wasmBytes []byte
 	module    wazero.CompiledModule // keep the compiled module for instantiation
-	stopCh    chan struct{}         // stop channel
+	decoder   encdec.MessageDecoder
+	stopCh    chan struct{} // stop channel
 }
 
 func NewRunnerConfig() any {
@@ -57,7 +61,10 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	log := slog.Default().With("context", "WASM Runner")
 	log.Info("loading wasm module", "path", cfg.Path)
 
-	// TODO: use decoder
+	decoder, err := encdec.NewMessageDecoder(cfg.Format, cfg.MetadataKey, cfg.DataKey)
+	if err != nil {
+		return nil, fmt.Errorf("invalid format: %w", err)
+	}
 
 	wasmBytes, err := os.ReadFile(cfg.Path)
 	if err != nil {
@@ -89,18 +96,14 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 		rt:        rt,
 		wasmBytes: wasmBytes,
 		module:    cmod,
+		decoder:   decoder,
 		stopCh:    make(chan struct{}),
 	}, nil
 }
 
 // Process handles the logic for a single message
 func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
-	metadata, data, err := msg.GetMetadataAndData()
-	if err != nil {
-		return fmt.Errorf("error getting metadata and data from message: %w", err)
-	}
-
-	inData, err := cliformat.Encode(metadata, data)
+	inData, err := w.decoder.EncodeMessage(msg)
 	if err != nil {
 		return fmt.Errorf("error encoding input data: %w", err)
 	}
@@ -145,13 +148,15 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
 		}
 	}()
 
-	outMeta, outData, err := cliformat.Decode(stout.Bytes())
+	res, err := w.decoder.DecodeMessage(stout.Bytes())
 	if err != nil {
 		return fmt.Errorf("error decoding output data: %w", err)
 	}
 
-	msg.MergeMetadata(outMeta)
-	msg.SetData(outData)
+	err = msg.SetFromSourceMessage(res)
+	if err != nil {
+		return fmt.Errorf("error updating message: %w", err)
+	}
 
 	return nil
 }

@@ -16,21 +16,13 @@ import (
 )
 
 type TargetConfig struct {
-	// Command to execute.
-	Command string `mapstructure:"command" validate:"required"`
-	// Timeout to wait for graceful command termination.
-	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
-	// Arguments passed to the command.
-	Args []string `mapstructure:"args"`
-	// Environment variables for the command.
-	Envs map[string]string `mapstructure:"envs"`
-	// Format of the message. Allowed values: json, cbor, cli.
-	// When format is json or cbor both MetadataKey and DataKey MUST be provided.
-	Format string `mapstructure:"format" validate:"required,oneof=json cbor cli"`
-	// Key under which metadata is encoded (required if format is json or cbor).
-	MetadataKey string `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
-	// Key under which data is encoded (required if format is json or cbor).
-	DataKey string `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
+	Command     string            `mapstructure:"command" validate:"required"`
+	Timeout     time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Args        []string          `mapstructure:"args"`
+	Envs        map[string]string `mapstructure:"envs"`
+	Format      string            `mapstructure:"format" validate:"required,oneof=json cbor cli"`
+	MetadataKey string            `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
+	DataKey     string            `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
 }
 
 func NewTargetConfig() any {
