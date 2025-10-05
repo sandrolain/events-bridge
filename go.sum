@@ -16,6 +16,8 @@ cloud.google.com/go/pubsub/v2 v2.0.0 h1:0qS6mRJ41gD1lNmM/vdm6bR7DQu6coQcVwD+VPf0
 cloud.google.com/go/pubsub/v2 v2.0.0/go.mod h1:0aztFxNzVQIRSZ8vUr79uH2bS3jwLebwK6q1sgEub+E=
 cloud.google.com/go/pubsub/v2 v2.1.0 h1:FLUDATKgCg1iUC+c9+m4JlsUxajEtc7L1Ynu3acrzww=
 cloud.google.com/go/pubsub/v2 v2.1.0/go.mod h1:O5f0KHG9zDheZAd3z5rlCRhxt2JQtB+t/IYLKK3Bpvw=
+cloud.google.com/go/pubsub/v2 v2.2.0 h1:UmvGMvIMhQOouXbVpIFRHEUHXsnaGjSTo2XAqk85u2s=
+cloud.google.com/go/pubsub/v2 v2.2.0/go.mod h1:O5f0KHG9zDheZAd3z5rlCRhxt2JQtB+t/IYLKK3Bpvw=
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
 dario.cat/mergo v1.0.2/go.mod h1:E/hbnu0NxMFBjpMIE34DRGLWqDy0g5FuKDhCb31ngxA=
 github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6 h1:He8afgbRMd7mFxO99hRNu+6tazq8nFF9lIwo9JFroBk=

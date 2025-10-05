@@ -3,7 +3,7 @@ module github.com/sandrolain/events-bridge
 go 1.25.1
 
 require (
-	cloud.google.com/go/pubsub/v2 v2.1.0
+	cloud.google.com/go/pubsub/v2 v2.2.0
 	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2
 	github.com/bytedance/sonic v1.14.1
 	github.com/caarlos0/env/v11 v11.3.1
