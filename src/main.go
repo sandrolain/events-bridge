@@ -177,16 +177,15 @@ func main() {
 					}
 				}
 
-				var res *message.RunnerMessage = msg
 				if runner != nil {
-					res, err = runner.Process(msg)
+					err = runner.Process(msg)
 					if err != nil {
 						return handleRunnerError(l, msg, err, "error processing message")
 					}
 				}
 
 				if filterEval != nil {
-					pass, err := filterEval.EvalMessage(res)
+					pass, err := filterEval.EvalMessage(msg)
 					if err != nil {
 						return handleRunnerError(l, msg, err, "failed to evaluate filterExpr, skipping message", "filterExpr", cfg.FilterExpr)
 					}
@@ -195,7 +194,7 @@ func main() {
 						return nil, false, nil
 					}
 				}
-				return res, true, nil
+				return msg, true, nil
 			})
 		}
 	} else {

@@ -70,7 +70,7 @@ func TestSendErrorGettingData(t *testing.T) {
 	})
 	msg := &mockMessageWithError{}
 	err := target.Consume(message.NewRunnerMessage(msg))
-	if err == nil || !strings.Contains(err.Error(), "error getting data") {
+	if err == nil || !strings.Contains(err.Error(), "error getting metadata and data") {
 		t.Errorf("expected error getting data, got: %v", err)
 	}
 }

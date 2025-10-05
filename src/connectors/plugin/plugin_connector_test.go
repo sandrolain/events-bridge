@@ -106,18 +106,18 @@ func TestPluginRunner(t *testing.T) {
 	sm := &stubSourceMessage{meta: map[string]string{"content-type": "application/json"}, data: data, id: []byte("id1")}
 	msg := message.NewRunnerMessage(sm)
 
-	res, err := r.Process(msg)
+	err = r.Process(msg)
 	if err != nil {
 		t.Fatalf("Process error: %v", err)
 	}
-	md, _ := res.GetMetadata()
+	md, _ := msg.GetMetadata()
 	if md == nil || md["processed"] != "true" {
 		t.Fatalf("expected processed metadata, got %#v", md)
 	}
 
 	// Decode CBOR back to map
 	var decoded map[string]any
-	outData, err := res.GetData()
+	outData, err := msg.GetData()
 	if err != nil {
 		t.Fatalf("GetData error: %v", err)
 	}

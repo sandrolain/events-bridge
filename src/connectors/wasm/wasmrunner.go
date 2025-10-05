@@ -57,12 +57,14 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	log := slog.Default().With("context", "WASM Runner")
 	log.Info("loading wasm module", "path", cfg.Path)
 
-	ctx := context.Background()
+	// TODO: use decoder
 
 	wasmBytes, err := os.ReadFile(cfg.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read wasm file: %w", err)
 	}
+
+	ctx := context.Background()
 
 	runtimeCreateMu.Lock()
 	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig())
@@ -92,20 +94,15 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 }
 
 // Process handles the logic for a single message
-func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
-	data, err := msg.GetData()
+func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
+	metadata, data, err := msg.GetMetadataAndData()
 	if err != nil {
-		return nil, fmt.Errorf("error getting data from message: %w", err)
+		return fmt.Errorf("error getting metadata and data from message: %w", err)
 	}
 
-	meta, err := msg.GetMetadata()
+	inData, err := cliformat.Encode(metadata, data)
 	if err != nil {
-		return nil, fmt.Errorf("error getting metadata from message: %w", err)
-	}
-
-	inData, err := cliformat.Encode(meta, data)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding input data: %w", err)
+		return fmt.Errorf("error encoding input data: %w", err)
 	}
 
 	w.slog.Debug("processing message", "timeout", w.timeout)
@@ -140,7 +137,7 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 		if ctx.Err() == context.DeadlineExceeded {
 			w.slog.Warn("wasm execution timeout")
 		}
-		return nil, fmt.Errorf("failed to instantiate wasm module: %w", err)
+		return fmt.Errorf("failed to instantiate wasm module: %w", err)
 	}
 	defer func() {
 		if err := module.Close(ctx); err != nil {
@@ -150,13 +147,13 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 
 	outMeta, outData, err := cliformat.Decode(stout.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("error decoding output data: %w", err)
+		return fmt.Errorf("error decoding output data: %w", err)
 	}
 
 	msg.MergeMetadata(outMeta)
 	msg.SetData(outData)
 
-	return msg, nil
+	return nil
 }
 
 func (w *WasmRunner) Close() error {

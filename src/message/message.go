@@ -1,6 +1,7 @@
 package message
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/sandrolain/events-bridge/src/common"
@@ -33,6 +34,36 @@ type RunnerMessage struct {
 
 func (m *RunnerMessage) GetID() []byte {
 	return m.original.GetID()
+}
+
+func (m *RunnerMessage) GetOriginal() SourceMessage {
+	return m.original
+}
+
+func (m *RunnerMessage) SetFromSourceMessage(msg SourceMessage) error {
+	meta, err := msg.GetMetadata()
+	if err != nil {
+		return fmt.Errorf("failed to get source message metadata: %w", err)
+	}
+	data, err := msg.GetData()
+	if err != nil {
+		return fmt.Errorf("failed to get source message data: %w", err)
+	}
+	m.MergeMetadata(meta)
+	m.SetData(data)
+	return nil
+}
+
+func (m *RunnerMessage) GetMetadataAndData() (map[string]string, []byte, error) {
+	meta, err := m.GetMetadata()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get message metadata: %w", err)
+	}
+	data, err := m.GetData()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get message data: %w", err)
+	}
+	return meta, data, nil
 }
 
 func (m *RunnerMessage) MergeMetadata(meta map[string]string) {

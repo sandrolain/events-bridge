@@ -58,28 +58,23 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 }
 
 // Process applies the expression to the message
-func (e *ExprRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
+func (e *ExprRunner) Process(msg *message.RunnerMessage) error {
 	ctx, cancel := context.WithTimeout(context.Background(), e.cfg.Timeout)
 	defer cancel()
 
-	meta, err := msg.GetMetadata()
+	metadata, data, err := msg.GetMetadataAndData()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get metadata: %w", err)
-	}
-
-	data, err := msg.GetData()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get data: %w", err)
+		return fmt.Errorf("failed to get metadata and data: %w", err)
 	}
 
 	var dataMap map[string]interface{}
 	if err := json.Unmarshal(data, &dataMap); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal input data: %w", err)
+		return fmt.Errorf("failed to unmarshal input data: %w", err)
 	}
 
 	input := map[string]interface{}{
-		"meta": meta,
-		"data": dataMap,
+		"metadata": metadata,
+		"data":     dataMap,
 	}
 
 	var result bool
@@ -94,10 +89,10 @@ func (e *ExprRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 
 	select {
 	case <-ctx.Done():
-		return nil, fmt.Errorf("expr execution timeout")
+		return fmt.Errorf("expr execution timeout")
 	case err := <-done:
 		if err != nil {
-			return nil, fmt.Errorf("expr execution error: %w", err)
+			return fmt.Errorf("expr execution error: %w", err)
 		}
 	}
 
@@ -113,12 +108,12 @@ func (e *ExprRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage
 
 	output, err := json.Marshal(outputStruct)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal expr result: %w", err)
+		return fmt.Errorf("failed to marshal expr result: %w", err)
 	}
 
 	msg.SetData(output)
 
-	return msg, nil
+	return nil
 }
 
 func (e *ExprRunner) Close() error {

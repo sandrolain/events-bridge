@@ -55,26 +55,27 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}, nil
 }
 
-func (p *PluginRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
+func (p *PluginRunner) Process(msg *message.RunnerMessage) error {
 	uid := msg.GetID()
 
-	metadata, e := msg.GetMetadata()
+	metadata, data, e := msg.GetMetadataAndData()
 	if e != nil {
-		return nil, fmt.Errorf("failed to get message metadata: %w", e)
-	}
-
-	data, e := msg.GetData()
-	if e != nil {
-		return nil, fmt.Errorf("failed to get message data: %w", e)
+		return fmt.Errorf("failed to get message metadata and data: %w", e)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), p.cfg.Timeout)
 	defer cancel()
 	res, err := p.plg.Runner(ctx, uid, metadata, data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to process message: %w", err)
+		return fmt.Errorf("failed to process message: %w", err)
 	}
-	return message.NewRunnerMessage(res), nil
+
+	err = msg.SetFromSourceMessage(res)
+	if err != nil {
+		return fmt.Errorf("failed to update message from plugin result: %w", err)
+	}
+
+	return nil
 }
 
 func (p *PluginRunner) Close() error {

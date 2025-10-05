@@ -93,12 +93,12 @@ func TestCLIRunnerProcess(t *testing.T) {
 
 	msg := message.NewRunnerMessage(mockSource)
 
-	result, err := runner.Process(msg)
+	err = runner.Process(msg)
 	if err != nil {
 		t.Fatalf("Process error: %v", err)
 	}
 
-	resultMeta, err := result.GetMetadata()
+	resultMeta, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf("GetMetadata error: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestCLIRunnerProcess(t *testing.T) {
 		}
 	}
 
-	resultData, err := result.GetData()
+	resultData, err := msg.GetData()
 	if err != nil {
 		t.Fatalf("GetData error: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestCLIRunnerProcessError(t *testing.T) {
 
 	msg := message.NewRunnerMessage(mockSource)
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 	if err == nil {
 		t.Fatal("Expected error from failing command, but got none")
 	}
@@ -180,7 +180,7 @@ func TestCLIRunnerProcessDecodeError(t *testing.T) {
 
 	msg := message.NewRunnerMessage(mockSource)
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 	if err == nil {
 		t.Fatal("Expected decode error, but got none")
 	}

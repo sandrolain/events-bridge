@@ -206,17 +206,13 @@ func TestProcessSuccess(t *testing.T) {
 
 	msg := createTestMessage()
 
-	result, err := runner.Process(msg)
+	err := runner.Process(msg)
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
 
-	if result == nil {
-		t.Fatal(msgProcessReturnedNil)
-	}
-
 	// Check that metadata was added by WASM
-	meta, err := result.GetMetadata()
+	meta, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf(msgErrGettingMetadata, err)
 	}
@@ -226,7 +222,7 @@ func TestProcessSuccess(t *testing.T) {
 	}
 
 	// Check that data was modified
-	data, err := result.GetData()
+	data, err := msg.GetData()
 	if err != nil {
 		t.Fatalf("error getting data: %v", err)
 	}
@@ -259,12 +255,12 @@ func TestProcessWithEnvironment(t *testing.T) {
 
 	msg := createTestMessage()
 
-	result, err := runner.Process(msg)
+	err = runner.Process(msg)
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
 
-	meta, err := result.GetMetadata()
+	meta, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf(msgErrGettingMetadata, err)
 	}
@@ -296,12 +292,12 @@ func TestProcessWithArgs(t *testing.T) {
 
 	msg := createTestMessage()
 
-	result, err := runner.Process(msg)
+	err = runner.Process(msg)
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
 
-	meta, err := result.GetMetadata()
+	meta, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf("error getting metadata: %v", err)
 	}
@@ -334,7 +330,7 @@ func TestProcessTimeout(t *testing.T) {
 	msg := createTestMessage()
 
 	start := time.Now()
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 	elapsed := time.Since(start)
 
 	if err == nil {
@@ -367,7 +363,7 @@ func TestProcessWasmError(t *testing.T) {
 
 	msg := createTestMessage()
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 	if err == nil {
 		t.Fatal(errMsgExpectedError)
 	}
@@ -434,17 +430,13 @@ func TestProcessMultipleMessages(t *testing.T) {
 		}
 		msg := message.NewRunnerMessage(stub)
 
-		result, err := runner.Process(msg)
+		err := runner.Process(msg)
 		if err != nil {
 			t.Fatalf("error processing message %d: %v", i, err)
 		}
 
-		if result == nil {
-			t.Fatalf("Process returned nil result for message %d", i)
-		}
-
 		// Verify processing occurred
-		resultMeta, err := result.GetMetadata()
+		resultMeta, err := msg.GetMetadata()
 		if err != nil {
 			t.Fatalf("error getting metadata for message %d: %v", i, err)
 		}
@@ -466,12 +458,12 @@ func TestProcessEmptyMetadata(t *testing.T) {
 	}
 	msg := message.NewRunnerMessage(stub)
 
-	result, err := runner.Process(msg)
+	err := runner.Process(msg)
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
 
-	if result == nil {
+	if msg == nil {
 		t.Fatal(msgProcessReturnedNil)
 	}
 }
@@ -489,12 +481,8 @@ func TestProcessEmptyData(t *testing.T) {
 	}
 	msg := message.NewRunnerMessage(stub)
 
-	result, err := runner.Process(msg)
+	err := runner.Process(msg)
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
-	}
-
-	if result == nil {
-		t.Fatal(msgProcessReturnedNil)
 	}
 }

@@ -265,14 +265,14 @@ func TestGPTRunnerSuccessfulCompletion(t *testing.T) {
 	msg := createTestMessage(testData, nil)
 
 	// Process message
-	result, err := runner.Process(msg)
+	err = runner.Process(msg)
 
 	// Assertions
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
-	resultData, err := result.GetData()
+	resultData, err := msg.GetData()
 	if err != nil {
 		t.Fatalf("Failed to get target data: %v", err)
 	}
@@ -311,7 +311,7 @@ func TestGPTRunnerInvalidModel(t *testing.T) {
 	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 	if err == nil {
 		t.Fatal("Expected error for invalid model, got nil")
 	}
@@ -339,7 +339,7 @@ func TestGPTRunnerUnauthorizedRequest(t *testing.T) {
 	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 	if err == nil {
 		t.Fatal("Expected error for unauthorized request, got nil")
 	}
@@ -367,7 +367,7 @@ func TestGPTRunnerErrorResponse(t *testing.T) {
 	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 
 	if err == nil {
 		t.Fatal("Expected error from error response, got nil")
@@ -400,14 +400,14 @@ func TestGPTRunnerMetadataPreservation(t *testing.T) {
 	}
 	msg := createTestMessage(testData, metadata)
 
-	result, err := runner.Process(msg)
+	err = runner.Process(msg)
 
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}
 
 	// Check that metadata is preserved in the result
-	targetMetadata, err := result.GetMetadata()
+	targetMetadata, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf("Failed to get target metadata: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestGPTRunnerTimeout(t *testing.T) {
 	testData := []byte(testMessage)
 	msg := createTestMessage(testData, nil)
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 
 	if err == nil {
 		t.Fatal("Expected timeout error, got nil")

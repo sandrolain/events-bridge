@@ -66,13 +66,13 @@ type CLIRunner struct {
 	executor *CommandExecutor
 }
 
-func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
+func (c *CLIRunner) Process(msg *message.RunnerMessage) error {
 	ctx, cancel := context.WithTimeout(context.Background(), c.cfg.Timeout)
 	defer cancel()
 
 	d, err := c.decoder.EncodeMessage(msg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode message: %w", err)
+		return fmt.Errorf("failed to encode message: %w", err)
 	}
 
 	stdin := bytes.NewReader(d)
@@ -86,27 +86,20 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 
 	err = cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
+		return fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
 	}
 
 	res, err := c.decoder.DecodeMessage(stdout.Bytes())
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode message: %w", err)
+		return fmt.Errorf("failed to decode message: %w", err)
 	}
 
-	meta, err := res.GetMetadata()
+	err = msg.SetFromSourceMessage(res)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get metadata: %w", err)
-	}
-	data, err := res.GetData()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get data: %w", err)
+		return fmt.Errorf("failed to update message: %w", err)
 	}
 
-	msg.SetMetadata(meta)
-	msg.SetData(data)
-
-	return msg, nil
+	return nil
 }
 
 func (c *CLIRunner) Close() error {

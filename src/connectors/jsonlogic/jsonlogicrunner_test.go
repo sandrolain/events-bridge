@@ -46,16 +46,13 @@ func TestProcess(t *testing.T) {
 	}
 	msg := message.NewRunnerMessage(original)
 
-	result, err := runner.Process(msg)
+	err = runner.Process(msg)
 	if err != nil {
 		t.Fatalf("process failed: %v", err)
 	}
-	if result == nil {
-		t.Fatal("result is nil")
-	}
 
 	// Since preservePayload is false, result should be true
-	data, err := result.GetData()
+	data, err := msg.GetData()
 	if err != nil {
 		t.Fatalf("failed to get data: %v", err)
 	}
@@ -87,12 +84,12 @@ func TestProcessWithPreservePayload(t *testing.T) {
 	}
 	msg := message.NewRunnerMessage(original)
 
-	result, err := runner.Process(msg)
+	err = runner.Process(msg)
 	if err != nil {
 		t.Fatalf("process failed: %v", err)
 	}
 
-	data, err := result.GetData()
+	data, err := msg.GetData()
 	if err != nil {
 		t.Fatalf("failed to get data: %v", err)
 	}
@@ -127,7 +124,7 @@ func TestProcessTimeout(t *testing.T) {
 	}
 	msg := message.NewRunnerMessage(original)
 
-	_, err = runner.Process(msg)
+	err = runner.Process(msg)
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}

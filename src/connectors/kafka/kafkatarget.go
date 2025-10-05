@@ -57,14 +57,9 @@ type KafkaTarget struct {
 }
 
 func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
-	meta, err := msg.GetMetadata()
+	metadata, data, err := msg.GetMetadataAndData()
 	if err != nil {
-		return fmt.Errorf("error getting metadata: %w", err)
-	}
-
-	data, err := msg.GetData()
-	if err != nil {
-		return fmt.Errorf("error getting data: %w", err)
+		return fmt.Errorf("error getting metadata and data: %w", err)
 	}
 
 	t.slog.Debug("publishing Kafka message", "topic", t.cfg.Topic, "bodysize", len(data))
@@ -74,10 +69,10 @@ func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
 		Value: data,
 	}
 
-	metaLen := len(meta)
+	metaLen := len(metadata)
 	if metaLen > 0 {
 		kmsg.Headers = make([]kafka.Header, 0, metaLen)
-		for k, v := range meta {
+		for k, v := range metadata {
 			kmsg.Headers = append(kmsg.Headers, kafka.Header{
 				Key:   k,
 				Value: []byte(v),

@@ -123,7 +123,7 @@ func TestHTTPTargetSendErrorMetadata(t *testing.T) {
 	msg := &metaErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)
-	if err == nil || err.Error() != "error getting metadata: fail meta" {
+	if err == nil || err.Error() != "error getting metadata and data: failed to get message metadata: fail meta" {
 		t.Fatalf("expected metadata error, got: %v", err)
 	}
 }
@@ -133,7 +133,7 @@ func TestHTTPTargetSendErrorData(t *testing.T) {
 	msg := &dataErrorMock{}
 	m := message.NewRunnerMessage(msg)
 	err := httpTgt.Consume(m)
-	if err == nil || err.Error() != "error getting data: fail data" {
+	if err == nil || err.Error() != "error getting metadata and data: failed to get message data: fail data" {
 		t.Fatalf("expected data error, got: %v", err)
 	}
 }

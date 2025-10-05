@@ -66,12 +66,12 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}, nil
 }
 
-func (g *GPTRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage, error) {
+func (g *GPTRunner) Process(msg *message.RunnerMessage) error {
 	g.slog.Debug("sending prompt to openai", "prompt", g.cfg.Prompt)
 
 	jsonData, err := g.decoder.EncodeMessage(msg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode message to json: %w", err)
+		return fmt.Errorf("failed to encode message to json: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), g.cfg.Timeout)
@@ -88,20 +88,22 @@ func (g *GPTRunner) Process(msg *message.RunnerMessage) (*message.RunnerMessage,
 		MaxTokens: g.cfg.MaxTokens,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("openai error: %w", err)
+		return fmt.Errorf("openai error: %w", err)
 	}
 
 	g.slog.Debug("openai response received", "choices", len(resp.Choices))
 	if len(resp.Choices) == 0 {
-		return nil, errors.New(errNoChoicesFromOpenAI)
+		return errors.New(errNoChoicesFromOpenAI)
 	}
+
+	// TODO: populate metadata
 
 	result := resp.Choices[0].Message.Content
 	g.slog.Debug("openai response content", "content", result)
 
 	msg.SetData([]byte(result))
 
-	return msg, nil
+	return nil
 }
 
 // // ProcessBatch handles batches of messages by batching prompts to the GPT API.
