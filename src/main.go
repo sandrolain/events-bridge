@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -50,10 +51,45 @@ func main() {
 		fatal(l, err, "failed to load configuration file")
 	}
 
+	var services map[string]connectors.Service = make(map[string]connectors.Service)
 	var source connectors.Source
 	var runners = make([]RunnerItem, len(cfg.Runners))
 	var target connectors.Target
 	var closeErrors []error
+
+	// Initialize services
+	if len(cfg.Services) > 0 {
+		l.Info("creating services", "count", len(cfg.Services))
+
+		serviceNameRE := regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*$`)
+
+		for _, serviceConfig := range cfg.Services {
+			name := strings.TrimSpace(serviceConfig.Name)
+			l.Info("creating service", "type", serviceConfig.Type, "name", name)
+
+			if !serviceNameRE.MatchString(name) {
+				fatal(l, fmt.Errorf("invalid service name: %s", name), "Service Name must be a camelCase alphanumeric string starting with a letter")
+			}
+
+			service, err := utils.LoadPluginAndConfig[connectors.Service](
+				connectorPath(serviceConfig.Type),
+				connectors.NewServiceMethodName,
+				connectors.NewServiceConfigName,
+				serviceConfig.Options,
+			)
+			if err != nil {
+				fatal(l, err, "failed to create service")
+			}
+
+			services[name] = service
+
+			defer func() {
+				if err := closeWithRetry(service.Close, 3, time.Second); err != nil {
+					closeErrors = append(closeErrors, fmt.Errorf("failed to close service: %w", err))
+				}
+			}()
+		}
+	}
 
 	// Setup source, runner, and target
 	l.Info("creating source", "type", cfg.Source.Type, "buffer", cfg.Source.Buffer)
@@ -87,7 +123,7 @@ func main() {
 					connectorPath(runnerConfig.Type),
 					connectors.NewRunnerMethodName,
 					connectors.NewRunnerConfigName,
-					runnerConfig.Options,
+					addServicesToOptions(runnerConfig.Options, services),
 				)
 				if err != nil {
 					fatal(l, err, "failed to create runner")
@@ -308,4 +344,14 @@ func min(a, b int) int {
 		return b
 	}
 	return a
+}
+
+func addServicesToOptions(options map[string]any, services map[string]connectors.Service) map[string]any {
+	if len(services) > 0 {
+		if options == nil {
+			options = make(map[string]any)
+		}
+		options["services"] = services
+	}
+	return options
 }

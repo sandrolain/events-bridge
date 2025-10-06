@@ -13,7 +13,8 @@ type EnvConfig struct {
 }
 
 type Config struct {
-	Source  connectors.SourceConfig   `yaml:"source" json:"source" validate:"required"`
-	Runners []connectors.RunnerConfig `yaml:"runners" json:"runners"`
-	Target  connectors.TargetConfig   `yaml:"target" json:"target"`
+	Services []connectors.ServiceConfig `yaml:"services" json:"services"`
+	Source   connectors.SourceConfig    `yaml:"source" json:"source" validate:"required"`
+	Runners  []connectors.RunnerConfig  `yaml:"runners" json:"runners"`
+	Target   connectors.TargetConfig    `yaml:"target" json:"target"`
 }

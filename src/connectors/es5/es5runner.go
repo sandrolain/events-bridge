@@ -17,8 +17,9 @@ import (
 var _ connectors.Runner = &ES5Runner{}
 
 type RunnerConfig struct {
-	Path    string        `mapstructure:"path" validate:"required"`
-	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Path     string                        `mapstructure:"path" validate:"required"`
+	Timeout  time.Duration                 `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Services map[string]connectors.Service `mapstructure:"services,omitempty"`
 }
 
 type ES5Runner struct {
@@ -68,6 +69,12 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) error {
 	vm := goja.New()
 	//vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 
+	for name, service := range e.cfg.Services {
+		dyn := &DynamicObject{runtime: vm, service: service}
+		obj := vm.NewDynamicObject(dyn)
+		vm.Set(name, obj)
+	}
+
 	result := msg
 	if err := vm.Set("message", result); err != nil {
 		return fmt.Errorf("failed to set message: %w", err)
@@ -99,4 +106,17 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) error {
 
 func (e *ES5Runner) Close() error {
 	return nil
+}
+
+type DynamicObject struct {
+	runtime *goja.Runtime
+	service connectors.Service
+}
+
+func (d *DynamicObject) Get(name string) goja.Value {
+	// Restituisce una funzione JS che richiama il callback Go
+	return d.runtime.ToValue(func(call goja.FunctionCall) goja.Value {
+		fmt.Printf("Called dynamic method: %s, args: %v\n", name, call.Arguments)
+		return d.runtime.ToValue("ok-" + name)
+	})
 }
