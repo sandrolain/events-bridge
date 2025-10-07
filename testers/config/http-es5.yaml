@@ -1,0 +1,43 @@
+commands:
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        services:
+          - type: "redis"
+            name: "redis"
+            options:
+              address: "localhost:6379"
+        source:
+          type: "http"
+          options:
+            address: "localhost:8080"
+            method: "POST"
+        runners:
+          - type: "es5"
+            options:
+              path: "./testers/runners/es5runner/script.js"
+              mountPath: "./testers/runners/es5runner"
+              timeout: "5s"
+              services:
+                redis:
+                  type: "redis"
+                  options:
+                    address: "localhost:6379"
+            routines: 4
+    args: []
+    restartTries: 0
+  - name: http-source
+    cmd: "./testers/bin/httptool"
+    args:
+      [
+        "send",
+        "--interval",
+        "1s",
+        "--path",
+        "/event",
+        "--payload",
+        "{counter} - {nowtime}",
+      ]
+    startAfter: "1500ms"
+killOthers: true

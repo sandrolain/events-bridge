@@ -5,6 +5,7 @@ const NewServiceConfigName = "NewServiceConfig"
 
 type Service interface {
 	List() ([]string, error)
+	IsValidMethod(string, []any) bool
 	Call(string, []any) ([]byte, error)
 	Close() error
 }

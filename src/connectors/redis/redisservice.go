@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -49,12 +50,20 @@ func NewService(anyCfg any) (connectors.Service, error) {
 	if err := commands.Err(); err != nil {
 		return nil, fmt.Errorf("error listing Redis commands: %w", err)
 	}
+	commandsList := commands.Val()
+	cmdMap := make(map[string]struct{}, len(commandsList))
+	for _, cmd := range commandsList {
+		cmd = strings.ToLower(cmd)
+		cmdMap[cmd] = struct{}{}
+	}
+
+	logger.Debug("Redis commands loaded", "commands", strings.Join(commandsList, ", "))
 
 	return &RedisService{
 		cfg:      cfg,
 		logger:   logger,
 		client:   client,
-		commands: commands.Val(),
+		commands: cmdMap,
 	}, nil
 }
 
@@ -62,11 +71,21 @@ type RedisService struct {
 	cfg      *ServiceConfig
 	logger   *slog.Logger
 	client   *redis.Client
-	commands []string
+	commands map[string]struct{}
 }
 
 func (s *RedisService) List() ([]string, error) {
-	return s.commands, nil
+	cmds := make([]string, 0, len(s.commands))
+	for cmd := range s.commands {
+		cmds = append(cmds, cmd)
+	}
+	return cmds, nil
+}
+
+func (s *RedisService) IsValidMethod(method string, args []any) bool {
+	method = strings.ToLower(method)
+	_, ok := s.commands[method]
+	return ok
 }
 
 func (s *RedisService) Call(command string, args []any) ([]byte, error) {

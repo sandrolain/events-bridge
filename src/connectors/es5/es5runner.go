@@ -70,9 +70,7 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) error {
 	//vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 
 	for name, service := range e.cfg.Services {
-		dyn := &DynamicObject{runtime: vm, service: service}
-		obj := vm.NewDynamicObject(dyn)
-		vm.Set(name, obj)
+		vm.Set(name, &ServiceProxy{svc: service})
 	}
 
 	result := msg
@@ -108,15 +106,17 @@ func (e *ES5Runner) Close() error {
 	return nil
 }
 
-type DynamicObject struct {
-	runtime *goja.Runtime
-	service connectors.Service
+type ServiceProxy struct {
+	svc connectors.Service
 }
 
-func (d *DynamicObject) Get(name string) goja.Value {
-	// Restituisce una funzione JS che richiama il callback Go
-	return d.runtime.ToValue(func(call goja.FunctionCall) goja.Value {
-		fmt.Printf("Called dynamic method: %s, args: %v\n", name, call.Arguments)
-		return d.runtime.ToValue("ok-" + name)
-	})
+func (s *ServiceProxy) Call(name string, args ...any) any {
+	if !s.svc.IsValidMethod(name, args) {
+		panic(fmt.Sprintf("invalid method: %s", name))
+	}
+	res, err := s.svc.Call(name, args)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
