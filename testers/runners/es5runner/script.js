@@ -8,26 +8,41 @@
 // in the RunnerMessage metadata so the host can observe them.
 
 (function () {
+  const data = message.getDataString();
+  // Log the incoming message data to the console
+  console.log("es5runner received message data:", String(data));
   // Key/value used for the example
   const key = "es5runner:example:key";
-  const value = "hello from es5 runner";
+  const value = `hello from es5 runner ${new Date().toISOString()}`;
 
   try {
     // Execute SET command on redis service
     // The Call method signature is: Call(command, arg1, arg2, ...)
-    const setRes = redis.Call("SET", key, value);
+    const setRes = redis.call("SET", key, value);
 
     // Optionally verify by doing a GET
-    const getRes = redis.Call("GET", key);
+    const getRes = util.bytesToString(redis.call("GET", key));
 
     // Convert results to string and attach to message metadata.
     // The proxy returns the raw []byte result from the service; it
     // may already be a string depending on the Go<->JS conversion.
-    message.AddMetadata("redis.set.result", String(setRes));
-    message.AddMetadata("redis.get.result", String(getRes));
+    message.setMetadata("redis.set.result", setRes);
+
+
+    redis.call("JSON.SET", "es5runner:example:json", ".", `{"time":"${new Date().toISOString()}"}`);
+
+    redis.call("JSON.MERGE", "es5runner:example:json", ".", `{"updated":"${new Date().toISOString()}"}`);
+
+    const jsonRes = util.bytesToString(redis.call("JSON.GET", "es5runner:example:json"));
+
+    message.setMetadata("redis.json.result", jsonRes);
+
+    const newData = String(getRes) + "\n" + String(data);
+
+    message.setDataString(newData);
   } catch (err) {
     // Record the error on the message metadata so the runner can see it
-    message.AddMetadata("es5runner.error", String(err));
+    message.setMetadata("es5runner.error", String(err));
     // Re-throw to make the runner treat this as a script failure if desired
     throw err;
   }

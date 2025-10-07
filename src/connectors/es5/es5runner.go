@@ -67,14 +67,16 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) error {
 	defer cancel()
 
 	vm := goja.New()
-	//vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
+	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 
 	for name, service := range e.cfg.Services {
 		vm.Set(name, &ServiceProxy{svc: service})
 	}
 
-	result := msg
-	if err := vm.Set("message", result); err != nil {
+	vm.Set("console", &consoleProxy{slog: e.slog.With("script", e.cfg.Path)})
+	vm.Set("util", &utilProxy{})
+
+	if err := vm.Set("message", &messageProxy{msg: msg}); err != nil {
 		return fmt.Errorf("failed to set message: %w", err)
 	}
 
@@ -119,4 +121,75 @@ func (s *ServiceProxy) Call(name string, args ...any) any {
 		panic(err)
 	}
 	return res
+}
+
+type messageProxy struct {
+	msg *message.RunnerMessage
+}
+
+func (m *messageProxy) GetData() []byte {
+	d, e := m.msg.GetData()
+	if e != nil {
+		panic(e)
+	}
+	return d
+}
+
+func (m *messageProxy) GetDataString() string {
+	d := m.GetData()
+	return string(d)
+}
+
+func (m *messageProxy) SetData(d []byte) {
+	m.msg.SetData(d)
+}
+
+func (m *messageProxy) SetDataString(d string) {
+	m.msg.SetData([]byte(d))
+}
+
+func (m *messageProxy) SetMetadata(key, value string) {
+	m.msg.AddMetadata(key, value)
+}
+
+func (m *messageProxy) GetMetadata(key string) string {
+	d, e := m.msg.GetMetadata()
+	if e != nil {
+		panic(e)
+	}
+	v, ok := d[key]
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+type consoleProxy struct {
+	slog *slog.Logger
+}
+
+func (c *consoleProxy) Log(msg ...any) {
+	c.slog.Info(fmt.Sprint(msg...))
+}
+
+func (c *consoleProxy) Info(msg ...any) {
+	c.slog.Info(fmt.Sprint(msg...))
+}
+
+func (c *consoleProxy) Warn(msg ...any) {
+	c.slog.Warn(fmt.Sprint(msg...))
+}
+
+func (c *consoleProxy) Error(msg ...any) {
+	c.slog.Error(fmt.Sprint(msg...))
+}
+
+type utilProxy struct{}
+
+func (u *utilProxy) BytesToString(b []byte) string {
+	return string(b)
+}
+
+func (u *utilProxy) StringToBytes(s string) []byte {
+	return []byte(s)
 }
