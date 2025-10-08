@@ -10,6 +10,17 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+const (
+	scriptFileName        = "script.js"
+	errMsgWriteScript     = "failed to write script file: %v"
+	errMsgCreateRunner    = "failed to create runner: %v"
+	errMsgProcessReturned = "process returned error: %v"
+	benchID               = "bench-id"
+	benchData             = "benchmark test data"
+	benchDataComplex      = "benchmark test data for complex processing"
+	benchSource           = "bench"
+)
+
 func TestNewRunner_InvalidConfigType(t *testing.T) {
 	t.Parallel()
 
@@ -41,14 +52,14 @@ func TestES5RunnerProcessSuccess(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	scriptPath := filepath.Join(dir, "script.js")
+	scriptPath := filepath.Join(dir, scriptFileName)
 	script := `
 // Simply set new data without reading the old data
 message.SetData(new Uint8Array([72, 69, 76, 76, 79])); // "HELLO" in ASCII
 message.AddMetadata("processed", "true");
 `
 	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
-		t.Fatalf("failed to write script file: %v", err)
+		t.Fatalf(errMsgWriteScript, err)
 	}
 
 	cfg := &RunnerConfig{
@@ -58,7 +69,7 @@ message.AddMetadata("processed", "true");
 
 	runnerAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf("failed to create runner: %v", err)
+		t.Fatalf(errMsgCreateRunner, err)
 	}
 	runner := runnerAny.(*ES5Runner)
 
@@ -93,16 +104,16 @@ func TestES5RunnerProcessRuntimeError(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	scriptPath := filepath.Join(dir, "script.js")
+	scriptPath := filepath.Join(dir, scriptFileName)
 	script := `throw new Error("boom");`
 	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
-		t.Fatalf("failed to write script file: %v", err)
+		t.Fatalf(errMsgWriteScript, err)
 	}
 
 	cfg := &RunnerConfig{Path: scriptPath, Timeout: time.Second}
 	runnerAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf("failed to create runner: %v", err)
+		t.Fatalf(errMsgCreateRunner, err)
 	}
 	runner := runnerAny.(*ES5Runner)
 
@@ -121,10 +132,10 @@ func TestES5RunnerProcessInvalidServiceMethod(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	scriptPath := filepath.Join(dir, "script.js")
+	scriptPath := filepath.Join(dir, scriptFileName)
 	script := `message.invalidMethod("test");`
 	if err := os.WriteFile(scriptPath, []byte(script), 0o600); err != nil {
-		t.Fatalf("failed to write script file: %v", err)
+		t.Fatalf(errMsgWriteScript, err)
 	}
 
 	cfg := &RunnerConfig{
@@ -134,7 +145,7 @@ func TestES5RunnerProcessInvalidServiceMethod(t *testing.T) {
 
 	runnerAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf("failed to create runner: %v", err)
+		t.Fatalf(errMsgCreateRunner, err)
 	}
 	runner := runnerAny.(*ES5Runner)
 
