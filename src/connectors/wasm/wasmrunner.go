@@ -1,3 +1,40 @@
+// Package main implements the WASM connector for the Events Bridge.
+//
+// The WASM connector enables execution of WebAssembly modules as message processors,
+// providing a secure, sandboxed environment for custom transformation logic.
+//
+// Key features:
+//   - Sandboxed execution using wazero (no CGo dependencies)
+//   - Configurable memory limits (MaxMemoryPages)
+//   - Secure filesystem access via SafeFS with path whitelisting
+//   - Environment variable filtering to prevent sensitive data leakage
+//   - Read-only filesystem mounting by default
+//   - Configurable execution timeouts
+//
+// Security architecture:
+//   - WASM modules run in isolated instances (no shared state)
+//   - Path traversal attacks prevented by SafeFS
+//   - Resource exhaustion mitigated via memory limits
+//   - Environment variables filtered using deny list
+//   - All filesystem access goes through security checks
+//
+// Example configuration:
+//
+//	runners:
+//	  - name: wasm-processor
+//	    type: wasm
+//	    config:
+//	      path: ./processor.wasm
+//	      maxMemoryPages: 512    # 32MB
+//	      readOnlyMount: true
+//	      allowedPaths:
+//	        - data
+//	        - public
+//	      denyEnvVars:
+//	        - AWS_SECRET_ACCESS_KEY
+//	        - DATABASE_PASSWORD
+//
+// For more details on security implementation, see SECURITY.md and IMPLEMENTATION.md.
 package main
 
 import (
@@ -19,44 +56,113 @@ import (
 // Ensure WasmRunner implements connectors.Runner
 var _ connectors.Runner = &WasmRunner{}
 
+// RunnerConfig defines the configuration for the WASM runner with security enhancements.
+// It provides options for sandboxing, resource limits, and access control.
 type RunnerConfig struct {
-	Path        string            `mapstructure:"path" validate:"required"`
-	MountPath   string            `mapstructure:"mountPath"`
-	Timeout     time.Duration     `mapstructure:"timeout" default:"5s" validate:"required"`
-	Env         map[string]string `mapstructure:"env"`
-	Args        []string          `mapstructure:"args"`
-	Format      string            `mapstructure:"format" validate:"required,oneof=json cbor cli"`
-	MetadataKey string            `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
-	DataKey     string            `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
+	// Path is the filesystem path to the WASM module file
+	Path string `mapstructure:"path" validate:"required"`
+
+	// MountPath is the host directory to mount as filesystem for WASM module.
+	// If empty, no filesystem is mounted.
+	MountPath string `mapstructure:"mountPath"`
+
+	// Timeout is the maximum execution time for processing a single message
+	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
+
+	// Env contains environment variables to pass to the WASM module.
+	// Variables in DenyEnvVars will be filtered out.
+	Env map[string]string `mapstructure:"env"`
+
+	// Args contains command-line arguments to pass to the WASM module
+	Args []string `mapstructure:"args"`
+
+	// Format specifies the message encoding format (json, cbor, or cli)
+	Format string `mapstructure:"format" validate:"required,oneof=json cbor cli"`
+
+	// MetadataKey is the key name for metadata in json/cbor formats
+	MetadataKey string `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
+
+	// DataKey is the key name for data payload in json/cbor formats
+	DataKey string `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
+
 	// Security enhancements
-	MaxMemoryPages uint32   `mapstructure:"maxMemoryPages" default:"256" validate:"max=65536"` // Max 4GB (65536 * 64KB)
-	ReadOnlyMount  bool     `mapstructure:"readOnlyMount" default:"true"`
-	AllowedPaths   []string `mapstructure:"allowedPaths"` // Whitelist of accessible paths within MountPath
-	DenyEnvVars    []string `mapstructure:"denyEnvVars"`  // Blacklist of environment variables to exclude
+
+	// MaxMemoryPages limits the WASM module's memory usage.
+	// Each page is 64KB. Default: 256 pages (16MB). Max: 65536 pages (4GB)
+	MaxMemoryPages uint32 `mapstructure:"maxMemoryPages" default:"256" validate:"max=65536"`
+
+	// ReadOnlyMount when true, mounts the filesystem in read-only mode.
+	// Default: true (recommended for security)
+	ReadOnlyMount bool `mapstructure:"readOnlyMount" default:"true"`
+
+	// AllowedPaths is a whitelist of paths accessible within MountPath.
+	// If empty, all paths under MountPath are accessible (subject to ReadOnlyMount).
+	// Paths are relative to MountPath.
+	AllowedPaths []string `mapstructure:"allowedPaths"`
+
+	// DenyEnvVars is a blacklist of environment variable names to exclude.
+	// Use this to prevent sensitive data (passwords, keys) from being exposed to WASM.
+	DenyEnvVars []string `mapstructure:"denyEnvVars"`
 }
 
+// WasmRunner executes WebAssembly modules to process messages.
+//
+// It provides:
+//   - Sandboxed execution environment
+//   - Configurable resource limits (memory, timeout)
+//   - Secure filesystem access via SafeFS
+//   - Environment variable filtering
+//   - Thread-safe message processing
+//
+// The runner compiles WASM modules once and creates new instances for each
+// message to ensure isolation between executions.
 type WasmRunner struct {
 	cfg       *RunnerConfig
-	timeout   time.Duration // Timeout for processing messages
-	slog      *slog.Logger
-	rt        wazero.Runtime
-	ctx       context.Context
-	mu        sync.Mutex
-	wasmBytes []byte
-	module    wazero.CompiledModule // keep the compiled module for instantiation
-	decoder   encdec.MessageDecoder
-	stopCh    chan struct{} // stop channel
+	timeout   time.Duration         // Timeout for processing messages
+	slog      *slog.Logger          // Logger instance
+	rt        wazero.Runtime        // WASM runtime
+	ctx       context.Context       // Background context
+	mu        sync.Mutex            // Mutex for thread-safe operations
+	wasmBytes []byte                // Compiled WASM bytecode
+	module    wazero.CompiledModule // Compiled module for instantiation
+	decoder   encdec.MessageDecoder // Message encoder/decoder
+	stopCh    chan struct{}         // Stop channel for graceful shutdown
 }
 
+// NewRunnerConfig creates a new RunnerConfig instance with default values.
+//
+// Default values:
+//   - MaxMemoryPages: 256 (16MB)
+//   - ReadOnlyMount: true
+//   - AllowedPaths: empty (all paths allowed if whitelist disabled)
+//   - DenyEnvVars: empty (no filtering)
+//
+// Returns:
+//   - any: A pointer to RunnerConfig that can be populated via mapstructure
 func NewRunnerConfig() any {
 	return new(RunnerConfig)
 }
 
-// New creates a new instance of WasmRunner
-// runtimeCreateMu guards creation of new wazero runtimes (not instantiation) to avoid
-// excessive parallel allocations during tests.
+// runtimeCreateMu guards creation of new wazero runtimes to prevent
+// excessive parallel allocations during tests or high-concurrency scenarios.
+//
+// Note: This mutex protects runtime creation only, not module instantiation.
+// Each module instance is created from a compiled module without additional locking.
 var runtimeCreateMu sync.Mutex
 
+// NewRunner creates a new WasmRunner instance from the provided configuration.
+// It loads and compiles the WASM module, applies security restrictions, and prepares
+// the runtime for message processing.
+//
+// Security features:
+//   - Memory limits based on MaxMemoryPages configuration
+//   - Filesystem sandboxing with SafeFS
+//   - Environment variable filtering
+//
+// Returns an error if:
+//   - Configuration is invalid
+//   - WASM file cannot be read
+//   - WASM module compilation fails
 func NewRunner(anyCfg any) (connectors.Runner, error) {
 	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
@@ -112,7 +218,27 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}, nil
 }
 
-// Process handles the logic for a single message
+// Process executes the WASM module to process a single message.
+// The message data is encoded and passed to the module via stdin,
+// and the processed result is read from stdout.
+//
+// Security measures applied:
+//   - Timeout enforcement to prevent infinite loops
+//   - Environment variable filtering via filterEnvVars
+//   - Filesystem access control via SafeFS
+//   - Memory limits enforced by runtime configuration
+//
+// The execution flow:
+//  1. Encode input message using configured format
+//  2. Create module configuration with stdin/stdout
+//  3. Apply security restrictions (env vars, filesystem)
+//  4. Instantiate and execute WASM module with timeout
+//  5. Decode output and update message
+//
+// Returns an error if:
+//   - Message encoding/decoding fails
+//   - WASM module execution fails
+//   - Timeout is exceeded
 func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
 	inData, err := w.decoder.EncodeMessage(msg)
 	if err != nil {
@@ -177,7 +303,14 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
 	return nil
 }
 
-// filterEnvVars filters environment variables based on the deny list
+// filterEnvVars filters environment variables based on the deny list.
+// Variables listed in DenyEnvVars configuration are excluded from the result.
+// This prevents sensitive data (API keys, passwords, etc.) from being exposed to WASM.
+//
+// The filtering is case-sensitive and uses exact matching.
+// If DenyEnvVars is empty or nil, all variables are passed through unchanged.
+//
+// Filtered variables are logged at debug level for audit purposes.
 func (w *WasmRunner) filterEnvVars(env map[string]string) map[string]string {
 	if len(w.cfg.DenyEnvVars) == 0 {
 		return env
@@ -202,6 +335,11 @@ func (w *WasmRunner) filterEnvVars(env map[string]string) map[string]string {
 	return safeEnv
 }
 
+// Close performs cleanup of the WASM runtime and associated resources.
+// It closes the wazero runtime and marks the runner as stopped.
+// This method is safe to call multiple times.
+//
+// Returns an error if the runtime fails to close cleanly.
 func (w *WasmRunner) Close() error {
 	w.slog.Info("closing wasm runner")
 	w.mu.Lock()
