@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	cfg := &RunnerConfig{
 		Path:    getTestAssetPath("testrunner.wasm"),
 		Timeout: 5 * time.Second,
-		Format:  "json",
+		Format:  "cli",
 	}
 	r, err := NewRunner(cfg)
 	if err != nil {
@@ -123,6 +123,7 @@ func TestNewRunnerSuccess(t *testing.T) {
 	cfg := &RunnerConfig{
 		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(cfg)
@@ -173,6 +174,7 @@ func TestNewRunnerFileNotFound(t *testing.T) {
 	cfg := &RunnerConfig{
 		Path:    "nonexistent.wasm",
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(cfg)
@@ -190,6 +192,7 @@ func TestNewRunnerInvalidWasmFile(t *testing.T) {
 	cfg := &RunnerConfig{
 		Path:    getTestAssetPath("Makefile"), // Not a WASM file
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(cfg)
@@ -242,6 +245,7 @@ func TestProcessWithEnvironment(t *testing.T) {
 		Env: map[string]string{
 			"TEST_ENV": "test-value",
 		},
+		Format: "cli",
 	}
 
 	runner, err := NewRunner(cfg)
@@ -278,6 +282,7 @@ func TestProcessWithArgs(t *testing.T) {
 		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
 		Args:    []string{"arg1", "arg2", "arg3"},
+		Format:  "cli",
 	}
 	fmt.Printf("cfg: %v\n", cfg)
 
@@ -350,6 +355,7 @@ func TestProcessWasmError(t *testing.T) {
 	cfg := &RunnerConfig{
 		Path:    getTestAssetPath("errorrunner.wasm"),
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(cfg)
@@ -376,6 +382,7 @@ func TestCloseSuccess(t *testing.T) {
 	cfg := &RunnerConfig{
 		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(cfg)
@@ -401,6 +408,7 @@ func TestCloseMultipleCalls(t *testing.T) {
 	cfg := &RunnerConfig{
 		Path:    getTestAssetPath(testWasmFile),
 		Timeout: 5 * time.Second,
+		Format:  "cli",
 	}
 
 	runner, err := NewRunner(cfg)
