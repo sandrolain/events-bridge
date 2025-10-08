@@ -20,6 +20,8 @@ const (
 	testMsgID             = "test-id"
 	testMsgData           = "test data"
 	msgExpectedNilRunner  = "expected nil runner on error"
+	errMsgCreateRunner    = "failed to create runner: %v"
+	errMsgProcessReturned = "process returned error: %v"
 )
 
 var sharedRunner *WasmRunner
