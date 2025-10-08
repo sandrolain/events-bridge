@@ -77,13 +77,13 @@ type RunnerConfig struct {
 	Args []string `mapstructure:"args"`
 
 	// Format specifies the message encoding format (json, cbor, or cli)
-	Format string `mapstructure:"format" validate:"required,oneof=json cbor cli"`
+	Format string `mapstructure:"format" default:"cli" validate:"required,oneof=json cbor cli"`
 
 	// MetadataKey is the key name for metadata in json/cbor formats
-	MetadataKey string `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
+	MetadataKey string `mapstructure:"metadataKey" default:"metadata" validate:"required"`
 
 	// DataKey is the key name for data payload in json/cbor formats
-	DataKey string `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
+	DataKey string `mapstructure:"dataKey" default:"data" validate:"required"`
 
 	// Security enhancements
 
