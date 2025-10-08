@@ -1,0 +1,7 @@
+log_info("cel runner processed message: " + data_string)
+	&& set_metadata(
+		"redis.set.result",
+		bytes_to_string(redis_call(["SET", "celrunner:example:key", data_string]))
+	)
+	&& set_metadata("processed", "true")
+	&& set_data_string(bytes_to_string(redis_call(["GET", "celrunner:example:key"])))
