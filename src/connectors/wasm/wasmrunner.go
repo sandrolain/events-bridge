@@ -28,6 +28,11 @@ type RunnerConfig struct {
 	Format      string            `mapstructure:"format" validate:"required,oneof=json cbor cli"`
 	MetadataKey string            `mapstructure:"metadataKey" validate:"required_if=Format json cbor"`
 	DataKey     string            `mapstructure:"dataKey" validate:"required_if=Format json cbor"`
+	// Security enhancements
+	MaxMemoryPages uint32   `mapstructure:"maxMemoryPages" default:"256" validate:"max=65536"` // Max 4GB (65536 * 64KB)
+	ReadOnlyMount  bool     `mapstructure:"readOnlyMount" default:"true"`
+	AllowedPaths   []string `mapstructure:"allowedPaths"` // Whitelist of accessible paths within MountPath
+	DenyEnvVars    []string `mapstructure:"denyEnvVars"`  // Blacklist of environment variables to exclude
 }
 
 type WasmRunner struct {
@@ -73,8 +78,14 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 
 	ctx := context.Background()
 
+	// Create runtime configuration with memory limits
+	runtimeConfig := wazero.NewRuntimeConfig()
+	if cfg.MaxMemoryPages > 0 {
+		runtimeConfig = runtimeConfig.WithMemoryLimitPages(cfg.MaxMemoryPages)
+	}
+
 	runtimeCreateMu.Lock()
-	rt := wazero.NewRuntimeWithConfig(ctx, wazero.NewRuntimeConfig())
+	rt := wazero.NewRuntimeWithConfig(ctx, runtimeConfig)
 	runtimeCreateMu.Unlock()
 
 	// Instantiate WASI before loading the module
@@ -122,14 +133,19 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
 		config = config.WithArgs(w.cfg.Args...)
 	}
 
+	// Filter environment variables based on DenyEnvVars
 	if len(w.cfg.Env) > 0 {
-		for k, v := range w.cfg.Env {
+		safeEnv := w.filterEnvVars(w.cfg.Env)
+		for k, v := range safeEnv {
 			config = config.WithEnv(k, v)
 		}
 	}
 
+	// Setup secure filesystem if MountPath is specified
 	if w.cfg.MountPath != "" {
-		config = config.WithFS(os.DirFS(w.cfg.MountPath))
+		baseFS := os.DirFS(w.cfg.MountPath)
+		safeFS := NewSafeFS(baseFS, w.cfg.AllowedPaths, w.cfg.ReadOnlyMount)
+		config = config.WithFS(safeFS)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
@@ -159,6 +175,31 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
 	}
 
 	return nil
+}
+
+// filterEnvVars filters environment variables based on the deny list
+func (w *WasmRunner) filterEnvVars(env map[string]string) map[string]string {
+	if len(w.cfg.DenyEnvVars) == 0 {
+		return env
+	}
+
+	// Create a set of denied variables for faster lookup
+	denied := make(map[string]bool, len(w.cfg.DenyEnvVars))
+	for _, key := range w.cfg.DenyEnvVars {
+		denied[key] = true
+	}
+
+	// Filter out denied variables
+	safeEnv := make(map[string]string)
+	for k, v := range env {
+		if !denied[k] {
+			safeEnv[k] = v
+		} else if w.slog != nil {
+			w.slog.Debug("filtered out denied environment variable", "key", k)
+		}
+	}
+
+	return safeEnv
 }
 
 func (w *WasmRunner) Close() error {

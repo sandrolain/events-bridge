@@ -1,0 +1,158 @@
+# WASM Connector - Secure Configuration Example
+# This configuration demonstrates the security enhancements for the WASM connector
+
+source:
+  type: http
+  config:
+    address: ":8080"
+    path: "/process"
+    method: POST
+
+runner:
+  type: wasm
+  config:
+    # Path to WASM module
+    path: ./modules/processor.wasm
+
+    # Timeout for processing
+    timeout: 5s
+
+    # Message format
+    format: json
+    metadataKey: metadata
+    dataKey: data
+
+    # Security: Filesystem Access Control
+    # Mount a directory for WASM module access
+    mountPath: /data
+
+    # Security: Read-Only Mode (RECOMMENDED)
+    # Set to true to prevent WASM from writing files
+    readOnlyMount: true
+
+    # Security: Path Whitelist
+    # Only allow access to specific paths within mountPath
+    # If empty or omitted, all paths under mountPath are accessible
+    allowedPaths:
+      - /data/input
+      - /data/public
+      # Note: /data/secrets would NOT be accessible
+
+    # Security: Memory Limits
+    # Limit WASM memory usage (in 64KB pages)
+    # Default: 256 pages (16MB)
+    # Max: 65536 pages (4GB)
+    maxMemoryPages: 512 # 32MB
+
+    # Security: Environment Variable Filtering
+    # Blacklist sensitive environment variables
+    # These vars will NOT be passed to WASM module
+    denyEnvVars:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_PASSWORD
+      - API_KEY
+      - SECRET_TOKEN
+      - HOME
+      - USER
+      - PATH
+
+    # Safe environment variables to pass
+    env:
+      LOG_LEVEL: info
+      PROCESSING_MODE: production
+      # Sensitive vars should come from secure sources, not config
+
+    # Arguments passed to WASM module
+    args:
+      - --mode=secure
+      - --validate=true
+
+target:
+  type: http
+  config:
+    method: POST
+    url: http://api.example.com/results
+
+---
+# Alternative Configuration: Maximum Security
+
+source:
+  type: http
+  config:
+    address: ":8080"
+    path: "/process"
+
+runner:
+  type: wasm
+  config:
+    path: ./modules/untrusted.wasm
+    timeout: 2s
+    format: json
+    metadataKey: metadata
+    dataKey: data
+
+    # NO filesystem access
+    # mountPath: (omitted)
+
+    # Minimal memory
+    maxMemoryPages: 128 # 8MB only
+
+    # Block ALL environment variables
+    denyEnvVars:
+      - "*" # Note: This would need implementation
+
+    # Or explicitly block everything by denying common vars
+    # env: (omitted - no env vars at all)
+
+target:
+  type: http
+  config:
+    method: POST
+    url: http://api.example.com/results
+
+---
+# Development Configuration: More Permissive
+
+source:
+  type: http
+  config:
+    address: ":8080"
+    path: "/process"
+
+runner:
+  type: wasm
+  config:
+    path: ./modules/dev.wasm
+    timeout: 30s
+    format: json
+    metadataKey: metadata
+    dataKey: data
+
+    # Allow filesystem access for debugging
+    mountPath: /tmp/wasm-debug
+
+    # Allow writes in dev mode
+    readOnlyMount: false
+
+    # No path restrictions in dev
+    # allowedPaths: (omitted)
+
+    # More memory for dev/debugging
+    maxMemoryPages: 2048 # 128MB
+
+    # Less restrictive env var filtering
+    denyEnvVars:
+      - AWS_SECRET_ACCESS_KEY # Still block critical secrets
+      - DATABASE_PASSWORD
+
+    env:
+      DEBUG: "true"
+      LOG_LEVEL: debug
+      DEV_MODE: "true"
+
+target:
+  type: http
+  config:
+    method: POST
+    url: http://localhost:3000/results
