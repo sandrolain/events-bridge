@@ -70,14 +70,21 @@ func (e *ES5Runner) Process(msg *message.RunnerMessage) error {
 	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 
 	for name, service := range e.cfg.Services {
-		vm.Set(name, &ServiceProxy{svc: service})
+		if err := vm.Set(name, &ServiceProxy{svc: service}); err != nil {
+			return fmt.Errorf("failed to set service %s: %w", name, err)
+		}
 	}
 
-	vm.Set("console", &consoleProxy{slog: e.slog.With("script", e.cfg.Path)})
-	vm.Set("util", &utilProxy{})
+	otherServices := map[string]any{
+		"console": &consoleProxy{slog: e.slog.With("script", e.cfg.Path)},
+		"util":    &utilProxy{},
+		"message": &messageProxy{msg: msg},
+	}
 
-	if err := vm.Set("message", &messageProxy{msg: msg}); err != nil {
-		return fmt.Errorf("failed to set message: %w", err)
+	for name, proxy := range otherServices {
+		if err := vm.Set(name, proxy); err != nil {
+			return fmt.Errorf("failed to set %s: %w", name, err)
+		}
 	}
 
 	done := make(chan error, 1)
