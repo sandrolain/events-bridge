@@ -17,13 +17,7 @@ commands:
           - type: "es5"
             options:
               path: "./testers/runners/es5runner/script.js"
-              mountPath: "./testers/runners/es5runner"
               timeout: "5s"
-              services:
-                redis:
-                  type: "redis"
-                  options:
-                    address: "localhost:6379"
             routines: 4
     args: []
     restartTries: 0
