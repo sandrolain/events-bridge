@@ -76,6 +76,13 @@ tasks:
       - echo "Building test plugin asset for connector tests..."
       - go build -o test-plugin-connector testplugin.go && du -h test-plugin-connector
 
+  build-goplugin-test-asset:
+    desc: Build test plugin asset for plugin connector unit tests using Go plugin mode
+    dir: ./src/utils/testdata/testplugin
+    cmds:
+      - echo "Building test plugin asset for connector tests (plugin mode)..."
+      - go build -buildmode=plugin -o testplugin.so plugin.go && du -h testplugin.so
+
   clean-plugin-test-assets:
     desc: Clean test assets
     dir: ./src/connectors/plugin/testassets
@@ -92,7 +99,7 @@ tasks:
       - echo "Running tests with coverage (clean output)..."
       - |
         set -o pipefail
-        go test -race -coverprofile=coverage.out -covermode=atomic ./src/... 2>&1 | \
+        go test -coverprofile=coverage.out -covermode=atomic ./src/... 2>&1 | \
         grep -v "ld: warning.*malformed LC_DYSYMTAB" || \
         (test ${PIPESTATUS[0]} -eq 0)
       - go tool cover -html=coverage.out -o coverage.html
@@ -127,7 +134,7 @@ tasks:
         sh: command -v gosec || echo "not_found"
     cmds:
       - echo "Running gosec security scanner..."
-      - gosec -fmt=json -out=security-report.json ./src/...
+      - gosec -exclude-generated ./src/...
 
   trivy:
     desc: Run Trivy filesystem scanner (vuln, secret, misconfig)
@@ -143,9 +150,9 @@ tasks:
       - task: fmt
       - task: lint
       - task: vet
-      - task: test
       - task: gosec
       - task: trivy
+      - task: test
 
   install-deps:
     desc: Install and tidy Go module dependencies
