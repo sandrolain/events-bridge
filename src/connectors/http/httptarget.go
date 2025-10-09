@@ -11,22 +11,40 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// TargetConfig defines the configuration for the HTTP target connector.
+// It supports TLS, custom headers, and various HTTP methods.
 type TargetConfig struct {
-	Method  string            `mapstructure:"method" default:"POST" validate:"required,oneof=GET POST PUT DELETE PATCH HEAD OPTIONS"`
-	URL     string            `mapstructure:"url" validate:"required,url"`
+	// Method is the HTTP method to use (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
+	Method string `mapstructure:"method" default:"POST" validate:"required,oneof=GET POST PUT DELETE PATCH HEAD OPTIONS"`
+
+	// URL is the destination URL
+	URL string `mapstructure:"url" validate:"required,url"`
+
+	// Headers are custom HTTP headers to add to each request
 	Headers map[string]string `mapstructure:"headers"`
-	Timeout time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+
+	// Timeout is the maximum duration for request completion
+	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+
+	// TLS configuration
+	TLS TLSConfig `mapstructure:"tls"`
 }
 
 func NewTargetConfig() any {
 	return new(TargetConfig)
 }
 
-// NewTarget creates an HTTP target from options map.
+// NewTarget creates an HTTP target from options map with TLS support.
 func NewTarget(anyCfg any) (connectors.Target, error) {
 	cfg, ok := anyCfg.(*TargetConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
+	}
+
+	// Build TLS config if enabled
+	tlsConfig, err := cfg.TLS.BuildClientTLSConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build TLS config: %w", err)
 	}
 
 	client := &fasthttp.Client{
@@ -35,9 +53,10 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		NoDefaultUserAgentHeader:      true,
 		DisableHeaderNamesNormalizing: true,
 		DisablePathNormalizing:        true,
+		TLSConfig:                     tlsConfig,
+		MaxConnsPerHost:               100,
 		Dial: (&fasthttp.TCPDialer{
 			Concurrency: 4096,
-			//DNSCacheDuration: time.Hour, // increase DNS cache time to an hour instead of default minute
 		}).Dial,
 	}
 
