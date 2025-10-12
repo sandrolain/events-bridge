@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -11,12 +13,59 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+// TargetConfig defines the configuration for an MQTT target connector.
 type TargetConfig struct {
-	Address              string `mapstructure:"address" validate:"required"`
-	Topic                string `mapstructure:"topic" validate:"required"`
-	ClientID             string `mapstructure:"clientId" validate:"required"`
-	QoS                  int    `mapstructure:"qos" default:"0" validate:"required,min=0,max=2"`
+	// Address is the MQTT broker address (host:port).
+	// Example: "localhost:1883" for plain TCP, "localhost:8883" for TLS.
+	Address string `mapstructure:"address" validate:"required"`
+
+	// Topic is the default MQTT topic to publish to.
+	// Can be overridden by TopicFromMetadataKey.
+	Topic string `mapstructure:"topic" validate:"required"`
+
+	// ClientID is the MQTT client identifier.
+	// If empty, a cryptographically secure random ID will be generated.
+	ClientID string `mapstructure:"clientId"`
+
+	// QoS is the Quality of Service level for publishing (0, 1, or 2).
+	// 0 = At most once (fire and forget)
+	// 1 = At least once (acknowledged delivery)
+	// 2 = Exactly once (assured delivery)
+	// Default: 0
+	QoS int `mapstructure:"qos" default:"0" validate:"required,min=0,max=2"`
+
+	// TopicFromMetadataKey is the metadata key to read the topic from.
+	// If the key exists in message metadata, its value will be used as the topic.
+	// Otherwise, the default Topic will be used.
 	TopicFromMetadataKey string `mapstructure:"topicFromMetadataKey" validate:"required"`
+
+	// Retained determines whether messages should be retained by the broker.
+	// Retained messages are delivered to new subscribers immediately.
+	// Default: false
+	Retained bool `mapstructure:"retained" default:"false"`
+
+	// Username for MQTT broker authentication.
+	// Leave empty if authentication is not required.
+	Username string `mapstructure:"username"`
+
+	// Password for MQTT broker authentication.
+	// Leave empty if authentication is not required.
+	// WARNING: Consider using environment variables or secret managers for production.
+	Password string `mapstructure:"password"`
+
+	// TLS holds TLS/SSL configuration for secure connections.
+	TLS *TLSConfig `mapstructure:"tls"`
+
+	// KeepAlive is the keep alive interval in seconds.
+	// The client will send PINGREQ messages to keep the connection alive.
+	// Default: 60 seconds
+	KeepAlive int `mapstructure:"keepAlive" default:"60" validate:"min=0"`
+
+	// CleanSession determines whether to start a clean session.
+	// true = Broker will discard any previous session for this client
+	// false = Broker will resume previous session if available
+	// Default: true
+	CleanSession bool `mapstructure:"cleanSession" default:"true"`
 }
 
 func NewTargetConfig() any {
@@ -30,8 +79,53 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
-	copts := mqtt.NewClientOptions().AddBroker("tcp://" + cfg.Address)
-	copts.SetClientID(cfg.ClientID)
+	// Set defaults
+	if cfg.QoS < 0 || cfg.QoS > 2 {
+		cfg.QoS = 0
+	}
+	if cfg.KeepAlive <= 0 {
+		cfg.KeepAlive = 60
+	}
+
+	useTLS := cfg.TLS != nil && cfg.TLS.Enabled
+	protocol := "tcp"
+	if useTLS {
+		protocol = "ssl"
+	}
+
+	// Build broker URL
+	brokerURL := fmt.Sprintf("%s://%s", protocol, cfg.Address)
+	copts := mqtt.NewClientOptions().AddBroker(brokerURL)
+
+	// Generate or use provided client ID
+	clientID := cfg.ClientID
+	if clientID == "" {
+		var err error
+		clientID, err = generateTargetSecureClientID()
+		if err != nil {
+			return nil, err
+		}
+	}
+	copts.SetClientID(clientID)
+
+	// Configure authentication
+	if cfg.Username != "" {
+		copts.SetUsername(cfg.Username)
+		copts.SetPassword(cfg.Password)
+	}
+
+	// Configure TLS
+	if useTLS {
+		tlsConfig, err := cfg.TLS.BuildTLSConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build TLS config: %w", err)
+		}
+		copts.SetTLSConfig(tlsConfig)
+	}
+
+	// Configure connection options
+	copts.SetCleanSession(cfg.CleanSession)
+	copts.SetKeepAlive(time.Duration(cfg.KeepAlive) * time.Second)
 	copts.SetAutoReconnect(true)
 	copts.SetConnectRetry(true)
 	copts.SetConnectRetryInterval(2 * time.Second)
@@ -43,13 +137,28 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 
 	l := slog.Default().With("context", "MQTT Target")
 
-	l.Info("MQTT target connected", "address", cfg.Address, "topic", cfg.Topic)
+	l.Info("MQTT target connected",
+		"address", cfg.Address,
+		"topic", cfg.Topic,
+		"qos", cfg.QoS,
+		"retained", cfg.Retained,
+		"tls", useTLS,
+	)
 
 	return &MQTTTarget{
 		cfg:    cfg,
 		slog:   l,
 		client: client,
 	}, nil
+}
+
+// generateTargetSecureClientID creates a cryptographically secure random client ID for targets.
+func generateTargetSecureClientID() (string, error) {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate random client ID: %w", err)
+	}
+	return "events-bridge-target-" + hex.EncodeToString(bytes), nil
 }
 
 type MQTTTarget struct {
@@ -73,9 +182,16 @@ func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
 		qos = 0
 	}
 
-	t.slog.Debug("publishing MQTT message", "topic", topic, "qos", qos, "bodysize", len(data))
+	retained := t.cfg.Retained
 
-	token := t.client.Publish(topic, qos, false, data)
+	t.slog.Debug("publishing MQTT message",
+		"topic", topic,
+		"qos", qos,
+		"retained", retained,
+		"bodysize", len(data),
+	)
+
+	token := t.client.Publish(topic, qos, retained, data)
 	token.Wait()
 	if token.Error() != nil {
 		return fmt.Errorf("error publishing to MQTT: %w", token.Error())
