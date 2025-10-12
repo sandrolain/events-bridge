@@ -8,6 +8,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -58,7 +59,7 @@ type SourceConfig struct {
 	Password string `mapstructure:"password"`
 
 	// TLS holds TLS/SSL configuration for secure connections.
-	TLS *TLSConfig `mapstructure:"tls"`
+	TLS *tlsconfig.Config `mapstructure:"tls"`
 
 	// MessageTimeout is the maximum time to wait for message Ack/Nak.
 	// Default: 10 seconds
@@ -81,17 +82,6 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 	cfg, ok := anyCfg.(*SourceConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
-	}
-
-	// Set defaults
-	if cfg.QoS < 0 || cfg.QoS > 2 {
-		cfg.QoS = 0
-	}
-	if cfg.KeepAlive <= 0 {
-		cfg.KeepAlive = 60
-	}
-	if cfg.MessageTimeout <= 0 {
-		cfg.MessageTimeout = 10 * time.Second
 	}
 
 	return &MQTTSource{
@@ -149,7 +139,7 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 
 	// Configure TLS
 	if useTLS {
-		tlsConfig, err := s.cfg.TLS.BuildTLSConfig()
+		tlsConfig, err := s.cfg.TLS.BuildClientConfig()
 		if err != nil {
 			return nil, fmt.Errorf("failed to build TLS config: %w", err)
 		}

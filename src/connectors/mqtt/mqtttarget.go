@@ -9,6 +9,7 @@ import (
 	"log/slog"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -54,7 +55,7 @@ type TargetConfig struct {
 	Password string `mapstructure:"password"`
 
 	// TLS holds TLS/SSL configuration for secure connections.
-	TLS *TLSConfig `mapstructure:"tls"`
+	TLS *tlsconfig.Config `mapstructure:"tls"`
 
 	// KeepAlive is the keep alive interval in seconds.
 	// The client will send PINGREQ messages to keep the connection alive.
@@ -77,14 +78,6 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	cfg, ok := anyCfg.(*TargetConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
-	}
-
-	// Set defaults
-	if cfg.QoS < 0 || cfg.QoS > 2 {
-		cfg.QoS = 0
-	}
-	if cfg.KeepAlive <= 0 {
-		cfg.KeepAlive = 60
 	}
 
 	useTLS := cfg.TLS != nil && cfg.TLS.Enabled
@@ -116,7 +109,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 
 	// Configure TLS
 	if useTLS {
-		tlsConfig, err := cfg.TLS.BuildTLSConfig()
+		tlsConfig, err := cfg.TLS.BuildClientConfig()
 		if err != nil {
 			return nil, fmt.Errorf("failed to build TLS config: %w", err)
 		}

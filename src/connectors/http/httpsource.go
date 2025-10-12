@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
@@ -34,7 +35,7 @@ type SourceConfig struct {
 	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
 
 	// TLS configuration
-	TLS TLSConfig `mapstructure:"tls"`
+	TLS tlsconfig.Config `mapstructure:"tls"`
 
 	// MaxBodySize limits the maximum request body size in bytes (default: 10MB)
 	MaxBodySize int64 `mapstructure:"maxBodySize" default:"10485760" validate:"gt=0"`
@@ -119,7 +120,7 @@ func (s *HTTPSource) Produce(buffer int) (res <-chan *message.RunnerMessage, err
 	s.slog.Info("starting HTTP server", "addr", s.cfg.Address, "method", s.cfg.Method, "path", s.cfg.Path, "tls", s.cfg.TLS.Enabled)
 
 	// Create TLS config if enabled
-	tlsConfig, err := s.cfg.TLS.BuildServerTLSConfig()
+	tlsConfig, err := s.cfg.TLS.BuildServerConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build TLS config: %w", err)
 	}

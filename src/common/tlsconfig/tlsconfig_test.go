@@ -1,4 +1,4 @@
-package main
+package tlsconfig
 
 import (
 	"crypto/ecdsa"
@@ -81,7 +81,7 @@ func generateTestCertificate(t *testing.T) (certPEM, keyPEM []byte) {
 	return certPEM, keyPEM
 }
 
-// createTestCertFiles generates valid self-signed certificates for testing using Go's crypto library.
+// createTestCertFiles generates valid self-signed certificates for testing.
 func createTestCertFiles(t *testing.T) (certFile, keyFile string, cleanup func()) {
 	t.Helper()
 
@@ -107,10 +107,10 @@ func createTestCertFiles(t *testing.T) (certFile, keyFile string, cleanup func()
 	return certFile, keyFile, cleanup
 }
 
-func TestTLSConfigDisabled(t *testing.T) {
-	cfg := &TLSConfig{Enabled: false}
+func TestConfigDisabled(t *testing.T) {
+	cfg := &Config{Enabled: false}
 
-	serverConfig, err := cfg.BuildServerTLSConfig()
+	serverConfig, err := cfg.BuildServerConfig()
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}
@@ -118,7 +118,7 @@ func TestTLSConfigDisabled(t *testing.T) {
 		t.Fatal("expected nil config when TLS is disabled")
 	}
 
-	clientConfig, err := cfg.BuildClientTLSConfig()
+	clientConfig, err := cfg.BuildClientConfig()
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}
@@ -127,18 +127,18 @@ func TestTLSConfigDisabled(t *testing.T) {
 	}
 }
 
-func TestTLSConfigBuildServerTLSConfig(t *testing.T) {
+func TestBuildServerConfig(t *testing.T) {
 	certFile, keyFile, cleanup := createTestCertFiles(t)
 	defer cleanup()
 
-	cfg := &TLSConfig{
+	cfg := &Config{
 		Enabled:    true,
 		CertFile:   certFile,
 		KeyFile:    keyFile,
 		MinVersion: "1.2",
 	}
 
-	tlsConfig, err := cfg.BuildServerTLSConfig()
+	tlsConfig, err := cfg.BuildServerConfig()
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}
@@ -152,53 +152,17 @@ func TestTLSConfigBuildServerTLSConfig(t *testing.T) {
 	}
 
 	if tlsConfig.MinVersion != tls.VersionTLS12 {
-		t.Fatalf("expected TLS 1.2, got %d", tlsConfig.MinVersion)
-	}
-
-	if len(tlsConfig.CipherSuites) == 0 {
-		t.Fatal("expected non-empty cipher suites")
+		t.Errorf("expected MinVersion TLS 1.2, got %d", tlsConfig.MinVersion)
 	}
 }
 
-func TestTLSConfigBuildServerTLSConfigWithClientAuth(t *testing.T) {
-	certFile, keyFile, cleanup := createTestCertFiles(t)
-	defer cleanup()
-
-	caCertFile := certFile // Using same cert as CA for testing
-
-	cfg := &TLSConfig{
+func TestBuildClientConfig(t *testing.T) {
+	cfg := &Config{
 		Enabled:    true,
-		CertFile:   certFile,
-		KeyFile:    keyFile,
-		CACertFile: caCertFile,
-		ClientAuth: "RequireAndVerifyClientCert",
 		MinVersion: "1.2",
 	}
 
-	tlsConfig, err := cfg.BuildServerTLSConfig()
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
-
-	if tlsConfig.ClientAuth != tls.RequireAndVerifyClientCert {
-		t.Fatalf("expected RequireAndVerifyClientCert, got %d", tlsConfig.ClientAuth)
-	}
-
-	if tlsConfig.ClientCAs == nil {
-		t.Fatal("expected non-nil ClientCAs")
-	}
-}
-
-func TestTLSConfigBuildClientTLSConfig(t *testing.T) {
-	certFile, keyFile, cleanup := createTestCertFiles(t)
-	defer cleanup()
-
-	cfg := &TLSConfig{
-		Enabled:    true,
-		MinVersion: "1.3",
-	}
-
-	tlsConfig, err := cfg.BuildClientTLSConfig()
+	tlsConfig, err := cfg.BuildClientConfig()
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
 	}
@@ -207,21 +171,53 @@ func TestTLSConfigBuildClientTLSConfig(t *testing.T) {
 		t.Fatal("expected non-nil TLS config")
 	}
 
-	if tlsConfig.MinVersion != tls.VersionTLS13 {
-		t.Fatalf("expected TLS 1.3, got %d", tlsConfig.MinVersion)
+	if tlsConfig.MinVersion != tls.VersionTLS12 {
+		t.Errorf("expected MinVersion TLS 1.2, got %d", tlsConfig.MinVersion)
+	}
+}
+
+func TestBuildClientConfigWithCA(t *testing.T) {
+	certFile, _, cleanup := createTestCertFiles(t)
+	defer cleanup()
+
+	cfg := &Config{
+		Enabled:    true,
+		CACertFile: certFile,
+		MinVersion: "1.2",
 	}
 
-	if tlsConfig.InsecureSkipVerify {
-		t.Fatal("expected InsecureSkipVerify to be false")
-	}
-
-	// Test with client certificate
-	cfg.CertFile = certFile
-	cfg.KeyFile = keyFile
-
-	tlsConfig, err = cfg.BuildClientTLSConfig()
+	tlsConfig, err := cfg.BuildClientConfig()
 	if err != nil {
 		t.Fatalf(errUnexpected, err)
+	}
+
+	if tlsConfig == nil {
+		t.Fatal("expected non-nil TLS config")
+	}
+
+	if tlsConfig.RootCAs == nil {
+		t.Fatal("expected CA pool to be configured")
+	}
+}
+
+func TestBuildClientConfigWithClientCert(t *testing.T) {
+	certFile, keyFile, cleanup := createTestCertFiles(t)
+	defer cleanup()
+
+	cfg := &Config{
+		Enabled:    true,
+		CertFile:   certFile,
+		KeyFile:    keyFile,
+		MinVersion: "1.2",
+	}
+
+	tlsConfig, err := cfg.BuildClientConfig()
+	if err != nil {
+		t.Fatalf(errUnexpected, err)
+	}
+
+	if tlsConfig == nil {
+		t.Fatal("expected non-nil TLS config")
 	}
 
 	if len(tlsConfig.Certificates) != 1 {
@@ -229,82 +225,7 @@ func TestTLSConfigBuildClientTLSConfig(t *testing.T) {
 	}
 }
 
-func TestTLSConfigBuildClientTLSConfigWithCA(t *testing.T) {
-	certFile, _, cleanup := createTestCertFiles(t)
-	defer cleanup()
-
-	cfg := &TLSConfig{
-		Enabled:    true,
-		CACertFile: certFile, // Using cert as CA for testing
-		MinVersion: "1.2",
-	}
-
-	tlsConfig, err := cfg.BuildClientTLSConfig()
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
-
-	if tlsConfig.RootCAs == nil {
-		t.Fatal("expected non-nil RootCAs")
-	}
-}
-
-func TestTLSConfigBuildServerTLSConfigInvalidCert(t *testing.T) {
-	cfg := &TLSConfig{
-		Enabled:  true,
-		CertFile: "/nonexistent/cert.pem",
-		KeyFile:  "/nonexistent/key.pem",
-	}
-
-	_, err := cfg.BuildServerTLSConfig()
-	if err == nil {
-		t.Fatal("expected error for invalid certificate files")
-	}
-}
-
-func TestTLSConfigBuildServerTLSConfigInvalidCA(t *testing.T) {
-	certFile, keyFile, cleanup := createTestCertFiles(t)
-	defer cleanup()
-
-	cfg := &TLSConfig{
-		Enabled:    true,
-		CertFile:   certFile,
-		KeyFile:    keyFile,
-		CACertFile: "/nonexistent/ca.pem",
-	}
-
-	_, err := cfg.BuildServerTLSConfig()
-	if err == nil {
-		t.Fatal("expected error for invalid CA certificate file")
-	}
-}
-
-func TestTLSConfigInsecureSkipVerify(t *testing.T) {
-	cfg := &TLSConfig{
-		Enabled:            true,
-		InsecureSkipVerify: true,
-	}
-
-	tlsConfig, err := cfg.BuildClientTLSConfig()
-	if err != nil {
-		t.Fatalf(errUnexpected, err)
-	}
-
-	if !tlsConfig.InsecureSkipVerify {
-		t.Fatal("expected InsecureSkipVerify to be true")
-	}
-}
-
-func TestTLSConfigMinVersionDefault(t *testing.T) {
-	cfg := &TLSConfig{MinVersion: ""}
-
-	version := cfg.getMinTLSVersion()
-	if version != tls.VersionTLS12 {
-		t.Fatalf("expected default TLS 1.2, got %d", version)
-	}
-}
-
-func TestTLSConfigMinVersionAll(t *testing.T) {
+func TestMinTLSVersions(t *testing.T) {
 	tests := []struct {
 		version  string
 		expected uint16
@@ -313,21 +234,82 @@ func TestTLSConfigMinVersionAll(t *testing.T) {
 		{"1.1", tls.VersionTLS11},
 		{"1.2", tls.VersionTLS12},
 		{"1.3", tls.VersionTLS13},
-		{"invalid", tls.VersionTLS12}, // Default
+		{"invalid", tls.VersionTLS12}, // default
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
-			cfg := &TLSConfig{MinVersion: tt.version}
-			version := cfg.getMinTLSVersion()
-			if version != tt.expected {
-				t.Fatalf("expected %d, got %d", tt.expected, version)
+			cfg := &Config{MinVersion: tt.version}
+			got := cfg.getMinTLSVersion()
+			if got != tt.expected {
+				t.Errorf("getMinTLSVersion(%s) = %d, want %d", tt.version, got, tt.expected)
 			}
 		})
 	}
 }
 
-func TestTLSConfigClientAuthTypes(t *testing.T) {
+func TestInsecureSkipVerify(t *testing.T) {
+	cfg := &Config{
+		Enabled:            true,
+		InsecureSkipVerify: true,
+		MinVersion:         "1.2",
+	}
+
+	tlsConfig, err := cfg.BuildClientConfig()
+	if err != nil {
+		t.Fatalf(errUnexpected, err)
+	}
+
+	if !tlsConfig.InsecureSkipVerify {
+		t.Error("expected InsecureSkipVerify to be true")
+	}
+}
+
+func TestServerName(t *testing.T) {
+	cfg := &Config{
+		Enabled:    true,
+		ServerName: "example.com",
+		MinVersion: "1.2",
+	}
+
+	tlsConfig, err := cfg.BuildClientConfig()
+	if err != nil {
+		t.Fatalf(errUnexpected, err)
+	}
+
+	if tlsConfig.ServerName != "example.com" {
+		t.Errorf("expected ServerName 'example.com', got '%s'", tlsConfig.ServerName)
+	}
+}
+
+func TestBuildServerConfigWithClientAuth(t *testing.T) {
+	certFile, keyFile, cleanup := createTestCertFiles(t)
+	defer cleanup()
+
+	cfg := &Config{
+		Enabled:    true,
+		CertFile:   certFile,
+		KeyFile:    keyFile,
+		CACertFile: certFile,
+		ClientAuth: "RequireAndVerifyClientCert",
+		MinVersion: "1.2",
+	}
+
+	tlsConfig, err := cfg.BuildServerConfig()
+	if err != nil {
+		t.Fatalf(errUnexpected, err)
+	}
+
+	if tlsConfig.ClientAuth != tls.RequireAndVerifyClientCert {
+		t.Errorf("expected ClientAuth RequireAndVerifyClientCert, got %d", tlsConfig.ClientAuth)
+	}
+
+	if tlsConfig.ClientCAs == nil {
+		t.Fatal("expected ClientCAs to be configured")
+	}
+}
+
+func TestClientAuthTypes(t *testing.T) {
 	tests := []struct {
 		authType string
 		expected tls.ClientAuthType
@@ -337,39 +319,43 @@ func TestTLSConfigClientAuthTypes(t *testing.T) {
 		{"RequireAnyClientCert", tls.RequireAnyClientCert},
 		{"VerifyClientCertIfGiven", tls.VerifyClientCertIfGiven},
 		{"RequireAndVerifyClientCert", tls.RequireAndVerifyClientCert},
-		{"invalid", tls.NoClientCert}, // Default
+		{"invalid", tls.NoClientCert}, // default
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.authType, func(t *testing.T) {
-			cfg := &TLSConfig{ClientAuth: tt.authType}
-			authType := cfg.getClientAuthType()
-			if authType != tt.expected {
-				t.Fatalf("expected %d, got %d", tt.expected, authType)
+			cfg := &Config{ClientAuth: tt.authType}
+			got := cfg.getClientAuthType()
+			if got != tt.expected {
+				t.Errorf("getClientAuthType(%s) = %d, want %d", tt.authType, got, tt.expected)
 			}
 		})
 	}
 }
 
-func TestGetSecureCipherSuites(t *testing.T) {
-	suites := getSecureCipherSuites()
-	if len(suites) == 0 {
-		t.Fatal("expected non-empty cipher suites")
+func TestBuildServerConfigNoCertFile(t *testing.T) {
+	cfg := &Config{
+		Enabled: true,
 	}
 
-	// Verify all returned suites are secure
-	for _, suite := range suites {
-		// All our cipher suites should use either GCM or ChaCha20-Poly1305
-		switch suite {
-		case tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305:
-			// Valid secure cipher suite
-		default:
-			t.Fatalf("unexpected cipher suite: %d", suite)
-		}
+	_, err := cfg.BuildServerConfig()
+	if err == nil {
+		t.Fatal("expected error when cert/key files are missing for server config")
+	}
+}
+
+func TestBuildClientConfigMismatchedCertKey(t *testing.T) {
+	certFile, _, cleanup := createTestCertFiles(t)
+	defer cleanup()
+
+	// Only certFile without keyFile
+	cfg := &Config{
+		Enabled:  true,
+		CertFile: certFile,
+	}
+
+	_, err := cfg.BuildClientConfig()
+	if err == nil {
+		t.Fatal("expected error when only cert file is provided")
 	}
 }

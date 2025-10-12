@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
@@ -27,7 +28,7 @@ type TargetConfig struct {
 	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
 
 	// TLS configuration
-	TLS TLSConfig `mapstructure:"tls"`
+	TLS tlsconfig.Config `mapstructure:"tls"`
 }
 
 func NewTargetConfig() any {
@@ -42,7 +43,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	}
 
 	// Build TLS config if enabled
-	tlsConfig, err := cfg.TLS.BuildClientTLSConfig()
+	tlsConfig, err := cfg.TLS.BuildClientConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build TLS config: %w", err)
 	}
