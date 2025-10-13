@@ -12,10 +12,29 @@ import (
 func NewStreamTarget(cfg *TargetConfig) (*RedisStreamTarget, error) {
 	l := slog.Default().With("context", "RedisStream Target")
 
-	client := redis.NewClient(&redis.Options{
-		Addr: cfg.Address,
-	})
-	l.Info("Redis stream target connected", "address", cfg.Address, "stream", cfg.Stream)
+	opts, err := buildRedisTargetOptions(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build Redis options: %w", err)
+	}
+
+	client := redis.NewClient(opts)
+
+	// Test connection
+	if err := client.Ping(context.Background()).Err(); err != nil {
+		return nil, fmt.Errorf("failed to ping Redis: %w", err)
+	}
+
+	tlsEnabled := cfg.TLS != nil && cfg.TLS.Enabled
+	hasAuth := cfg.Username != "" || cfg.Password != ""
+
+	l.Info("Redis stream target connected",
+		"address", cfg.Address,
+		"stream", cfg.Stream,
+		"db", cfg.DB,
+		"tls", tlsEnabled,
+		"auth", hasAuth,
+		"strictValidation", cfg.StrictValidation,
+	)
 
 	return &RedisStreamTarget{
 		cfg:    cfg,
@@ -42,6 +61,14 @@ func (t *RedisStreamTarget) Consume(msg *message.RunnerMessage) error {
 			stream = v
 		}
 	}
+
+	// Validate stream name if dynamically resolved
+	if t.cfg.StreamFromMetadataKey != "" && stream != t.cfg.Stream {
+		if err := validateRedisKey(stream, t.cfg.StrictValidation); err != nil {
+			return fmt.Errorf("invalid resolved stream name: %w", err)
+		}
+	}
+
 	dataKey := t.cfg.StreamDataKey
 	if dataKey == "" {
 		dataKey = "data"

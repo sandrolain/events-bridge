@@ -72,11 +72,29 @@ func (s *RedisStreamSource) Produce(buffer int) (<-chan *message.RunnerMessage, 
 	s.c = make(chan *message.RunnerMessage, buffer)
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
-	s.slog.Info("starting Redis stream source", "address", s.config.Address, "stream", s.config.Stream)
+	tlsEnabled := s.config.TLS != nil && s.config.TLS.Enabled
+	hasAuth := s.config.Username != "" || s.config.Password != ""
 
-	s.client = redis.NewClient(&redis.Options{
-		Addr: s.config.Address,
-	})
+	s.slog.Info("starting Redis stream source",
+		"address", s.config.Address,
+		"stream", s.config.Stream,
+		"db", s.config.DB,
+		"tls", tlsEnabled,
+		"auth", hasAuth,
+		"strictValidation", s.config.StrictValidation,
+	)
+
+	opts, err := buildRedisStreamOptions(s.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build Redis options: %w", err)
+	}
+
+	s.client = redis.NewClient(opts)
+
+	// Test connection
+	if err := s.client.Ping(s.ctx).Err(); err != nil {
+		return nil, fmt.Errorf("failed to ping Redis: %w", err)
+	}
 
 	if s.useConsumerGrp {
 		_ = s.client.XGroupCreateMkStream(s.ctx, s.config.Stream, s.config.ConsumerGroup, "0").Err()
@@ -91,6 +109,33 @@ func (s *RedisStreamSource) Produce(buffer int) (<-chan *message.RunnerMessage, 
 	go s.consume()
 
 	return s.c, nil
+}
+
+// buildRedisStreamOptions creates Redis client options for stream source
+func buildRedisStreamOptions(cfg *SourceConfig) (*redis.Options, error) {
+	opts := &redis.Options{
+		Addr: cfg.Address,
+		DB:   cfg.DB,
+	}
+
+	// Add authentication if provided
+	if cfg.Username != "" {
+		opts.Username = cfg.Username
+	}
+	if cfg.Password != "" {
+		opts.Password = cfg.Password
+	}
+
+	// Add TLS if configured
+	tlsConf, err := buildRedisTLSConfig(cfg.TLS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build TLS config: %w", err)
+	}
+	if tlsConf != nil {
+		opts.TLSConfig = tlsConf
+	}
+
+	return opts, nil
 }
 
 func (s *RedisStreamSource) consume() {
