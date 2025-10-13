@@ -1,0 +1,148 @@
+# NATS Connector with TLS and Authentication Example
+# This configuration demonstrates various authentication methods and TLS support for NATS
+
+# Example 1: Username/Password Authentication with TLS
+sources:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: events.>
+    queueGroup: events-processors
+    username: service-user
+    password: secure-password
+    tls:
+      enabled: true
+      minVersion: "1.2"
+      caCertFile: /path/to/ca-cert.pem
+      insecureSkipVerify: false
+    maxReconnects: 10
+    reconnectWait: 5
+    name: events-bridge-consumer
+
+targets:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: processed.events
+    username: service-user
+    password: secure-password
+    tls:
+      enabled: true
+      minVersion: "1.2"
+      caCertFile: /path/to/ca-cert.pem
+    maxReconnects: 10
+    reconnectWait: 5
+    name: events-bridge-producer
+
+---
+# Example 2: Token-based Authentication
+sources:
+  - type: nats
+    address: nats://nats.example.com:4222
+    subject: events.>
+    token: your-secure-token-here
+    maxReconnects: 5
+    reconnectWait: 3
+
+targets:
+  - type: nats
+    address: nats://nats.example.com:4222
+    subject: processed.events
+    token: your-secure-token-here
+
+---
+# Example 3: NKey Authentication (Most Secure)
+sources:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: events.>
+    nkeyFile: /path/to/nkey.seed
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      caCertFile: /path/to/ca-cert.pem
+    name: secure-nkey-consumer
+
+targets:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: processed.events
+    nkeyFile: /path/to/nkey.seed
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      caCertFile: /path/to/ca-cert.pem
+    name: secure-nkey-producer
+
+---
+# Example 4: JWT/Credentials File Authentication (Best Practice)
+sources:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: events.>
+    credentialsFile: /path/to/user.creds
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      caCertFile: /path/to/ca-cert.pem
+      serverName: nats.example.com # For SNI
+    maxReconnects: -1 # Unlimited reconnects
+    reconnectWait: 2
+    name: jwt-auth-consumer
+
+targets:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: processed.events
+    credentialsFile: /path/to/user.creds
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      caCertFile: /path/to/ca-cert.pem
+      serverName: nats.example.com
+    name: jwt-auth-producer
+
+---
+# Example 5: Mutual TLS (mTLS) with Client Certificates
+sources:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: events.>
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      certFile: /path/to/client-cert.pem
+      keyFile: /path/to/client-key.pem
+      caCertFile: /path/to/ca-cert.pem
+      insecureSkipVerify: false
+      serverName: nats.example.com
+    maxReconnects: 10
+    reconnectWait: 5
+    name: mtls-consumer
+
+targets:
+  - type: nats
+    address: tls://nats.example.com:4222
+    subject: processed.events
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      certFile: /path/to/client-cert.pem
+      keyFile: /path/to/client-key.pem
+      caCertFile: /path/to/ca-cert.pem
+      insecureSkipVerify: false
+      serverName: nats.example.com
+    name: mtls-producer
+
+---
+# Example 6: Development/Testing (No Auth, No TLS)
+# WARNING: Use only in trusted development environments
+sources:
+  - type: nats
+    address: nats://localhost:4222
+    subject: test.events
+    name: dev-consumer
+
+targets:
+  - type: nats
+    address: nats://localhost:4222
+    subject: test.output
+    name: dev-producer

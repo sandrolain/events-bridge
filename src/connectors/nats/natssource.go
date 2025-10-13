@@ -6,16 +6,66 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+// SourceConfig defines the configuration for a NATS source connector.
 type SourceConfig struct {
-	Address    string `mapstructure:"address" validate:"required"`
-	Subject    string `mapstructure:"subject" validate:"required"`
-	Stream     string `mapstructure:"stream"`
-	Consumer   string `mapstructure:"consumer"`
+	// Address is the NATS server address.
+	// Example: "nats://localhost:4222" or "tls://localhost:4222"
+	Address string `mapstructure:"address" validate:"required"`
+
+	// Subject is the NATS subject to subscribe to.
+	// Supports wildcards: * (single token), > (multiple tokens).
+	Subject string `mapstructure:"subject" validate:"required"`
+
+	// Stream is the JetStream stream name (optional, for JetStream).
+	Stream string `mapstructure:"stream"`
+
+	// Consumer is the JetStream consumer name (optional, for JetStream).
+	Consumer string `mapstructure:"consumer"`
+
+	// QueueGroup enables load balancing across multiple consumers (optional).
+	// Messages are distributed among queue group members.
 	QueueGroup string `mapstructure:"queueGroup"`
+
+	// Username for NATS authentication.
+	// Leave empty if authentication is not required.
+	Username string `mapstructure:"username"`
+
+	// Password for NATS authentication.
+	// Leave empty if authentication is not required.
+	// WARNING: Consider using environment variables or secret managers for production.
+	Password string `mapstructure:"password"`
+
+	// Token for NATS token-based authentication.
+	// Alternative to username/password authentication.
+	Token string `mapstructure:"token"`
+
+	// NKeyFile is the path to the NKey seed file for NKey authentication.
+	// Most secure authentication method for NATS.
+	NKeyFile string `mapstructure:"nkeyFile"`
+
+	// CredentialsFile is the path to the NATS credentials file (.creds).
+	// Used for JWT-based authentication with NATS account system.
+	CredentialsFile string `mapstructure:"credentialsFile"`
+
+	// TLS holds TLS/SSL configuration for secure connections.
+	TLS *tlsconfig.Config `mapstructure:"tls"`
+
+	// MaxReconnects is the maximum number of reconnection attempts.
+	// Default: 60 (approx. 10 minutes with default interval)
+	// Set to -1 for unlimited reconnects.
+	MaxReconnects int `mapstructure:"maxReconnects" default:"60" validate:"min=-1"`
+
+	// ReconnectWait is the time to wait between reconnection attempts.
+	// Default: 10 seconds
+	ReconnectWait time.Duration `mapstructure:"reconnectWait" default:"10s"`
+
+	// Name is a client name for identification in NATS server logs.
+	Name string `mapstructure:"name"`
 }
 
 type NATSSource struct {
@@ -45,9 +95,22 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 func (s *NATSSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	s.slog.Info("starting NATS source", "address", s.cfg.Address, "subject", s.cfg.Subject, "stream", s.cfg.Stream, "consumer", s.cfg.Consumer, "queueGroup", s.cfg.QueueGroup)
+	s.slog.Info("starting NATS source",
+		"address", s.cfg.Address,
+		"subject", s.cfg.Subject,
+		"stream", s.cfg.Stream,
+		"consumer", s.cfg.Consumer,
+		"queueGroup", s.cfg.QueueGroup,
+		"tls", s.cfg.TLS != nil && s.cfg.TLS.Enabled,
+		"auth", s.hasAuthentication())
 
-	nc, err := nats.Connect(s.cfg.Address)
+	// Build NATS connection options
+	opts, err := s.buildConnectionOptions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build connection options: %w", err)
+	}
+
+	nc, err := nats.Connect(s.cfg.Address, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
 	}
@@ -74,6 +137,65 @@ func (s *NATSSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 	}
 
 	return s.c, nil
+}
+
+// buildConnectionOptions creates NATS connection options with authentication and TLS.
+func (s *NATSSource) buildConnectionOptions() ([]nats.Option, error) {
+	opts := []nats.Option{}
+
+	// Set client name if provided
+	if s.cfg.Name != "" {
+		opts = append(opts, nats.Name(s.cfg.Name))
+	}
+
+	// Configure reconnection behavior
+	opts = append(opts,
+		nats.MaxReconnects(s.cfg.MaxReconnects),
+		nats.ReconnectWait(s.cfg.ReconnectWait),
+	)
+
+	// Configure authentication (in order of precedence)
+	if s.cfg.CredentialsFile != "" {
+		// JWT-based authentication (highest precedence)
+		opts = append(opts, nats.UserCredentials(s.cfg.CredentialsFile))
+		s.slog.Debug("using credentials file authentication")
+	} else if s.cfg.NKeyFile != "" {
+		// NKey authentication
+		opt, err := nats.NkeyOptionFromSeed(s.cfg.NKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load NKey: %w", err)
+		}
+		opts = append(opts, opt)
+		s.slog.Debug("using NKey authentication")
+	} else if s.cfg.Token != "" {
+		// Token authentication
+		opts = append(opts, nats.Token(s.cfg.Token))
+		s.slog.Debug("using token authentication")
+	} else if s.cfg.Username != "" {
+		// Username/password authentication
+		opts = append(opts, nats.UserInfo(s.cfg.Username, s.cfg.Password))
+		s.slog.Debug("using username/password authentication")
+	}
+
+	// Configure TLS
+	if s.cfg.TLS != nil && s.cfg.TLS.Enabled {
+		tlsConfig, err := s.cfg.TLS.BuildClientConfig()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build TLS config: %w", err)
+		}
+		opts = append(opts, nats.Secure(tlsConfig))
+		s.slog.Debug("TLS enabled", "minVersion", s.cfg.TLS.MinVersion)
+	}
+
+	return opts, nil
+}
+
+// hasAuthentication checks if any authentication method is configured.
+func (s *NATSSource) hasAuthentication() bool {
+	return s.cfg.Username != "" ||
+		s.cfg.Token != "" ||
+		s.cfg.NKeyFile != "" ||
+		s.cfg.CredentialsFile != ""
 }
 
 func (s *NATSSource) consumeCore(queue string) (err error) {
