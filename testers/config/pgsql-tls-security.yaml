@@ -1,0 +1,162 @@
+# PostgreSQL Connector with TLS and Security Examples
+# This configuration demonstrates various security features for PostgreSQL connector
+
+# Example 1: Basic TLS Connection
+sources:
+  - type: pgsql
+    connString: postgres://user:password@localhost:5432/mydb?sslmode=require
+    table: events
+    tls:
+      enabled: true
+      minVersion: "1.2"
+      caCertFile: /path/to/ca-cert.pem
+    strictValidation: true # Prevent SQL injection
+
+targets:
+  - type: pgsql
+    connString: postgres://user:password@localhost:5432/mydb?sslmode=require
+    table: processed_events
+    batchSize: 100
+    tls:
+      enabled: true
+      minVersion: "1.2"
+      caCertFile: /path/to/ca-cert.pem
+    strictValidation: true
+
+---
+# Example 2: Mutual TLS (mTLS) with Client Certificates
+sources:
+  - type: pgsql
+    connString: postgres://user:password@db.example.com:5432/mydb?sslmode=verify-full
+    table: user_events
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      certFile: /path/to/client-cert.pem
+      keyFile: /path/to/client-key.pem
+      caCertFile: /path/to/ca-cert.pem
+      insecureSkipVerify: false
+    maxConns: 4
+    minConns: 1
+    strictValidation: true
+
+targets:
+  - type: pgsql
+    connString: postgres://user:password@db.example.com:5432/mydb?sslmode=verify-full
+    table: processed_user_events
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      certFile: /path/to/client-cert.pem
+      keyFile: /path/to/client-key.pem
+      caCertFile: /path/to/ca-cert.pem
+    maxConns: 10
+    minConns: 2
+    strictValidation: true
+
+---
+# Example 3: With Conflict Resolution (Upsert)
+targets:
+  - type: pgsql
+    connString: postgres://user:password@localhost:5432/mydb?sslmode=require
+    table: events
+    onConflict: DO UPDATE
+    conflictColumns: id,timestamp
+    batchSize: 50
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      caCertFile: /path/to/ca-cert.pem
+    maxConns: 10
+    strictValidation: true
+
+---
+# Example 4: Production Setup with Connection Pool
+sources:
+  - type: pgsql
+    connString: postgres://events_reader:secure_pass@prod-db.example.com:5432/events_db?sslmode=verify-full
+    table: incoming_events
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      certFile: /etc/events-bridge/certs/client-cert.pem
+      keyFile: /etc/events-bridge/certs/client-key.pem
+      caCertFile: /etc/events-bridge/certs/ca-cert.pem
+      serverName: prod-db.example.com
+    maxConns: 4 # Limit connections for LISTEN
+    minConns: 1
+    strictValidation: true
+
+targets:
+  - type: pgsql
+    connString: postgres://events_writer:secure_pass@prod-db.example.com:5432/events_db?sslmode=verify-full
+    table: processed_events
+    otherColumn: metadata
+    onConflict: DO UPDATE
+    conflictColumns: event_id
+    batchSize: 100
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      certFile: /etc/events-bridge/certs/client-cert.pem
+      keyFile: /etc/events-bridge/certs/client-key.pem
+      caCertFile: /etc/events-bridge/certs/ca-cert.pem
+      serverName: prod-db.example.com
+    maxConns: 20 # Higher for concurrent writes
+    minConns: 5
+    strictValidation: true
+
+---
+# Example 5: Development (Local, No TLS)
+# WARNING: Use only in trusted development environments
+sources:
+  - type: pgsql
+    connString: postgres://dev:dev@localhost:5432/devdb?sslmode=disable
+    table: test_events
+    strictValidation: true # Still validate to catch errors early
+
+targets:
+  - type: pgsql
+    connString: postgres://dev:dev@localhost:5432/devdb?sslmode=disable
+    table: test_output
+    batchSize: 10
+    strictValidation: true
+
+---
+# Example 6: With Alternative Conflict Strategy
+targets:
+  - type: pgsql
+    connString: postgres://user:password@localhost:5432/mydb?sslmode=require
+    table: events
+    onConflict: DO NOTHING # Ignore duplicates
+    conflictConstraint: events_pkey
+    batchSize: 100
+    tls:
+      enabled: true
+      minVersion: "1.2"
+      caCertFile: /path/to/ca-cert.pem
+    strictValidation: true
+
+---
+# Security Best Practices:
+# 1. Always use strictValidation: true (default) to prevent SQL injection
+# 2. Enable TLS for production environments (minVersion: "1.3" recommended)
+# 3. Use verify-full sslmode in connection string for production
+# 4. Store credentials in environment variables or secret managers
+# 5. Use client certificates (mTLS) for maximum security
+# 6. Configure appropriate connection pool limits (maxConns, minConns)
+# 7. Use conflict resolution (onConflict) to handle duplicates safely
+# 8. Monitor connection pool usage and adjust limits as needed
+
+# Connection String SSL Modes:
+# - disable: No SSL (development only)
+# - require: Use SSL, but don't verify server certificate
+# - verify-ca: Use SSL and verify server certificate with CA
+# - verify-full: Use SSL, verify certificate and hostname (recommended)
+
+# Table Name Validation:
+# - strictValidation: true enforces strict identifier validation
+# - Only allows: letters, numbers, underscores
+# - Must start with letter or underscore
+# - Maximum 63 characters (PostgreSQL limit)
+# - Prevents SQL injection attempts
