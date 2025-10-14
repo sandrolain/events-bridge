@@ -7,10 +7,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -229,6 +231,49 @@ func createMockOpenAIServer(t *testing.T) *httptest.Server {
 
 		w.Header().Set("Content-Type", contentType)
 		json.NewEncoder(w).Encode(response)
+	}))
+}
+
+// createMockServerWithTransient429 returns 429 for the first N attempts, then 200
+func createMockServerWithTransient429(t *testing.T, failCount int) *httptest.Server {
+	var calls int
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != baseURL {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		calls++
+		if calls <= failCount {
+			w.Header().Set("Content-Type", contentType)
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(mockErrorResponse{Error: struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+			}{Message: "rate limited", Type: "rate_limit"}})
+			return
+		}
+		// Success payload after failures
+		var req mockChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		resp := mockChatResponse{
+			ID:      "ok",
+			Object:  "chat.completion",
+			Created: time.Now().Unix(),
+			Model:   req.Model,
+			Choices: []mockChatChoice{{
+				Index: 0,
+				Message: mockChatMessage{
+					Role:    assistantRole,
+					Content: "Recovered after 429",
+				},
+				FinishReason: "stop",
+			}},
+		}
+		w.Header().Set("Content-Type", contentType)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 }
 
@@ -453,3 +498,91 @@ func TestGPTRunnerTimeout(t *testing.T) {
 		t.Errorf("Expected timeout-related error, got: %v", err)
 	}
 }
+
+func TestResolveSecretFromEnv(t *testing.T) {
+	const envName = "TEST_OPENAI_KEY"
+	const envVal = "from-env-key"
+	t.Setenv(envName, envVal)
+	val, err := resolveSecret("env:" + envName)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if val != envVal {
+		t.Fatalf("expected %q, got %q", envVal, val)
+	}
+}
+
+func TestResolveSecretFromFile(t *testing.T) {
+	f, err := os.CreateTemp("", "openai-key-*")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(f.Name())
+	if _, err := f.WriteString("secret-from-file\n"); err != nil {
+		t.Fatalf("failed writing temp file: %v", err)
+	}
+	_ = f.Close()
+
+	val, err := resolveSecret("file:" + f.Name())
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if val != "secret-from-file" {
+		t.Fatalf("expected 'secret-from-file', got %q", val)
+	}
+}
+
+func TestResolveSecretFileRequiresAbsolute(t *testing.T) {
+	_, err := resolveSecret("file:relative-path.txt")
+	if err == nil {
+		t.Fatal("expected error for relative file path")
+	}
+}
+
+func TestRetriesOn429ThenSuccess(t *testing.T) {
+	server := createMockServerWithTransient429(t, 1)
+	defer server.Close()
+
+	cfg := &RunnerConfig{
+		ApiURL:       server.URL,
+		ApiKey:       testAPIKey,
+		Prompt:       testPrompt,
+		Model:        testModel,
+		MaxTokens:    50,
+		Timeout:      2 * time.Second,
+		Retries:      2,
+		RetryBackoff: 100 * time.Millisecond,
+	}
+
+	runner, err := NewRunner(cfg)
+	if err != nil {
+		t.Fatalf(failedToCreateRunner, err)
+	}
+
+	msg := createTestMessage([]byte("retry please"), nil)
+	if err := runner.Process(msg); err != nil {
+		t.Fatalf("expected success after retry, got %v", err)
+	}
+}
+
+func TestTLSClientBuildError(t *testing.T) {
+	// Provide only cert without key -> BuildClientConfig should fail
+	cfg := &RunnerConfig{
+		ApiURL:  "http://127.0.0.1",
+		ApiKey:  testAPIKey,
+		Prompt:  testPrompt,
+		Model:   testModel,
+		Timeout: 2 * time.Second,
+		TLS: &tlsconfig.Config{
+			Enabled:    true,
+			CertFile:   "/tmp/nonexistent-cert.pem",
+			MinVersion: "1.2",
+		},
+	}
+	_, err := NewRunner(cfg)
+	if err == nil {
+		t.Fatal("expected error when TLS cert/key are incomplete")
+	}
+}
+
+// (intentionally no additional helpers)
