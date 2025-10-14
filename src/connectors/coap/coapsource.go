@@ -127,12 +127,33 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 
 	s.slog.Debug("received CoAP request", "method", method, "path", path)
 
+	// Validate method and path
+	if err := s.validateRequest(w, method, path); err != nil {
+		return
+	}
+
+	// Read and validate payload
+	preloaded, err := s.readRequestBody(w, req)
+	if err != nil {
+		return
+	}
+
+	// Create message and send to channel
+	msg := s.createCoAPMessage(req, w, preloaded)
+	s.c <- message.NewRunnerMessage(msg)
+
+	// Wait for response and send CoAP reply
+	s.sendCoAPResponse(w, msg)
+}
+
+// validateRequest checks if method and path match configuration
+func (s *CoAPSource) validateRequest(w coapmux.ResponseWriter, method, path string) error {
 	if s.cfg.Method != "" && method != s.cfg.Method {
 		err := w.SetResponse(coapcodes.MethodNotAllowed, coapmessage.TextPlain, nil)
 		if err != nil {
 			s.slog.Error(failResponseError, "err", err)
 		}
-		return
+		return fmt.Errorf("method not allowed: %s", method)
 	}
 
 	if path != s.cfg.Path {
@@ -140,43 +161,53 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 		if err != nil {
 			s.slog.Error(failResponseError, "err", err)
 		}
-		return
+		return fmt.Errorf("path not found: %s", path)
 	}
 
-	// Enforce max payload size by reading body up to limit (MaxPayloadSize + 1)
-	var preloaded []byte
-	if body := req.Body(); body != nil {
-		if s.cfg.MaxPayloadSize > 0 {
-			lr := &io.LimitedReader{R: body, N: int64(s.cfg.MaxPayloadSize) + 1}
-			var buf bytes.Buffer
-			n, _ := buf.ReadFrom(lr)
-			if n > int64(s.cfg.MaxPayloadSize) {
-				if err := w.SetResponse(coapcodes.RequestEntityTooLarge, coapmessage.TextPlain, nil); err != nil {
-					s.slog.Error(failResponseError, "err", err)
-				}
-				return
+	return nil
+}
+
+// readRequestBody reads and validates the request body size
+func (s *CoAPSource) readRequestBody(w coapmux.ResponseWriter, req *coapmux.Message) ([]byte, error) {
+	body := req.Body()
+	if body == nil {
+		return nil, nil
+	}
+
+	var buf bytes.Buffer
+	if s.cfg.MaxPayloadSize > 0 {
+		lr := &io.LimitedReader{R: body, N: int64(s.cfg.MaxPayloadSize) + 1}
+		n, _ := buf.ReadFrom(lr)
+		if n > int64(s.cfg.MaxPayloadSize) {
+			if err := w.SetResponse(coapcodes.RequestEntityTooLarge, coapmessage.TextPlain, nil); err != nil {
+				s.slog.Error(failResponseError, "err", err)
 			}
-			preloaded = buf.Bytes()
-		} else {
-			var buf bytes.Buffer
-			_, _ = buf.ReadFrom(body)
-			preloaded = buf.Bytes()
+			return nil, fmt.Errorf("payload too large: %d bytes", n)
 		}
+	} else {
+		_, _ = buf.ReadFrom(body)
 	}
 
+	return buf.Bytes(), nil
+}
+
+// createCoAPMessage creates a CoAPMessage with channels
+func (s *CoAPSource) createCoAPMessage(req *coapmux.Message, w coapmux.ResponseWriter, data []byte) *CoAPMessage {
 	done := make(chan message.ResponseStatus)
 	reply := make(chan *message.ReplyData)
-	msg := &CoAPMessage{
+	return &CoAPMessage{
 		req:   req,
 		w:     w,
 		done:  done,
 		reply: reply,
-		data:  preloaded,
+		data:  data,
 	}
+}
 
-	s.c <- message.NewRunnerMessage(msg)
+// sendCoAPResponse waits for response and sends CoAP reply
+func (s *CoAPSource) sendCoAPResponse(w coapmux.ResponseWriter, msg *CoAPMessage) {
+	r, status, timeout := message.AwaitReplyOrStatus(s.cfg.Timeout, msg.done, msg.reply)
 
-	r, status, timeout := message.AwaitReplyOrStatus(s.cfg.Timeout, done, reply)
 	var err error
 	if timeout {
 		err = w.SetResponse(coapcodes.GatewayTimeout, coapmessage.TextPlain, nil)
@@ -184,17 +215,23 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 		contentFormat := coapTypeFromMetadata(r.Metadata)
 		err = w.SetResponse(coapcodes.Content, contentFormat, bytes.NewReader(r.Data))
 	} else if status != nil {
-		switch *status {
-		case message.ResponseStatusAck:
-			err = w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
-		case message.ResponseStatusNak:
-			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
-		default:
-			err = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
-		}
+		err = s.setStatusResponse(w, *status)
 	}
+
 	if err != nil {
 		s.slog.Error("failed to set CoAP response", "err", err)
+	}
+}
+
+// setStatusResponse converts message status to CoAP response code
+func (s *CoAPSource) setStatusResponse(w coapmux.ResponseWriter, status message.ResponseStatus) error {
+	switch status {
+	case message.ResponseStatusAck:
+		return w.SetResponse(coapcodes.Changed, coapmessage.TextPlain, nil)
+	case message.ResponseStatusNak:
+		return w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
+	default:
+		return w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 	}
 }
 

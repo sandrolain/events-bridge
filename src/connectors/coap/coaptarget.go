@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -10,10 +9,6 @@ import (
 	"time"
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
-	coaptcp "github.com/plgd-dev/go-coap/v3/tcp"
-	coapudp "github.com/plgd-dev/go-coap/v3/udp"
-	coapudpclient "github.com/plgd-dev/go-coap/v3/udp/client"
-
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -80,11 +75,11 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 
 	switch protocol {
 	case "udp":
-		err = t.sendUDP(ctx, method, path, address, contentFormat, data)
+		err = t.sendCoAP(ctx, method, path, address, contentFormat, data, "udp")
 	case "tcp":
-		err = t.sendTCP(ctx, method, path, address, contentFormat, data)
+		err = t.sendCoAP(ctx, method, path, address, contentFormat, data, "tcp")
 	case "dtls":
-		err = t.sendDTLS(ctx, method, path, address, contentFormat, data)
+		err = t.sendCoAP(ctx, method, path, address, contentFormat, data, "dtls")
 	default:
 		return fmt.Errorf("unsupported coap protocol: %s", protocol)
 	}
@@ -97,81 +92,27 @@ func (t *CoAPTarget) Consume(msg *message.RunnerMessage) error {
 	return nil
 }
 
-func (t *CoAPTarget) sendUDP(ctx context.Context, method, path, address string, contentFormat coapmessage.MediaType, data []byte) error {
-	client, err := coapudp.Dial(address)
-	if err != nil {
-		return fmt.Errorf("failed to dial coap server: %w", err)
-	}
-	defer func() {
-		if e := client.Close(); e != nil {
-			t.slog.Error("error closing coap client", "err", e)
-		}
-	}()
-	switch method {
-	case "POST":
-		_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
-	case "PUT":
-		_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
-	case "GET":
-		_, err = client.Get(ctx, path)
-	default:
-		return fmt.Errorf(errUnsupportedCoapMethod, method)
-	}
-	return err
-}
-
-func (t *CoAPTarget) sendTCP(ctx context.Context, method, path, address string, contentFormat coapmessage.MediaType, data []byte) error {
-	client, err := coaptcp.Dial(address)
-	if err != nil {
-		return fmt.Errorf("failed to dial coap server: %w", err)
-	}
-	defer func() {
-		if e := client.Close(); e != nil {
-			t.slog.Error("error closing coap client", "err", e)
-		}
-	}()
-	switch method {
-	case "POST":
-		_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
-	case "PUT":
-		_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
-	case "GET":
-		_, err = client.Get(ctx, path)
-	default:
-		return fmt.Errorf(errUnsupportedCoapMethod, method)
-	}
-	return err
-}
-
-func (t *CoAPTarget) sendDTLS(ctx context.Context, method, path, address string, contentFormat coapmessage.MediaType, data []byte) error {
-	var client *coapudpclient.Conn
+func (t *CoAPTarget) sendCoAP(ctx context.Context, method, path, address string, contentFormat coapmessage.MediaType, data []byte, protocol string) error {
+	var client coapClient
 	var err error
 
-	if t.cfg.PSK != "" {
-		client, err = buildDTLSClientPSK(t.cfg.PSKIdentity, t.cfg.PSK, address)
-	} else {
-		client, err = buildDTLSClientCert(t.cfg.TLSCertFile, t.cfg.TLSKeyFile, address)
+	switch protocol {
+	case "udp":
+		client, err = createUDPClient(address, t.slog)
+	case "tcp":
+		client, err = createTCPClient(address, t.slog)
+	case "dtls":
+		client, err = createDTLSClient(t.cfg.PSKIdentity, t.cfg.PSK, t.cfg.TLSCertFile, t.cfg.TLSKeyFile, address, t.slog)
+	default:
+		return fmt.Errorf("unsupported coap protocol: %s", protocol)
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to create DTLS client: %w", err)
+		return err
 	}
-	defer func() {
-		if e := client.Close(); e != nil {
-			t.slog.Error("error closing dtls client", "err", e)
-		}
-	}()
+	defer client.Close()
 
-	switch method {
-	case "POST":
-		_, err = client.Post(ctx, path, contentFormat, bytes.NewReader(data))
-	case "PUT":
-		_, err = client.Put(ctx, path, contentFormat, bytes.NewReader(data))
-	case "GET":
-		_, err = client.Get(ctx, path)
-	default:
-		return fmt.Errorf(errUnsupportedCoapMethod, method)
-	}
+	_, err = sendCoAPRequest(ctx, client, method, path, contentFormat, data)
 	return err
 }
 
