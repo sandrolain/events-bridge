@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/common/encdec"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -68,7 +67,7 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}
 
 	// Resolve API key: support raw, env:VAR, file:/path
-	apiKey, err := resolveSecret(cfg.ApiKey)
+	apiKey, err := secrets.Resolve(cfg.ApiKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve apiKey: %w", err)
 	}
@@ -273,34 +272,6 @@ func buildHTTPClient(cfg *RunnerConfig) (*http.Client, error) {
 		Timeout:   timeout + 2*time.Second,
 	}
 	return client, nil
-}
-
-// resolveSecret supports prefixes:
-// - "env:NAME" to read from environment variable NAME
-// - "file:/path" to read the contents of a file
-// Any other value is returned as-is
-func resolveSecret(value string) (string, error) {
-	v := strings.TrimSpace(value)
-	if v == "" {
-		return "", nil
-	}
-	if strings.HasPrefix(v, "env:") {
-		name := strings.TrimPrefix(v, "env:")
-		return os.Getenv(name), nil
-	}
-	if strings.HasPrefix(v, "file:") {
-		path := strings.TrimPrefix(v, "file:")
-		// Basic hardening: require absolute path to avoid traversal of relative locations
-		if !strings.HasPrefix(path, "/") {
-			return "", fmt.Errorf("file secret path must be absolute")
-		}
-		b, err := os.ReadFile(path) // #nosec G304 - path is user-provided by configuration and required for file-based secrets; we enforce absolute path above.
-		if err != nil {
-			return "", fmt.Errorf("read file %s: %w", path, err)
-		}
-		return strings.TrimSpace(string(b)), nil
-	}
-	return v, nil
 }
 
 // createChatWithRetry executes CreateChatCompletion with basic retry/backoff on transient errors

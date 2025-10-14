@@ -6,26 +6,25 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"os"
-	"strings"
 
 	piondtls "github.com/pion/dtls/v3"
 	"github.com/plgd-dev/go-coap/v3"
 	coapdtls "github.com/plgd-dev/go-coap/v3/dtls"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 	coapudpclient "github.com/plgd-dev/go-coap/v3/udp/client"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 )
 
 // buildDTLSServer constructs a DTLS server (PSK or cert mode) and starts listening.
 func buildDTLSServer(cfg *SourceConfig, router *coapmux.Router) error {
-	// Resolve PSK if using PSK mode
+	// Accept only PSK or cert pair, and resolve PSK secret
 	psk := cfg.PSK
 	if psk != "" {
-		resolved, err := resolveSecret(psk)
+		resolvedPSK, err := secrets.Resolve(psk)
 		if err != nil {
-			return fmt.Errorf("failed to resolve PSK: %w", err)
+			return fmt.Errorf("failed to resolve PSK secret: %w", err)
 		}
-		psk = resolved
+		psk = resolvedPSK
 	}
 
 	dtlsConfig, err := buildDTLSConfig(cfg.PSKIdentity, psk, cfg.TLSCertFile, cfg.TLSKeyFile)
@@ -43,7 +42,7 @@ func buildDTLSServer(cfg *SourceConfig, router *coapmux.Router) error {
 // buildDTLSClientPSK creates a DTLS client using PSK authentication.
 func buildDTLSClientPSK(identity, psk, address string) (*coapudpclient.Conn, error) {
 	// Resolve PSK secret
-	resolvedPSK, err := resolveSecret(psk)
+	resolvedPSK, err := secrets.Resolve(psk)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve PSK: %w", err)
 	}
@@ -107,32 +106,4 @@ func buildDTLSConfig(pskIdentity, psk, certFile, keyFile string) (*piondtls.Conf
 	}
 
 	return nil, fmt.Errorf("neither PSK nor certificate provided for DTLS config")
-}
-
-// resolveSecret supports prefixes:
-// - "env:NAME" to read from environment variable NAME
-// - "file:/path" to read the contents of a file
-// Any other value is returned as-is
-func resolveSecret(value string) (string, error) {
-	v := strings.TrimSpace(value)
-	if v == "" {
-		return "", nil
-	}
-	if strings.HasPrefix(v, "env:") {
-		name := strings.TrimPrefix(v, "env:")
-		return os.Getenv(name), nil
-	}
-	if strings.HasPrefix(v, "file:") {
-		path := strings.TrimPrefix(v, "file:")
-		// Basic hardening: require absolute path to avoid traversal of relative locations
-		if !strings.HasPrefix(path, "/") {
-			return "", fmt.Errorf("file secret path must be absolute")
-		}
-		b, err := os.ReadFile(path) // #nosec G304 - path is user-provided by configuration and required for file-based secrets; we enforce absolute path above.
-		if err != nil {
-			return "", fmt.Errorf("read file %s: %w", path, err)
-		}
-		return strings.TrimSpace(string(b)), nil
-	}
-	return v, nil
 }

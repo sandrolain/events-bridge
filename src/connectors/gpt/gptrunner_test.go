@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -503,7 +504,7 @@ func TestResolveSecretFromEnv(t *testing.T) {
 	const envName = "TEST_OPENAI_KEY"
 	const envVal = "from-env-key"
 	t.Setenv(envName, envVal)
-	val, err := resolveSecret("env:" + envName)
+	val, err := secrets.Resolve("env:" + envName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -523,7 +524,7 @@ func TestResolveSecretFromFile(t *testing.T) {
 	}
 	_ = f.Close()
 
-	val, err := resolveSecret("file:" + f.Name())
+	val, err := secrets.Resolve("file:" + f.Name())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -533,7 +534,7 @@ func TestResolveSecretFromFile(t *testing.T) {
 }
 
 func TestResolveSecretFileRequiresAbsolute(t *testing.T) {
-	_, err := resolveSecret("file:relative-path.txt")
+	_, err := secrets.Resolve("file:relative-path.txt")
 	if err == nil {
 		t.Fatal("expected error for relative file path")
 	}
