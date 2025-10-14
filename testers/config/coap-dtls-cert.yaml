@@ -1,0 +1,43 @@
+connectors:
+  # CoAP Source with DTLS certificate-based authentication
+  - name: coap_dtls_cert_source
+    type: source
+    connector: coap
+    config:
+      protocol: dtls
+      address: "0.0.0.0:5684"
+      path: "/secure"
+      method: POST
+      tlsCertFile: "/etc/certs/coap-server.crt"
+      tlsKeyFile: "/etc/certs/coap-server.key"
+      maxPayloadSize: 1152
+
+  # CoAP Target with DTLS certificate-based authentication
+  - name: coap_dtls_cert_target
+    type: target
+    connector: coap
+    config:
+      protocol: dtls
+      address: "secure-coap-server.example.com:5684"
+      path: "/api/ingest"
+      method: POST
+      timeout: 10s
+      tlsCertFile: "/etc/certs/coap-client.crt"
+      tlsKeyFile: "/etc/certs/coap-client.key"
+
+  # CoAP Runner with DTLS certificate-based authentication
+  - name: coap_dtls_cert_runner
+    type: runner
+    connector: coap
+    config:
+      protocol: dtls
+      address: "192.168.1.100:5684"
+      path: "/process"
+      method: POST
+      timeout: 5s
+      tlsCertFile: "/etc/certs/coap-runner.crt"
+      tlsKeyFile: "/etc/certs/coap-runner.key"
+
+routes:
+  - source: coap_dtls_cert_source
+    target: coap_dtls_cert_target

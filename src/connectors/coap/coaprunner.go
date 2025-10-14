@@ -12,6 +12,7 @@ import (
 	coapcodes "github.com/plgd-dev/go-coap/v3/message/codes"
 	coaptcp "github.com/plgd-dev/go-coap/v3/tcp"
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
+	coapudpclient "github.com/plgd-dev/go-coap/v3/udp/client"
 
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -21,11 +22,15 @@ import (
 var _ connectors.Runner = (*CoAPRunner)(nil)
 
 type CoAPRunnerConfig struct {
-	Protocol CoAPProtocol  `mapstructure:"protocol" default:"udp" validate:"oneof=udp tcp"`
-	Address  string        `mapstructure:"address" validate:"required"`
-	Path     string        `mapstructure:"path" validate:"required"`
-	Method   string        `mapstructure:"method" validate:"required,oneof=GET POST PUT"`
-	Timeout  time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Protocol    CoAPProtocol  `mapstructure:"protocol" default:"udp" validate:"oneof=udp tcp dtls"`
+	Address     string        `mapstructure:"address" validate:"required"`
+	Path        string        `mapstructure:"path" validate:"required"`
+	Method      string        `mapstructure:"method" validate:"required,oneof=GET POST PUT"`
+	Timeout     time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	PSKIdentity string        `mapstructure:"pskIdentity"`
+	PSK         string        `mapstructure:"psk"` // supports plain, env:VAR, or file:/abs/path
+	TLSCertFile string        `mapstructure:"tlsCertFile"`
+	TLSKeyFile  string        `mapstructure:"tlsKeyFile"`
 }
 
 func NewRunnerConfig() any { //nolint:revive
@@ -36,6 +41,9 @@ func NewRunner(anyCfg any) (connectors.Runner, error) { //nolint:revive
 	cfg, ok := anyCfg.(*CoAPRunnerConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
+	}
+	if err := validateRunnerSecurity(cfg); err != nil {
+		return nil, err
 	}
 	return &CoAPRunner{
 		cfg:  cfg,
@@ -73,6 +81,8 @@ func (r *CoAPRunner) Process(msg *message.RunnerMessage) error {
 		code, payload, err = r.sendUDP(ctx, method, path, address, contentFormat, data)
 	case "tcp":
 		code, payload, err = r.sendTCP(ctx, method, path, address, contentFormat, data)
+	case "dtls":
+		code, payload, err = r.sendDTLS(ctx, method, path, address, contentFormat, data)
 	default:
 		return fmt.Errorf("unsupported coap protocol: %s", protocol)
 	}
@@ -178,7 +188,78 @@ func (r *CoAPRunner) sendTCP(ctx context.Context, method, path, address string, 
 	}
 }
 
+func (r *CoAPRunner) sendDTLS(ctx context.Context, method, path, address string, contentFormat coapmessage.MediaType, data []byte) (coapcodes.Code, []byte, error) {
+	var client *coapudpclient.Conn
+	var err error
+
+	if r.cfg.PSK != "" {
+		client, err = buildDTLSClientPSK(r.cfg.PSKIdentity, r.cfg.PSK, address)
+	} else {
+		client, err = buildDTLSClientCert(r.cfg.TLSCertFile, r.cfg.TLSKeyFile, address)
+	}
+
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to create DTLS client: %w", err)
+	}
+	defer func() {
+		if e := client.Close(); e != nil {
+			r.slog.Error("error closing dtls client", "err", e)
+		}
+	}()
+
+	switch method {
+	case "POST":
+		resp, err := client.Post(ctx, path, contentFormat, bytes.NewReader(data))
+		if err != nil {
+			return 0, nil, err
+		}
+		b, _ := resp.ReadBody()
+		return resp.Code(), b, nil
+	case "PUT":
+		resp, err := client.Put(ctx, path, contentFormat, bytes.NewReader(data))
+		if err != nil {
+			return 0, nil, err
+		}
+		b, _ := resp.ReadBody()
+		return resp.Code(), b, nil
+	case "GET":
+		resp, err := client.Get(ctx, path)
+		if err != nil {
+			return 0, nil, err
+		}
+		b, _ := resp.ReadBody()
+		return resp.Code(), b, nil
+	default:
+		return 0, nil, fmt.Errorf(errUnsupportedCoapMethod, method)
+	}
+}
+
 func (r *CoAPRunner) Close() error { //nolint:revive
 	r.slog.Info("closing coap runner")
+	return nil
+}
+
+// validateRunnerSecurity mirrors target/source DTLS validation logic for runner.
+func validateRunnerSecurity(cfg *CoAPRunnerConfig) error {
+	if cfg.Protocol != CoAPProtocolDTLS {
+		return nil
+	}
+	hasPSK := cfg.PSK != "" || cfg.PSKIdentity != ""
+	hasCert := cfg.TLSCertFile != "" || cfg.TLSKeyFile != ""
+	if hasPSK && hasCert {
+		return fmt.Errorf("psk/pskIdentity and tlsCertFile/tlsKeyFile are mutually exclusive")
+	}
+	if !hasPSK && !hasCert {
+		return fmt.Errorf("dtls requires either psk+pskIdentity or tlsCertFile+tlsKeyFile")
+	}
+	if hasPSK {
+		if cfg.PSK == "" || cfg.PSKIdentity == "" {
+			return fmt.Errorf("both psk and pskIdentity must be provided for DTLS PSK mode")
+		}
+	} else {
+		if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+			return fmt.Errorf("both tlsCertFile and tlsKeyFile must be provided for DTLS certificate mode")
+		}
+	}
 	return nil
 }

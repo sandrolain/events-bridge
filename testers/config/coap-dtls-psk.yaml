@@ -1,0 +1,46 @@
+connectors:
+  # CoAP Source with DTLS PSK authentication
+  # PSK secret loaded from environment variable
+  - name: coap_dtls_source
+    type: source
+    connector: coap
+    config:
+      protocol: dtls
+      address: "0.0.0.0:5684"
+      path: "/secure"
+      method: POST
+      pskIdentity: "client-identity"
+      psk: "env:COAP_PSK_SECRET" # Load from environment variable
+      maxPayloadSize: 1152
+
+  # CoAP Target with DTLS PSK authentication
+  # PSK secret loaded from file
+  - name: coap_dtls_target
+    type: target
+    connector: coap
+    config:
+      protocol: dtls
+      address: "secure-coap-server.example.com:5684"
+      path: "/api/ingest"
+      method: POST
+      timeout: 10s
+      pskIdentity: "events-bridge-client"
+      psk: "file:/etc/secrets/coap-psk.txt" # Load from file (absolute path required)
+
+  # CoAP Runner with DTLS PSK authentication
+  # PSK as plain text (not recommended for production)
+  - name: coap_dtls_runner
+    type: runner
+    connector: coap
+    config:
+      protocol: dtls
+      address: "192.168.1.100:5684"
+      path: "/process"
+      method: POST
+      timeout: 5s
+      pskIdentity: "runner-client"
+      psk: "my-plain-text-secret" # Plain text (use env: or file: in production)
+
+routes:
+  - source: coap_dtls_source
+    target: coap_dtls_target

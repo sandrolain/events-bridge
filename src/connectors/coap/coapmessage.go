@@ -16,6 +16,7 @@ type CoAPMessage struct {
 	w     coapmux.ResponseWriter
 	done  chan message.ResponseStatus
 	reply chan *message.ReplyData
+	data  []byte
 }
 
 func (m *CoAPMessage) GetID() []byte {
@@ -42,6 +43,9 @@ func (m *CoAPMessage) GetMetadata() (map[string]string, error) {
 }
 
 func (m *CoAPMessage) GetData() ([]byte, error) {
+	if m.data != nil {
+		return m.data, nil
+	}
 	body := m.req.Body()
 	if body == nil {
 		return nil, nil

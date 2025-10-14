@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"time"
@@ -18,11 +19,20 @@ import (
 )
 
 type SourceConfig struct {
-	Protocol CoAPProtocol  `mapstructure:"protocol" default:"udp" validate:"oneof=udp tcp"`
+	Protocol CoAPProtocol  `mapstructure:"protocol" default:"udp" validate:"oneof=udp tcp dtls"`
 	Address  string        `mapstructure:"address" validate:"required"`
 	Path     string        `mapstructure:"path" validate:"required"`
 	Method   string        `mapstructure:"method" validate:"required"`
 	Timeout  time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	// MaxPayloadSize limits the request body size in bytes (CoAP default MTU-based typical 1152)
+	MaxPayloadSize int `mapstructure:"maxPayloadSize" default:"1152" validate:"gte=0"`
+	// DTLS Pre-Shared Key identity
+	PSKIdentity string `mapstructure:"pskIdentity"`
+	// DTLS Pre-Shared Key secret (supports plain, env:VAR, or file:/abs/path)
+	PSK string `mapstructure:"psk"`
+	// Use certificate-based DTLS (mutually exclusive with PSK)
+	TLSCertFile string `mapstructure:"tlsCertFile"`
+	TLSKeyFile  string `mapstructure:"tlsKeyFile"`
 }
 
 func NewSourceConfig() any {
@@ -35,10 +45,42 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
+	if err := validateSourceSecurity(cfg); err != nil {
+		return nil, err
+	}
 	return &CoAPSource{
 		cfg:  cfg,
 		slog: slog.Default().With("context", "CoAP Source"),
 	}, nil
+}
+
+// validateSourceSecurity validates DTLS-related security configuration.
+// Rules:
+// - If protocol != dtls: ignore DTLS fields.
+// - If protocol == dtls: either PSK+PSKIdentity OR (TLSCertFile & TLSKeyFile) must be provided.
+// - PSK and cert mode are mutually exclusive.
+func validateSourceSecurity(cfg *SourceConfig) error {
+	if cfg.Protocol != CoAPProtocolDTLS {
+		return nil
+	}
+	hasPSK := cfg.PSK != "" || cfg.PSKIdentity != ""
+	hasCert := cfg.TLSCertFile != "" || cfg.TLSKeyFile != ""
+	if hasPSK && hasCert {
+		return fmt.Errorf("psk/pskIdentity and tlsCertFile/tlsKeyFile are mutually exclusive")
+	}
+	if !hasPSK && !hasCert {
+		return fmt.Errorf("dtls requires either psk+pskIdentity or tlsCertFile+tlsKeyFile")
+	}
+	if hasPSK {
+		if cfg.PSK == "" || cfg.PSKIdentity == "" {
+			return fmt.Errorf("both psk and pskIdentity must be provided for DTLS PSK mode")
+		}
+	} else {
+		if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+			return fmt.Errorf("both tlsCertFile and tlsKeyFile must be provided for DTLS certificate mode")
+		}
+	}
+	return nil
 }
 
 type CoAPSource struct {
@@ -61,12 +103,18 @@ func (s *CoAPSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 		return nil, err
 	}
 
-	go func() {
-		err := coap.ListenAndServe(string(s.cfg.Protocol), s.cfg.Address, router)
-		if err != nil {
-			s.slog.Error("failed to start CoAP server", "err", err)
+	if s.cfg.Protocol == CoAPProtocolDTLS {
+		if err := buildDTLSServer(s.cfg, router); err != nil {
+			return nil, fmt.Errorf("failed to start DTLS server: %w", err)
 		}
-	}()
+	} else {
+		go func() {
+			err := coap.ListenAndServe(string(s.cfg.Protocol), s.cfg.Address, router)
+			if err != nil {
+				s.slog.Error("failed to start CoAP server", "err", err)
+			}
+		}()
+	}
 
 	return s.c, nil
 }
@@ -95,6 +143,27 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 		return
 	}
 
+	// Enforce max payload size by reading body up to limit (MaxPayloadSize + 1)
+	var preloaded []byte
+	if body := req.Body(); body != nil {
+		if s.cfg.MaxPayloadSize > 0 {
+			lr := &io.LimitedReader{R: body, N: int64(s.cfg.MaxPayloadSize) + 1}
+			var buf bytes.Buffer
+			n, _ := buf.ReadFrom(lr)
+			if n > int64(s.cfg.MaxPayloadSize) {
+				if err := w.SetResponse(coapcodes.RequestEntityTooLarge, coapmessage.TextPlain, nil); err != nil {
+					s.slog.Error(failResponseError, "err", err)
+				}
+				return
+			}
+			preloaded = buf.Bytes()
+		} else {
+			var buf bytes.Buffer
+			_, _ = buf.ReadFrom(body)
+			preloaded = buf.Bytes()
+		}
+	}
+
 	done := make(chan message.ResponseStatus)
 	reply := make(chan *message.ReplyData)
 	msg := &CoAPMessage{
@@ -102,6 +171,7 @@ func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) 
 		w:     w,
 		done:  done,
 		reply: reply,
+		data:  preloaded,
 	}
 
 	s.c <- message.NewRunnerMessage(msg)
@@ -138,7 +208,9 @@ func (s *CoAPSource) Close() error {
 // Middleware function, which will be called for each request.
 func loggingMiddleware(next coapmux.Handler) coapmux.Handler {
 	return coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {
-		log.Printf("ClientAddress %v, %v\n", w.Conn().RemoteAddr(), r.String())
+		// Avoid logging full message payloads to prevent sensitive data leakage
+		p, _ := r.Options().Path()
+		log.Printf("ClientAddress %v, Code %v, Path %v\n", w.Conn().RemoteAddr(), r.Code(), p)
 		next.ServeCOAP(w, r)
 	})
 }
