@@ -39,6 +39,7 @@ func TestCLITargetJSON(t *testing.T) {
 		Format:      "json",
 		MetadataKey: "metadata",
 		DataKey:     "data",
+		UseShell:    true, // Enable shell for test
 	}
 
 	targetAny, err := NewTarget(cfg)
@@ -100,6 +101,7 @@ func TestCLITargetCBOR(t *testing.T) {
 		Format:      "CBOR",
 		MetadataKey: "metadata",
 		DataKey:     "data",
+		UseShell:    true, // Enable shell for test
 	}
 
 	targetAny, err := NewTarget(cfg)
@@ -154,10 +156,11 @@ func TestCLITargetJSONDataOnly(t *testing.T) {
 	args := []string{"-c", fmt.Sprintf("cat > %q", tmpFile)}
 
 	cfg := &TargetConfig{
-		Command: script,
-		Args:    args,
-		Timeout: 5 * time.Second, // Increased timeout for race detector
-		Format:  "json",
+		Command:  script,
+		Args:     args,
+		Timeout:  5 * time.Second, // Increased timeout for race detector
+		Format:   "json",
+		UseShell: true, // Enable shell for test
 	}
 
 	targetAny, err := NewTarget(cfg)

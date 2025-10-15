@@ -44,4 +44,4 @@ trivy-results.json
 context/
 /main
 
-src/**/README.md
+src/**/*.md

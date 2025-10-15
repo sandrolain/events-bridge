@@ -16,13 +16,18 @@ import (
 )
 
 type TargetConfig struct {
-	Command     string            `mapstructure:"command" validate:"required"`
-	Timeout     time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
-	Args        []string          `mapstructure:"args"`
-	Envs        map[string]string `mapstructure:"envs"`
-	Format      string            `mapstructure:"format" default:"cli" validate:"required,oneof=json cbor cli"`
-	MetadataKey string            `mapstructure:"metadataKey" default:"metadata" validate:"required"`
-	DataKey     string            `mapstructure:"dataKey" default:"data" validate:"required"`
+	Command         string            `mapstructure:"command" validate:"required"`
+	Timeout         time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Args            []string          `mapstructure:"args"`
+	Envs            map[string]string `mapstructure:"envs"`
+	Format          string            `mapstructure:"format" default:"cli" validate:"required,oneof=json cbor cli"`
+	MetadataKey     string            `mapstructure:"metadataKey" default:"metadata" validate:"required"`
+	DataKey         string            `mapstructure:"dataKey" default:"data" validate:"required"`
+	AllowedCommands []string          `mapstructure:"allowedCommands"`                 // Whitelist of allowed commands
+	WorkDir         string            `mapstructure:"workDir"`                         // Working directory for command execution
+	MaxOutputSize   int64             `mapstructure:"maxOutputSize" default:"1048576"` // Max output size in bytes (default 1MB)
+	DenyEnvVars     []string          `mapstructure:"denyEnvVars"`                     // Blacklist of environment variables to filter
+	UseShell        bool              `mapstructure:"useShell" default:"false"`        // Allow shell interpretation (dangerous, disabled by default)
 }
 
 func NewTargetConfig() any {
