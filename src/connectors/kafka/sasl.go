@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
@@ -40,22 +41,28 @@ func (c *SASLConfig) BuildSASLMechanism() (sasl.Mechanism, error) {
 		return nil, fmt.Errorf("username and password are required for SASL authentication")
 	}
 
+	// Resolve password secret
+	resolvedPassword, err := secrets.Resolve(c.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve password: %w", err)
+	}
+
 	switch c.Mechanism {
 	case "PLAIN":
 		return plain.Mechanism{
 			Username: c.Username,
-			Password: c.Password,
+			Password: resolvedPassword,
 		}, nil
 
 	case "SCRAM-SHA-256":
-		mechanism, err := scram.Mechanism(scram.SHA256, c.Username, c.Password)
+		mechanism, err := scram.Mechanism(scram.SHA256, c.Username, resolvedPassword)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SCRAM-SHA-256 mechanism: %w", err)
 		}
 		return mechanism, nil
 
 	case "SCRAM-SHA-512":
-		mechanism, err := scram.Mechanism(scram.SHA512, c.Username, c.Password)
+		mechanism, err := scram.Mechanism(scram.SHA512, c.Username, resolvedPassword)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create SCRAM-SHA-512 mechanism: %w", err)
 		}

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -104,7 +105,12 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	// Configure authentication
 	if cfg.Username != "" {
 		copts.SetUsername(cfg.Username)
-		copts.SetPassword(cfg.Password)
+		// Resolve password secret
+		resolvedPassword, err := secrets.Resolve(cfg.Password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve password: %w", err)
+		}
+		copts.SetPassword(resolvedPassword)
 	}
 
 	// Configure TLS

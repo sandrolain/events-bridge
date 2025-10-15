@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -107,7 +108,12 @@ func (s *RedisSource) buildRedisOptions() (*redis.Options, error) {
 		opts.Username = s.cfg.Username
 	}
 	if s.cfg.Password != "" {
-		opts.Password = s.cfg.Password
+		// Resolve password secret
+		resolvedPassword, err := secrets.Resolve(s.cfg.Password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve password: %w", err)
+		}
+		opts.Password = resolvedPassword
 	}
 
 	// Add TLS if configured

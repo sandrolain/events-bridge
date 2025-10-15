@@ -8,6 +8,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -134,7 +135,12 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 	// Configure authentication
 	if s.cfg.Username != "" {
 		opts.SetUsername(s.cfg.Username)
-		opts.SetPassword(s.cfg.Password)
+		// Resolve password secret
+		resolvedPassword, err := secrets.Resolve(s.cfg.Password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve password: %w", err)
+		}
+		opts.SetPassword(resolvedPassword)
 	}
 
 	// Configure TLS

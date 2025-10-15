@@ -14,6 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -90,9 +91,15 @@ func (s *GitSource) checkForChanges() {
 			ReferenceName: plumbing.NewBranchReferenceName(s.cfg.Branch),
 		}
 		if s.cfg.Username != "" && s.cfg.Password != "" {
+			// Resolve password secret
+			resolvedPassword, err := secrets.Resolve(s.cfg.Password)
+			if err != nil {
+				s.slog.Error("failed to resolve password", "err", err)
+				return
+			}
 			cloneOpts.Auth = &http.BasicAuth{
 				Username: s.cfg.Username,
-				Password: s.cfg.Password,
+				Password: resolvedPassword,
 			}
 		}
 		repo, err = git.PlainClone(repoPath, false, cloneOpts)
@@ -114,9 +121,15 @@ func (s *GitSource) checkForChanges() {
 			Tags:       git.AllTags,
 		}
 		if s.cfg.Username != "" && s.cfg.Password != "" {
+			// Resolve password secret
+			resolvedPassword, err := secrets.Resolve(s.cfg.Password)
+			if err != nil {
+				s.slog.Error("failed to resolve password", "err", err)
+				return
+			}
 			fetchOpts.Auth = &http.BasicAuth{
 				Username: s.cfg.Username,
-				Password: s.cfg.Password,
+				Password: resolvedPassword,
 			}
 		}
 		_ = repo.Fetch(fetchOpts)

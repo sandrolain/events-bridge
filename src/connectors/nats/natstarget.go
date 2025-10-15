@@ -6,6 +6,7 @@ import (
 	"time"
 
 	nats "github.com/nats-io/nats.go"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -121,11 +122,21 @@ func buildTargetConnectionOptions(cfg *TargetConfig, logger *slog.Logger) ([]nat
 	// Configure authentication (in order of precedence)
 	if cfg.CredentialsFile != "" {
 		// JWT-based authentication (highest precedence)
-		opts = append(opts, nats.UserCredentials(cfg.CredentialsFile))
+		// Resolve credentials file path
+		resolvedCredsFile, err := secrets.Resolve(cfg.CredentialsFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve credentials file path: %w", err)
+		}
+		opts = append(opts, nats.UserCredentials(resolvedCredsFile))
 		logger.Debug("using credentials file authentication")
 	} else if cfg.NKeyFile != "" {
 		// NKey authentication
-		opt, err := nats.NkeyOptionFromSeed(cfg.NKeyFile)
+		// Resolve NKey file path
+		resolvedNKeyFile, err := secrets.Resolve(cfg.NKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve NKey file path: %w", err)
+		}
+		opt, err := nats.NkeyOptionFromSeed(resolvedNKeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load NKey: %w", err)
 		}
@@ -133,11 +144,21 @@ func buildTargetConnectionOptions(cfg *TargetConfig, logger *slog.Logger) ([]nat
 		logger.Debug("using NKey authentication")
 	} else if cfg.Token != "" {
 		// Token authentication
-		opts = append(opts, nats.Token(cfg.Token))
+		// Resolve token secret
+		resolvedToken, err := secrets.Resolve(cfg.Token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve token: %w", err)
+		}
+		opts = append(opts, nats.Token(resolvedToken))
 		logger.Debug("using token authentication")
 	} else if cfg.Username != "" {
 		// Username/password authentication
-		opts = append(opts, nats.UserInfo(cfg.Username, cfg.Password))
+		// Resolve password secret
+		resolvedPassword, err := secrets.Resolve(cfg.Password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve password: %w", err)
+		}
+		opts = append(opts, nats.UserInfo(cfg.Username, resolvedPassword))
 		logger.Debug("using username/password authentication")
 	}
 

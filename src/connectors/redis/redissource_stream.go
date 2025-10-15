@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -123,7 +124,12 @@ func buildRedisStreamOptions(cfg *SourceConfig) (*redis.Options, error) {
 		opts.Username = cfg.Username
 	}
 	if cfg.Password != "" {
-		opts.Password = cfg.Password
+		// Resolve password secret
+		resolvedPassword, err := secrets.Resolve(cfg.Password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve password: %w", err)
+		}
+		opts.Password = resolvedPassword
 	}
 
 	// Add TLS if configured
