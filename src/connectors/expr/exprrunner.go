@@ -17,9 +17,15 @@ import (
 var _ connectors.Runner = &ExprRunner{}
 
 type ExprRunnerConfig struct {
-	Expression      string        `mapstructure:"expression" validate:"required"`
-	PreservePayload bool          `mapstructure:"preservePayload"`
-	Timeout         time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
+	Expression          string        `mapstructure:"expression" validate:"required"`
+	PreservePayload     bool          `mapstructure:"preservePayload"`
+	Timeout             time.Duration `mapstructure:"timeout" default:"5s" validate:"required,gt=0,lte=60s"`
+	MaxExpressionLength int           `mapstructure:"maxExpressionLength" default:"10000" validate:"omitempty,gt=0,lte=100000"`
+	AllowedFunctions    []string      `mapstructure:"allowedFunctions"`                                           // Empty = all allowed
+	MaxInputSize        int           `mapstructure:"maxInputSize" default:"1048576" validate:"omitempty,gt=0"`   // 1MB default
+	MaxOutputSize       int           `mapstructure:"maxOutputSize" default:"10485760" validate:"omitempty,gt=0"` // 10MB default
+	DisableBuiltins     bool          `mapstructure:"disableBuiltins" default:"false"`                            // Disable all built-in functions
+	AllowUndefined      bool          `mapstructure:"allowUndefined" default:"false"`                             // Allow undefined variables
 }
 
 type ExprRunner struct {
@@ -42,9 +48,21 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}
 
 	log := slog.Default().With("context", "Expr Runner")
-	log.Info("loading expr rule", "expression", cfg.Expression)
 
-	eval, err := expreval.NewExprEvaluator(cfg.Expression)
+	log.Info("loading expr rule",
+		"expression", cfg.Expression,
+		"maxLength", cfg.MaxExpressionLength,
+		"allowedFunctions", cfg.AllowedFunctions,
+		"disableBuiltins", cfg.DisableBuiltins)
+
+	// Create evaluator with security validation
+	eval, err := expreval.NewExprEvaluatorWithConfig(expreval.Config{
+		Expression:          cfg.Expression,
+		MaxExpressionLength: cfg.MaxExpressionLength,
+		AllowedFunctions:    cfg.AllowedFunctions,
+		DisableBuiltins:     cfg.DisableBuiltins,
+		AllowUndefined:      cfg.AllowUndefined,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create expr evaluator: %w", err)
 	}
@@ -65,6 +83,11 @@ func (e *ExprRunner) Process(msg *message.RunnerMessage) error {
 	metadata, data, err := msg.GetMetadataAndData()
 	if err != nil {
 		return fmt.Errorf("failed to get metadata and data: %w", err)
+	}
+
+	// Check input size limit
+	if e.cfg.MaxInputSize > 0 && len(data) > e.cfg.MaxInputSize {
+		return fmt.Errorf("input data size (%d bytes) exceeds maximum allowed (%d bytes)", len(data), e.cfg.MaxInputSize)
 	}
 
 	var dataMap map[string]interface{}
@@ -89,7 +112,7 @@ func (e *ExprRunner) Process(msg *message.RunnerMessage) error {
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("expr execution timeout")
+		return fmt.Errorf("expr execution timeout after %v", e.cfg.Timeout)
 	case err := <-done:
 		if err != nil {
 			return fmt.Errorf("expr execution error: %w", err)
@@ -109,6 +132,11 @@ func (e *ExprRunner) Process(msg *message.RunnerMessage) error {
 	output, err := json.Marshal(outputStruct)
 	if err != nil {
 		return fmt.Errorf("failed to marshal expr result: %w", err)
+	}
+
+	// Check output size limit
+	if e.cfg.MaxOutputSize > 0 && len(output) > e.cfg.MaxOutputSize {
+		return fmt.Errorf("output data size (%d bytes) exceeds maximum allowed (%d bytes)", len(output), e.cfg.MaxOutputSize)
 	}
 
 	msg.SetData(output)
