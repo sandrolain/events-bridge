@@ -18,10 +18,15 @@ import (
 var _ connectors.Runner = &JSONLogicRunner{}
 
 type RunnerConfig struct {
-	Path            string        `mapstructure:"path" validate:"excluded_with=Logic|required_without=Logic"`
-	Logic           string        `mapstructure:"logic" validate:"excluded_with=Path|required_without=Path"`
-	PreservePayload bool          `mapstructure:"preservePayload"`
-	Timeout         time.Duration `mapstructure:"timeout" default:"5s" validate:"required"`
+	Path              string        `mapstructure:"path" validate:"excluded_with=Logic|required_without=Logic"`
+	Logic             string        `mapstructure:"logic" validate:"excluded_with=Path|required_without=Path"`
+	PreservePayload   bool          `mapstructure:"preservePayload"`
+	Timeout           time.Duration `mapstructure:"timeout" default:"5s" validate:"required,gt=0,lte=60s"`
+	MaxLogicSize      int           `mapstructure:"maxLogicSize" default:"100000" validate:"omitempty,gt=0,lte=1000000"` // 100KB default, 1MB max
+	AllowedOperations []string      `mapstructure:"allowedOperations"`                                                   // Empty = all allowed
+	MaxInputSize      int           `mapstructure:"maxInputSize" default:"1048576" validate:"omitempty,gt=0"`            // 1MB default
+	MaxOutputSize     int           `mapstructure:"maxOutputSize" default:"10485760" validate:"omitempty,gt=0"`          // 10MB default
+	MaxComplexity     int           `mapstructure:"maxComplexity" default:"1000" validate:"omitempty,gt=0"`              // Max operations count
 }
 
 type JSONLogicRunner struct {
@@ -44,7 +49,7 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}
 
 	log := slog.Default().With("context", "JSONLogic Runner")
-	log.Info("loading jsonlogic rule", "path", cfg.Path)
+	log.Info("loading jsonlogic rule", "path", cfg.Path, "hasLogic", cfg.Logic != "")
 
 	var logicBytes []byte
 	var err error
@@ -57,10 +62,32 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 		}
 	}
 
+	// Validate logic JSON
+	if err := validateLogicJSON(logicBytes, cfg.MaxLogicSize); err != nil {
+		return nil, fmt.Errorf("logic validation failed: %w", err)
+	}
+
 	var logic map[string]interface{}
 	if err := json.Unmarshal(logicBytes, &logic); err != nil {
 		return nil, fmt.Errorf("invalid jsonlogic rule: %w", err)
 	}
+
+	// Validate complexity
+	if err := validateComplexity(logic, cfg.MaxComplexity); err != nil {
+		return nil, fmt.Errorf("logic complexity validation failed: %w", err)
+	}
+
+	// Validate allowed operations
+	if len(cfg.AllowedOperations) > 0 {
+		if err := validateAllowedOperations(logic, cfg.AllowedOperations); err != nil {
+			return nil, fmt.Errorf("logic uses disallowed operations: %w", err)
+		}
+	}
+
+	log.Info("jsonlogic rule loaded successfully",
+		"size", len(logicBytes),
+		"complexity", countOperations(logic),
+		"allowedOperations", cfg.AllowedOperations)
 
 	return &JSONLogicRunner{
 		cfg:    cfg,
@@ -78,6 +105,11 @@ func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) error {
 	metadata, data, err := msg.GetMetadataAndData()
 	if err != nil {
 		return fmt.Errorf("failed to get metadata and data: %w", err)
+	}
+
+	// Check input size limit
+	if j.cfg.MaxInputSize > 0 && len(data) > j.cfg.MaxInputSize {
+		return fmt.Errorf("input data size (%d bytes) exceeds maximum allowed (%d bytes)", len(data), j.cfg.MaxInputSize)
 	}
 
 	var dataMap map[string]interface{}
@@ -102,7 +134,7 @@ func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) error {
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("jsonlogic execution timeout")
+		return fmt.Errorf("jsonlogic execution timeout after %v", j.cfg.Timeout)
 	case err := <-done:
 		if err != nil {
 			return fmt.Errorf("jsonlogic execution error: %w", err)
@@ -122,6 +154,11 @@ func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) error {
 	output, err := json.Marshal(outputStruct)
 	if err != nil {
 		return fmt.Errorf("failed to marshal jsonlogic result: %w", err)
+	}
+
+	// Check output size limit
+	if j.cfg.MaxOutputSize > 0 && len(output) > j.cfg.MaxOutputSize {
+		return fmt.Errorf("output data size (%d bytes) exceeds maximum allowed (%d bytes)", len(output), j.cfg.MaxOutputSize)
 	}
 
 	msg.SetData(output)
