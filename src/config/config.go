@@ -15,7 +15,15 @@ import (
 	kfile "github.com/knadh/koanf/providers/file"
 	kraw "github.com/knadh/koanf/providers/rawbytes"
 	kfn "github.com/knadh/koanf/v2"
+	"github.com/sandrolain/events-bridge/src/security/validation"
 )
+
+// Default allowed directories for configuration files
+var defaultAllowedConfigDirs = []string{
+	"/etc/events-bridge",
+	"./config",
+	".",
+}
 
 func LoadConfig() (cfg *Config, err error) {
 	// Precedence: CLI > Env
@@ -143,6 +151,11 @@ func loadEnvConfig() (*EnvConfig, error) {
 // - replacing "__" with "." (double underscore denotes nesting)
 // Arrays can be indexed with segments like "__0".
 func loadConfigFile(path string) (cfg *Config, err error) {
+	// Validate config file path for security
+	if err := validation.ValidateConfigPath(path, defaultAllowedConfigDirs); err != nil {
+		return nil, fmt.Errorf("config path validation failed: %w", err)
+	}
+
 	absPath, e := filepath.Abs(path)
 	if e != nil {
 		return nil, e
@@ -186,6 +199,11 @@ func loadConfigFile(path string) (cfg *Config, err error) {
 // LoadConfigContent loads configuration from raw YAML/JSON content and merges environment overrides.
 // If format is empty, attempts to auto-detect (JSON if trimmed content starts with '{').
 func loadConfigContent(content string, format string) (cfg *Config, err error) {
+	// Validate config content size for security
+	if err := validation.ValidateConfigContentSize(len(content)); err != nil {
+		return nil, fmt.Errorf("config content validation failed: %w", err)
+	}
+
 	trimmed := strings.TrimSpace(content)
 	f := strings.ToLower(strings.TrimSpace(format))
 	var parser kfn.Parser

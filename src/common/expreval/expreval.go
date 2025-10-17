@@ -1,14 +1,17 @@
 package expreval
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/security/validation"
 )
 
 const (
@@ -18,44 +21,80 @@ const (
 	DefaultMaxComplexity = 1000
 	// Maximum nesting depth
 	DefaultMaxNestingDepth = 50
+	// Maximum execution time
+	DefaultMaxExecutionTime = 100 * time.Millisecond
 )
 
 // Config holds the configuration for expression evaluation with security settings
 type Config struct {
 	Expression          string
 	MaxExpressionLength int
+	MaxExecutionTime    time.Duration
 	AllowedFunctions    []string
 	DisableBuiltins     bool
 	AllowUndefined      bool
 }
 
 type ExprEvaluator struct {
-	program *vm.Program
+	program          *vm.Program
+	maxExecutionTime time.Duration
 }
 
 // NewExprEvaluator creates a new ExprEvaluator from an expression string
 func NewExprEvaluator(expression string) (*ExprEvaluator, error) {
 	if expression != "" {
+		// Use validation from security package
+		if err := validation.ValidateExpressionComplexity(expression); err != nil {
+			return nil, fmt.Errorf("expression validation failed: %w", err)
+		}
+
 		program, err := expr.Compile(expression)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile expression: %w", err)
 		}
-		return &ExprEvaluator{program: program}, nil
+		return &ExprEvaluator{
+			program:          program,
+			maxExecutionTime: DefaultMaxExecutionTime,
+		}, nil
 	}
 	return nil, nil
 }
 
 // NewExprEvaluatorWithProgram creates an ExprEvaluator from a pre-compiled program
 func NewExprEvaluatorWithProgram(program *vm.Program) *ExprEvaluator {
-	return &ExprEvaluator{program: program}
+	return &ExprEvaluator{
+		program:          program,
+		maxExecutionTime: DefaultMaxExecutionTime,
+	}
 }
 
 func (e *ExprEvaluator) Eval(input map[string]any) (bool, error) {
-	result, err := vm.Run(e.program, input)
-	if err != nil {
-		return false, fmt.Errorf("failed to evaluate expression: %w", err)
+	// Execute with timeout to prevent DoS
+	ctx, cancel := context.WithTimeout(context.Background(), e.maxExecutionTime)
+	defer cancel()
+
+	resultCh := make(chan struct {
+		result any
+		err    error
+	}, 1)
+
+	go func() {
+		result, err := vm.Run(e.program, input)
+		resultCh <- struct {
+			result any
+			err    error
+		}{result, err}
+	}()
+
+	select {
+	case res := <-resultCh:
+		if res.err != nil {
+			return false, fmt.Errorf("failed to evaluate expression: %w", res.err)
+		}
+		return toBool(res.result), nil
+	case <-ctx.Done():
+		return false, fmt.Errorf("expression evaluation timeout exceeded (%v)", e.maxExecutionTime)
 	}
-	return toBool(result), nil
 }
 
 func (e *ExprEvaluator) EvalMessage(msg *message.RunnerMessage) (bool, error) {
@@ -216,7 +255,16 @@ func NewExprEvaluatorWithConfig(cfg Config) (*ExprEvaluator, error) {
 		return nil, fmt.Errorf("failed to compile expression: %w", err)
 	}
 
-	return &ExprEvaluator{program: program}, nil
+	// Set execution timeout
+	maxExecTime := cfg.MaxExecutionTime
+	if maxExecTime == 0 {
+		maxExecTime = DefaultMaxExecutionTime
+	}
+
+	return &ExprEvaluator{
+		program:          program,
+		maxExecutionTime: maxExecTime,
+	}, nil
 }
 
 func toBool(v any) bool {

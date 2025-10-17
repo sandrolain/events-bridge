@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/sandrolain/events-bridge/src/common"
+	"github.com/sandrolain/events-bridge/src/security/validation"
 )
 
 type SourceMessage interface {
@@ -49,8 +50,12 @@ func (m *RunnerMessage) SetFromSourceMessage(msg SourceMessage) error {
 	if err != nil {
 		return fmt.Errorf("failed to get source message data: %w", err)
 	}
-	m.MergeMetadata(meta)
-	m.SetData(data)
+	if err := m.MergeMetadata(meta); err != nil {
+		return fmt.Errorf("failed to merge metadata: %w", err)
+	}
+	if err := m.SetData(data); err != nil {
+		return fmt.Errorf("failed to set data: %w", err)
+	}
 	return nil
 }
 
@@ -66,31 +71,61 @@ func (m *RunnerMessage) GetMetadataAndData() (map[string]string, []byte, error) 
 	return meta, data, nil
 }
 
-func (m *RunnerMessage) MergeMetadata(meta map[string]string) {
+func (m *RunnerMessage) MergeMetadata(meta map[string]string) error {
+	// Validate metadata size before merging
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
-	m.metadata = common.CopyMap(meta, m.metadata)
+
+	// Create temporary map for validation
+	tempMeta := common.CopyMap(meta, m.metadata)
+	if err := validation.ValidateMetadataSize(tempMeta); err != nil {
+		return fmt.Errorf("metadata validation failed: %w", err)
+	}
+
+	m.metadata = tempMeta
+	return nil
 }
 
-func (m *RunnerMessage) AddMetadata(key string, value string) {
+func (m *RunnerMessage) AddMetadata(key string, value string) error {
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
+
 	if m.metadata == nil {
 		m.metadata = make(map[string]string)
 	}
+
+	// Validate single metadata entry
+	if err := validation.ValidateMetadataEntry(key, value, m.metadata); err != nil {
+		return fmt.Errorf("metadata validation failed: %w", err)
+	}
+
 	m.metadata[key] = value
+	return nil
 }
 
-func (m *RunnerMessage) SetMetadata(meta map[string]string) {
+func (m *RunnerMessage) SetMetadata(meta map[string]string) error {
 	m.metaMx.Lock()
 	defer m.metaMx.Unlock()
+
+	// Validate metadata size
+	if err := validation.ValidateMetadataSize(meta); err != nil {
+		return fmt.Errorf("metadata validation failed: %w", err)
+	}
+
 	m.metadata = common.CopyMap(meta, nil)
+	return nil
 }
 
-func (m *RunnerMessage) SetData(data []byte) {
+func (m *RunnerMessage) SetData(data []byte) error {
+	// Validate data size
+	if err := validation.ValidateMessageDataSize(len(data)); err != nil {
+		return fmt.Errorf("data validation failed: %w", err)
+	}
+
 	m.dataMx.Lock()
 	defer m.dataMx.Unlock()
 	m.data = data
+	return nil
 }
 
 func (m *RunnerMessage) GetSourceMetadata() (map[string]string, error) {
