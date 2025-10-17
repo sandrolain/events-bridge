@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -14,20 +15,55 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
 type SourceConfig struct {
-	Path         string        `mapstructure:"path" validate:"required"`
-	RemoteURL    string        `mapstructure:"remoteUrl" validate:"required"`
-	Remote       string        `mapstructure:"remote" default:"origin" validate:"required"`
-	Branch       string        `mapstructure:"branch" validate:"required"`
-	Username     string        `mapstructure:"username"`
-	Password     string        `mapstructure:"password"`
-	SubDir       string        `mapstructure:"subdir"`
-	PollInterval time.Duration `mapstructure:"pollInterval" default:"10s" validate:"gte=0"` // in seconds, 0 means no polling
+	// Path is the local directory path for the git repository
+	Path string `mapstructure:"path" validate:"required"`
+
+	// RemoteURL is the git remote URL (https:// or ssh://)
+	RemoteURL string `mapstructure:"remoteUrl" validate:"required"`
+
+	// Remote is the name of the git remote (default: "origin")
+	Remote string `mapstructure:"remote" default:"origin" validate:"required"`
+
+	// Branch is the git branch to monitor
+	Branch string `mapstructure:"branch" validate:"required"`
+
+	// Username for HTTPS authentication
+	Username string `mapstructure:"username"`
+
+	// Password for HTTPS authentication (supports secrets: plain, env:VAR, file:/path)
+	Password string `mapstructure:"password"`
+
+	// SubDir filters changes to a specific subdirectory
+	SubDir string `mapstructure:"subdir"`
+
+	// PollInterval is the duration between checks for new commits (0 means no polling)
+	PollInterval time.Duration `mapstructure:"pollInterval" default:"10s" validate:"gte=0"`
+
+	// SSH authentication fields
+
+	// SSHKeyFile is the path to the SSH private key for authentication
+	SSHKeyFile string `mapstructure:"sshKeyFile"`
+
+	// SSHKeyPassphrase is the passphrase for the SSH private key (supports secrets)
+	SSHKeyPassphrase string `mapstructure:"sshKeyPassphrase"`
+
+	// SSHKnownHostsFile is the path to known_hosts file (optional, for host verification)
+	SSHKnownHostsFile string `mapstructure:"sshKnownHostsFile"`
+
+	// Security settings
+
+	// VerifySSL controls SSL certificate verification for HTTPS (default: true)
+	VerifySSL bool `mapstructure:"verifySSL" default:"true"`
+
+	// StrictBranchValidation enables strict branch name validation (default: true)
+	StrictBranchValidation bool `mapstructure:"strictBranchValidation" default:"true"`
 }
 
 type GitSource struct {
@@ -42,11 +78,111 @@ func NewSourceConfig() any {
 	return new(SourceConfig)
 }
 
+// validateBranchName validates a git branch name to prevent command injection
+// and path traversal attacks.
+// Allows alphanumeric characters, underscores, hyphens, and forward slashes.
+func validateBranchName(branch string, strict bool) error {
+	if branch == "" {
+		return fmt.Errorf("branch name cannot be empty")
+	}
+
+	// Check for path traversal attempts
+	if strings.Contains(branch, "..") {
+		return fmt.Errorf("branch name contains path traversal sequence: %s", branch)
+	}
+
+	// Check for dangerous characters that could be used for command injection
+	dangerousChars := []string{";", "&", "|", "$", "`", "(", ")", "<", ">", "\n", "\r", "\\", "\"", "'"}
+	for _, char := range dangerousChars {
+		if strings.Contains(branch, char) {
+			return fmt.Errorf("branch name contains dangerous character: %s", char)
+		}
+	}
+
+	if strict {
+		// Strict mode: only allow safe characters
+		// Pattern: alphanumeric, underscore, hyphen, forward slash
+		matched, err := regexp.MatchString(`^[a-zA-Z0-9/_-]+$`, branch)
+		if err != nil {
+			return fmt.Errorf("branch name validation regex error: %w", err)
+		}
+		if !matched {
+			return fmt.Errorf("branch name contains invalid characters (strict mode): %s", branch)
+		}
+	}
+
+	// Additional checks for common injection patterns
+	if strings.HasPrefix(branch, "-") {
+		return fmt.Errorf("branch name cannot start with hyphen: %s", branch)
+	}
+
+	return nil
+}
+
+// buildAuthMethod creates the appropriate authentication method based on configuration.
+// Priority: SSH key > Username/Password > None
+func (s *GitSource) buildAuthMethod() (interface{}, error) {
+	// SSH authentication has priority
+	if s.cfg.SSHKeyFile != "" {
+		passphrase := ""
+		if s.cfg.SSHKeyPassphrase != "" {
+			resolvedPassphrase, err := secrets.Resolve(s.cfg.SSHKeyPassphrase)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve SSH passphrase: %w", err)
+			}
+			passphrase = resolvedPassphrase
+		}
+
+		var auth *ssh.PublicKeys
+		var err error
+		if passphrase != "" {
+			auth, err = ssh.NewPublicKeysFromFile("git", s.cfg.SSHKeyFile, passphrase)
+		} else {
+			auth, err = ssh.NewPublicKeysFromFile("git", s.cfg.SSHKeyFile, "")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to load SSH key: %w", err)
+		}
+
+		// Configure host key callback if known_hosts file is provided
+		if s.cfg.SSHKnownHostsFile != "" {
+			callback, err := ssh.NewKnownHostsCallback(s.cfg.SSHKnownHostsFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load known_hosts: %w", err)
+			}
+			auth.HostKeyCallback = callback
+		}
+
+		return auth, nil
+	}
+
+	// HTTP Basic authentication
+	if s.cfg.Username != "" && s.cfg.Password != "" {
+		resolvedPassword, err := secrets.Resolve(s.cfg.Password)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve password: %w", err)
+		}
+		return &http.BasicAuth{
+			Username: s.cfg.Username,
+			Password: resolvedPassword,
+		}, nil
+	}
+
+	// No authentication
+	return nil, nil
+}
+
 func NewSource(anyCfg any) (connectors.Source, error) {
 	cfg, ok := anyCfg.(*SourceConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
+
+	// Validate branch name to prevent command injection
+	if err := validateBranchName(cfg.Branch, cfg.StrictBranchValidation); err != nil {
+		return nil, fmt.Errorf("invalid branch name: %w", err)
+	}
+
 	return &GitSource{
 		cfg:  cfg,
 		slog: slog.Default().With("context", "Git Source"),
@@ -82,6 +218,14 @@ func (s *GitSource) checkForChanges() {
 
 	var repo *git.Repository
 	var err error
+
+	// Build authentication method (SSH or HTTP)
+	authMethod, err := s.buildAuthMethod()
+	if err != nil {
+		s.slog.Error("failed to build authentication", "err", err)
+		return
+	}
+
 	if _, err = os.Stat(filepath.Join(repoPath, ".git")); os.IsNotExist(err) {
 		// Clone if not present
 		cloneOpts := &git.CloneOptions{
@@ -90,18 +234,16 @@ func (s *GitSource) checkForChanges() {
 			SingleBranch:  true,
 			ReferenceName: plumbing.NewBranchReferenceName(s.cfg.Branch),
 		}
-		if s.cfg.Username != "" && s.cfg.Password != "" {
-			// Resolve password secret
-			resolvedPassword, err := secrets.Resolve(s.cfg.Password)
-			if err != nil {
-				s.slog.Error("failed to resolve password", "err", err)
-				return
-			}
-			cloneOpts.Auth = &http.BasicAuth{
-				Username: s.cfg.Username,
-				Password: resolvedPassword,
+
+		// Set authentication if available
+		if authMethod != nil {
+			if sshAuth, ok := authMethod.(*ssh.PublicKeys); ok {
+				cloneOpts.Auth = sshAuth
+			} else if httpAuth, ok := authMethod.(*http.BasicAuth); ok {
+				cloneOpts.Auth = httpAuth
 			}
 		}
+
 		repo, err = git.PlainClone(repoPath, false, cloneOpts)
 		if err != nil {
 			s.slog.Error("git clone error", "err", err)
@@ -120,18 +262,16 @@ func (s *GitSource) checkForChanges() {
 			Force:      true,
 			Tags:       git.AllTags,
 		}
-		if s.cfg.Username != "" && s.cfg.Password != "" {
-			// Resolve password secret
-			resolvedPassword, err := secrets.Resolve(s.cfg.Password)
-			if err != nil {
-				s.slog.Error("failed to resolve password", "err", err)
-				return
-			}
-			fetchOpts.Auth = &http.BasicAuth{
-				Username: s.cfg.Username,
-				Password: resolvedPassword,
+
+		// Set authentication if available
+		if authMethod != nil {
+			if sshAuth, ok := authMethod.(*ssh.PublicKeys); ok {
+				fetchOpts.Auth = sshAuth
+			} else if httpAuth, ok := authMethod.(*http.BasicAuth); ok {
+				fetchOpts.Auth = httpAuth
 			}
 		}
+
 		_ = repo.Fetch(fetchOpts)
 	}
 
