@@ -26,6 +26,7 @@ tasks:
       - brew install tinygo
       - brew install protoc-gen-go
       - brew install protoc-gen-go-grpc
+      - go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
   fmt-check:
     desc: Check Go code formatting without making changes

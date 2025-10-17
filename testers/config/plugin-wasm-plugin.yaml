@@ -18,7 +18,11 @@ commands:
           - type: "wasm"
             options:
               path: "./testers/bin/wasmrunner.wasm"
+              mountPath: "./testers/runners/wasmrunner"
+              env:
+                FILE_NAME: "test1.txt"
             routines: 8
+            format: cli
         target:
           type: "plugin"
           options:

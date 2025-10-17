@@ -28,6 +28,11 @@ type PluginConfig struct {
 	Output         bool          `mapstructure:"output"`
 	StatusInterval time.Duration `mapstructure:"statusInterval" default:"3s" validate:"omitempty"` // Interval to check status
 	Timeout        time.Duration `mapstructure:"timeout" default:"5s" validate:"omitempty"`        // Timeout for plugin operations
+	// Security settings
+	AllowedPluginsDir string `mapstructure:"allowedPluginsDir" validate:"omitempty"` // Directory where plugins must be located
+	ExpectedSHA256    string `mapstructure:"expectedSHA256" validate:"omitempty"`    // Expected SHA256 hash of plugin binary
+	VerifyHash        bool   `mapstructure:"verifyHash" default:"false"`             // Whether to verify plugin hash
+	StrictValidation  bool   `mapstructure:"strictValidation" default:"true"`        // Enable strict security validation
 }
 
 type Plugin struct {
@@ -47,6 +52,11 @@ type Plugin struct {
 
 func (p *Plugin) Start() (err error) {
 	cfg := p.Config
+
+	// Security validations
+	if err := p.validateSecurity(); err != nil {
+		return fmt.Errorf("security validation failed: %w", err)
+	}
 
 	// Initialize context for goroutine management
 	p.ctx, p.cancel = context.WithCancel(context.Background())
@@ -239,6 +249,45 @@ func (p *Plugin) checkStatus() (sts *proto.StatusRes, err error) {
 		return
 	}
 	return
+}
+
+func (p *Plugin) validateSecurity() error {
+	cfg := p.Config
+
+	// Validate plugin name
+	if err := ValidatePluginName(cfg.Name); err != nil {
+		return fmt.Errorf("invalid plugin name: %w", err)
+	}
+
+	// Validate plugin path if strict validation is enabled
+	if cfg.StrictValidation {
+		if err := ValidatePluginPath(cfg.Exec, cfg.AllowedPluginsDir); err != nil {
+			return fmt.Errorf("plugin path validation failed: %w", err)
+		}
+	}
+
+	// Verify plugin hash if enabled
+	if cfg.VerifyHash {
+		if cfg.ExpectedSHA256 == "" {
+			return fmt.Errorf("hash verification enabled but expectedSHA256 not provided")
+		}
+		if err := VerifyPluginHash(cfg.Exec, cfg.ExpectedSHA256); err != nil {
+			return fmt.Errorf("plugin hash verification failed: %w", err)
+		}
+		p.slog.Info("Plugin hash verified successfully", "name", cfg.Name)
+	}
+
+	// Validate environment variables
+	if err := SanitizePluginEnv(cfg.Env); err != nil {
+		return fmt.Errorf("invalid environment variables: %w", err)
+	}
+
+	// Validate arguments
+	if err := ValidatePluginArgs(cfg.Args); err != nil {
+		return fmt.Errorf("invalid plugin arguments: %w", err)
+	}
+
+	return nil
 }
 
 func (p *Plugin) Stop() {

@@ -10,7 +10,7 @@ For commits use conventional commits format.
 
 - run the specific tests to ensure the code works as expected and a minium coverage of 80% is reached.
 - assure that inline docs are updated and accurate.
-- run `golangci-lint run` and `go vet ./...` and `gosec ./...` to ensure no issues are present.
+- run `golangci-lint run` and `go vet ./...` and `gosec -exclude-generated ./...` to ensure no issues are present.
 
 ## tests
 
