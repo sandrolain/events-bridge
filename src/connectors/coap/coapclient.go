@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapcodes "github.com/plgd-dev/go-coap/v3/message/codes"
+	"github.com/plgd-dev/go-coap/v3/message/pool"
 	coaptcp "github.com/plgd-dev/go-coap/v3/tcp"
 	coaptcpclient "github.com/plgd-dev/go-coap/v3/tcp/client"
 	coapudp "github.com/plgd-dev/go-coap/v3/udp"
@@ -28,13 +30,24 @@ type coapClient interface {
 	Close() error
 }
 
-// udpClientWrapper wraps a UDP client
-type udpClientWrapper struct {
-	client *coapudpclient.Conn
-	slog   *slog.Logger
+// coapClientConn is the interface that both UDP and TCP CoAP client connections implement
+// This allows us to use a single generic wrapper for both protocols
+type coapClientConn interface {
+	Post(ctx context.Context, path string, contentFormat coapmessage.MediaType, body io.ReadSeeker, opts ...coapmessage.Option) (*pool.Message, error)
+	Put(ctx context.Context, path string, contentFormat coapmessage.MediaType, body io.ReadSeeker, opts ...coapmessage.Option) (*pool.Message, error)
+	Get(ctx context.Context, path string, opts ...coapmessage.Option) (*pool.Message, error)
+	Close() error
 }
 
-func (w *udpClientWrapper) Post(ctx context.Context, path string, contentFormat coapmessage.MediaType, body []byte) (*CoAPClientResponse, error) {
+// clientWrapper is a generic wrapper for CoAP client connections (UDP/TCP/DTLS)
+// It eliminates code duplication by providing a single implementation for all protocols
+type clientWrapper[T coapClientConn] struct {
+	client   T
+	logger   *slog.Logger
+	protocol string // "udp", "tcp", or "dtls" for logging purposes
+}
+
+func (w *clientWrapper[T]) Post(ctx context.Context, path string, contentFormat coapmessage.MediaType, body []byte) (*CoAPClientResponse, error) {
 	resp, err := w.client.Post(ctx, path, contentFormat, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -43,7 +56,7 @@ func (w *udpClientWrapper) Post(ctx context.Context, path string, contentFormat 
 	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
 }
 
-func (w *udpClientWrapper) Put(ctx context.Context, path string, contentFormat coapmessage.MediaType, body []byte) (*CoAPClientResponse, error) {
+func (w *clientWrapper[T]) Put(ctx context.Context, path string, contentFormat coapmessage.MediaType, body []byte) (*CoAPClientResponse, error) {
 	resp, err := w.client.Put(ctx, path, contentFormat, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -52,7 +65,7 @@ func (w *udpClientWrapper) Put(ctx context.Context, path string, contentFormat c
 	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
 }
 
-func (w *udpClientWrapper) Get(ctx context.Context, path string) (*CoAPClientResponse, error) {
+func (w *clientWrapper[T]) Get(ctx context.Context, path string) (*CoAPClientResponse, error) {
 	resp, err := w.client.Get(ctx, path)
 	if err != nil {
 		return nil, err
@@ -61,50 +74,9 @@ func (w *udpClientWrapper) Get(ctx context.Context, path string) (*CoAPClientRes
 	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
 }
 
-func (w *udpClientWrapper) Close() error {
+func (w *clientWrapper[T]) Close() error {
 	if err := w.client.Close(); err != nil {
-		w.slog.Error("error closing udp client", "err", err)
-		return err
-	}
-	return nil
-}
-
-// tcpClientWrapper wraps a TCP client
-type tcpClientWrapper struct {
-	client *coaptcpclient.Conn
-	slog   *slog.Logger
-}
-
-func (w *tcpClientWrapper) Post(ctx context.Context, path string, contentFormat coapmessage.MediaType, body []byte) (*CoAPClientResponse, error) {
-	resp, err := w.client.Post(ctx, path, contentFormat, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	payload, _ := resp.ReadBody()
-	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
-}
-
-func (w *tcpClientWrapper) Put(ctx context.Context, path string, contentFormat coapmessage.MediaType, body []byte) (*CoAPClientResponse, error) {
-	resp, err := w.client.Put(ctx, path, contentFormat, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	payload, _ := resp.ReadBody()
-	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
-}
-
-func (w *tcpClientWrapper) Get(ctx context.Context, path string) (*CoAPClientResponse, error) {
-	resp, err := w.client.Get(ctx, path)
-	if err != nil {
-		return nil, err
-	}
-	payload, _ := resp.ReadBody()
-	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
-}
-
-func (w *tcpClientWrapper) Close() error {
-	if err := w.client.Close(); err != nil {
-		w.slog.Error("error closing tcp client", "err", err)
+		w.logger.Error("error closing "+w.protocol+" client", "err", err)
 		return err
 	}
 	return nil
@@ -130,7 +102,11 @@ func createUDPClient(address string, logger *slog.Logger) (coapClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial coap udp server: %w", err)
 	}
-	return &udpClientWrapper{client: client, slog: logger}, nil
+	return &clientWrapper[*coapudpclient.Conn]{
+		client:   client,
+		logger:   logger,
+		protocol: "udp",
+	}, nil
 }
 
 // createTCPClient creates a TCP CoAP client wrapper
@@ -139,7 +115,11 @@ func createTCPClient(address string, logger *slog.Logger) (coapClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial coap tcp server: %w", err)
 	}
-	return &tcpClientWrapper{client: client, slog: logger}, nil
+	return &clientWrapper[*coaptcpclient.Conn]{
+		client:   client,
+		logger:   logger,
+		protocol: "tcp",
+	}, nil
 }
 
 // createDTLSClient creates a DTLS CoAP client wrapper
@@ -156,5 +136,9 @@ func createDTLSClient(pskIdentity, psk, certFile, keyFile, address string, logge
 	if err != nil {
 		return nil, fmt.Errorf("failed to create DTLS client: %w", err)
 	}
-	return &udpClientWrapper{client: client, slog: logger}, nil
+	return &clientWrapper[*coapudpclient.Conn]{
+		client:   client,
+		logger:   logger,
+		protocol: "dtls",
+	}, nil
 }
