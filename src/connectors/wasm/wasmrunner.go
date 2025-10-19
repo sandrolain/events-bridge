@@ -56,6 +56,38 @@ import (
 // Ensure WasmRunner implements connectors.Runner
 var _ connectors.Runner = &WasmRunner{}
 
+// logWriter is an io.Writer that writes to a slog.Logger at a specified level.
+// It buffers partial writes until a newline is encountered to ensure complete log messages.
+type logWriter struct {
+	logger *slog.Logger
+	level  slog.Level
+	buf    bytes.Buffer
+}
+
+// Write implements io.Writer interface, writing data to the logger.
+// Messages are buffered until a newline character is encountered.
+// Each complete line is logged at the configured level with "wasm.stderr" context.
+func (w *logWriter) Write(p []byte) (n int, err error) {
+	n = len(p)
+	for len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			// No newline found, buffer the data
+			w.buf.Write(p)
+			break
+		}
+		// Write buffered data + current line
+		w.buf.Write(p[:i])
+		line := w.buf.String()
+		if line != "" {
+			w.logger.Log(context.Background(), w.level, "wasm stderr", "message", line)
+		}
+		w.buf.Reset()
+		p = p[i+1:]
+	}
+	return n, nil
+}
+
 // RunnerConfig defines the configuration for the WASM runner with security enhancements.
 // It provides options for sandboxing, resource limits, and access control.
 type RunnerConfig struct {
@@ -249,11 +281,12 @@ func (w *WasmRunner) Process(msg *message.RunnerMessage) error {
 
 	stdin := bytes.NewReader(inData)
 	stout := bytes.NewBuffer(nil)
+	stderr := &logWriter{logger: w.slog, level: slog.LevelError}
 
 	config := wazero.NewModuleConfig().
 		WithStdin(stdin).
 		WithStdout(stout).
-		WithStderr(os.Stderr)
+		WithStderr(stderr)
 
 	if len(w.cfg.Args) > 0 {
 		config = config.WithArgs(w.cfg.Args...)
