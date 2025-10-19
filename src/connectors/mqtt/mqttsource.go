@@ -103,7 +103,7 @@ func generateSecureClientID() (string, error) {
 func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) {
 	s.c = make(chan *message.RunnerMessage, buffer)
 
-	useTLS := s.cfg.TLS != nil && s.cfg.TLS.Enabled
+	useTLS := tlsconfig.IsEnabled(s.cfg.TLS)
 	protocol := "tcp"
 	if useTLS {
 		protocol = "ssl"
@@ -145,9 +145,9 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 
 	// Configure TLS
 	if useTLS {
-		tlsConfig, err := s.cfg.TLS.BuildClientConfig()
+		tlsConfig, err := tlsconfig.BuildClientConfigIfEnabled(s.cfg.TLS)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build TLS config: %w", err)
+			return nil, err
 		}
 		opts.SetTLSConfig(tlsConfig)
 	}

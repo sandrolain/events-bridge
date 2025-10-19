@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -63,15 +62,6 @@ type PGSQLTarget struct {
 	pool *pgxpool.Pool
 }
 
-// buildTLSConfig creates TLS configuration from target config
-func (t *PGSQLTarget) buildTLSConfig() (*tls.Config, error) {
-	if t.cfg.TLS == nil || !t.cfg.TLS.Enabled {
-		return nil, nil
-	}
-
-	return t.cfg.TLS.BuildClientConfig()
-}
-
 // buildPoolConfig creates pgxpool configuration with TLS and connection limits
 func (t *PGSQLTarget) buildPoolConfig() (*pgxpool.Config, error) {
 	config, err := pgxpool.ParseConfig(t.cfg.ConnString)
@@ -80,9 +70,9 @@ func (t *PGSQLTarget) buildPoolConfig() (*pgxpool.Config, error) {
 	}
 
 	// Apply TLS configuration
-	tlsConf, err := t.buildTLSConfig()
+	tlsConf, err := tlsconfig.BuildClientConfigIfEnabled(t.cfg.TLS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build TLS config: %w", err)
+		return nil, err
 	}
 
 	if tlsConf != nil {

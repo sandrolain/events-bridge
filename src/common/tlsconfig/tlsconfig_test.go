@@ -359,3 +359,155 @@ func TestBuildClientConfigMismatchedCertKey(t *testing.T) {
 		t.Fatal("expected error when only cert file is provided")
 	}
 }
+
+// TestBuildClientConfigIfEnabled tests the BuildClientConfigIfEnabled helper function.
+func TestBuildClientConfigIfEnabled(t *testing.T) {
+	t.Run("nil config returns nil", func(t *testing.T) {
+		config, err := BuildClientConfigIfEnabled(nil)
+		if err != nil {
+			t.Fatalf(errUnexpected, err)
+		}
+		if config != nil {
+			t.Fatal("expected nil config for nil input")
+		}
+	})
+
+	t.Run("disabled config returns nil", func(t *testing.T) {
+		cfg := &Config{Enabled: false}
+		config, err := BuildClientConfigIfEnabled(cfg)
+		if err != nil {
+			t.Fatalf(errUnexpected, err)
+		}
+		if config != nil {
+			t.Fatal("expected nil config for disabled TLS")
+		}
+	})
+
+	t.Run("enabled config builds successfully", func(t *testing.T) {
+		cfg := &Config{
+			Enabled:            true,
+			InsecureSkipVerify: true, // For test simplicity
+		}
+		config, err := BuildClientConfigIfEnabled(cfg)
+		if err != nil {
+			t.Fatalf(errUnexpected, err)
+		}
+		if config == nil {
+			t.Fatal("expected non-nil config for enabled TLS")
+		}
+		if !config.InsecureSkipVerify {
+			t.Fatal("expected InsecureSkipVerify to be true")
+		}
+	})
+
+	t.Run("enabled config with invalid cert fails", func(t *testing.T) {
+		cfg := &Config{
+			Enabled:  true,
+			CertFile: "/nonexistent/cert.pem",
+			KeyFile:  "/nonexistent/key.pem",
+		}
+		_, err := BuildClientConfigIfEnabled(cfg)
+		if err == nil {
+			t.Fatal("expected error for invalid cert files")
+		}
+	})
+}
+
+// TestBuildServerConfigIfEnabled tests the BuildServerConfigIfEnabled helper function.
+func TestBuildServerConfigIfEnabled(t *testing.T) {
+	certPEM, keyPEM := generateTestCertificate(t)
+	dir := t.TempDir()
+
+	certFile := filepath.Join(dir, "cert.pem")
+	keyFile := filepath.Join(dir, "key.pem")
+
+	if err := os.WriteFile(certFile, certPEM, 0600); err != nil {
+		t.Fatalf("failed to write cert file: %v", err)
+	}
+	if err := os.WriteFile(keyFile, keyPEM, 0600); err != nil {
+		t.Fatalf("failed to write key file: %v", err)
+	}
+
+	t.Run("nil config returns nil", func(t *testing.T) {
+		config, err := BuildServerConfigIfEnabled(nil)
+		if err != nil {
+			t.Fatalf(errUnexpected, err)
+		}
+		if config != nil {
+			t.Fatal("expected nil config for nil input")
+		}
+	})
+
+	t.Run("disabled config returns nil", func(t *testing.T) {
+		cfg := &Config{Enabled: false}
+		config, err := BuildServerConfigIfEnabled(cfg)
+		if err != nil {
+			t.Fatalf(errUnexpected, err)
+		}
+		if config != nil {
+			t.Fatal("expected nil config for disabled TLS")
+		}
+	})
+
+	t.Run("enabled config builds successfully", func(t *testing.T) {
+		cfg := &Config{
+			Enabled:  true,
+			CertFile: certFile,
+			KeyFile:  keyFile,
+		}
+		config, err := BuildServerConfigIfEnabled(cfg)
+		if err != nil {
+			t.Fatalf(errUnexpected, err)
+		}
+		if config == nil {
+			t.Fatal("expected non-nil config for enabled TLS")
+		}
+		if len(config.Certificates) != 1 {
+			t.Fatal("expected one certificate")
+		}
+	})
+
+	t.Run("enabled config without cert fails", func(t *testing.T) {
+		cfg := &Config{
+			Enabled: true,
+		}
+		_, err := BuildServerConfigIfEnabled(cfg)
+		if err == nil {
+			t.Fatal("expected error for server config without cert")
+		}
+	})
+}
+
+// TestIsEnabled tests the IsEnabled helper function.
+func TestIsEnabled(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      *Config
+		expected bool
+	}{
+		{
+			name:     "nil config",
+			cfg:      nil,
+			expected: false,
+		},
+		{
+			name:     "disabled config",
+			cfg:      &Config{Enabled: false},
+			expected: false,
+		},
+		{
+			name:     "enabled config",
+			cfg:      &Config{Enabled: true},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsEnabled(tt.cfg)
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}

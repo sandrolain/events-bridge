@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"regexp"
@@ -75,15 +74,6 @@ func validateIdentifier(name string, strict bool) error {
 	return nil
 }
 
-// buildTLSConfig creates TLS configuration from source config
-func (s *PGSQLSource) buildTLSConfig() (*tls.Config, error) {
-	if s.cfg.TLS == nil || !s.cfg.TLS.Enabled {
-		return nil, nil
-	}
-
-	return s.cfg.TLS.BuildClientConfig()
-}
-
 // buildPoolConfig creates pgxpool configuration with TLS and connection limits
 func (s *PGSQLSource) buildPoolConfig() (*pgxpool.Config, error) {
 	config, err := pgxpool.ParseConfig(s.cfg.ConnString)
@@ -92,9 +82,9 @@ func (s *PGSQLSource) buildPoolConfig() (*pgxpool.Config, error) {
 	}
 
 	// Apply TLS configuration
-	tlsConf, err := s.buildTLSConfig()
+	tlsConf, err := tlsconfig.BuildClientConfigIfEnabled(s.cfg.TLS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build TLS config: %w", err)
+		return nil, err
 	}
 
 	if tlsConf != nil {

@@ -43,9 +43,9 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	}
 
 	// Build TLS config if enabled
-	tlsConfig, err := cfg.TLS.BuildClientConfig()
+	tlsConfig, err := tlsconfig.BuildClientConfigIfEnabled(&cfg.TLS)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build TLS config: %w", err)
+		return nil, err
 	}
 
 	client := &fasthttp.Client{

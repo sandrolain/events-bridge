@@ -181,3 +181,41 @@ func getSecureCipherSuites() []uint16 {
 		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 	}
 }
+
+// BuildClientConfigIfEnabled checks if TLS is enabled and builds client config.
+// Returns nil config if TLS is disabled or config is nil (no error).
+// This is a convenience function to reduce boilerplate in connectors.
+func BuildClientConfigIfEnabled(cfg *Config) (*tls.Config, error) {
+	if cfg == nil || !cfg.Enabled {
+		return nil, nil
+	}
+
+	tlsConfig, err := cfg.BuildClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build TLS config: %w", err)
+	}
+
+	return tlsConfig, nil
+}
+
+// BuildServerConfigIfEnabled checks if TLS is enabled and builds server config.
+// Returns nil config if TLS is disabled or config is nil (no error).
+// This is a convenience function to reduce boilerplate in connectors.
+func BuildServerConfigIfEnabled(cfg *Config) (*tls.Config, error) {
+	if cfg == nil || !cfg.Enabled {
+		return nil, nil
+	}
+
+	tlsConfig, err := cfg.BuildServerConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build TLS config: %w", err)
+	}
+
+	return tlsConfig, nil
+}
+
+// IsEnabled returns true if TLS is configured and enabled.
+// Returns false if cfg is nil or Enabled is false.
+func IsEnabled(cfg *Config) bool {
+	return cfg != nil && cfg.Enabled
+}

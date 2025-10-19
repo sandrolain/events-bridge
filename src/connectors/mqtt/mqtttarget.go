@@ -81,7 +81,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
-	useTLS := cfg.TLS != nil && cfg.TLS.Enabled
+	useTLS := tlsconfig.IsEnabled(cfg.TLS)
 	protocol := "tcp"
 	if useTLS {
 		protocol = "ssl"
@@ -115,9 +115,9 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 
 	// Configure TLS
 	if useTLS {
-		tlsConfig, err := cfg.TLS.BuildClientConfig()
+		tlsConfig, err := tlsconfig.BuildClientConfigIfEnabled(cfg.TLS)
 		if err != nil {
-			return nil, fmt.Errorf("failed to build TLS config: %w", err)
+			return nil, err
 		}
 		copts.SetTLSConfig(tlsConfig)
 	}
