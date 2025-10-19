@@ -8,25 +8,13 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 const (
 	httpRunnerErrCreate = "unexpected error creating runner: %v"
 )
-
-// stubSourceMessage implements message.SourceMessage for testing.
-type stubSourceMessage struct {
-	data     []byte
-	metadata map[string]string
-}
-
-func (s *stubSourceMessage) GetID() []byte                           { return []byte("id") }
-func (s *stubSourceMessage) GetMetadata() (map[string]string, error) { return s.metadata, nil }
-func (s *stubSourceMessage) GetData() ([]byte, error)                { return s.data, nil }
-func (s *stubSourceMessage) Ack() error                              { return nil }
-func (s *stubSourceMessage) Nak() error                              { return nil }
-func (s *stubSourceMessage) Reply(d *message.ReplyData) error        { return nil }
 
 func mustParseRunnerConfig(t *testing.T, opts map[string]any) *HTTPRunnerConfig {
 	t.Helper()
@@ -63,8 +51,8 @@ func TestHTTPRunnerSuccess(t *testing.T) {
 		t.Fatalf("expected *HTTPRunner got %T", r)
 	}
 
-	src := &stubSourceMessage{data: []byte(`{"in":1}`), metadata: map[string]string{"X-Test-Meta": "meta-val"}}
-	msg := message.NewRunnerMessage(src)
+	stub := testutil.NewAdapter([]byte(`{"in":1}`), map[string]string{"X-Test-Meta": "meta-val"})
+	msg := message.NewRunnerMessage(stub)
 
 	if err := runner.Process(msg); err != nil {
 		t.Fatalf("unexpected error processing: %v", err)
@@ -108,8 +96,8 @@ func TestHTTPRunnerNon2XX(t *testing.T) {
 	runner := r.(*HTTPRunner)
 
 	origPayload := []byte(`{"in":2}`)
-	src := &stubSourceMessage{data: origPayload, metadata: map[string]string{"A": "b"}}
-	msg := message.NewRunnerMessage(src)
+	stub2 := testutil.NewAdapter(origPayload, map[string]string{"A": "b"})
+	msg := message.NewRunnerMessage(stub2)
 	if err := runner.Process(msg); err == nil {
 		t.Fatalf("expected error for non-2xx response")
 	}
@@ -142,8 +130,8 @@ func TestHTTPRunnerTimeout(t *testing.T) {
 	}
 	runner := r.(*HTTPRunner)
 
-	src := &stubSourceMessage{data: []byte("{}"), metadata: map[string]string{"A": "b"}}
-	msg := message.NewRunnerMessage(src)
+	stub3 := testutil.NewAdapter([]byte("{}"), map[string]string{"A": "b"})
+	msg := message.NewRunnerMessage(stub3)
 	if err := runner.Process(msg); err == nil {
 		t.Fatalf("expected timeout error")
 	}

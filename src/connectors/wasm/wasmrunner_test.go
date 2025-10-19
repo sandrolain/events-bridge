@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 )
 
 const (
@@ -56,37 +57,6 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// stubSourceMessage is a minimal implementation of message.SourceMessage for testing
-type stubSourceMessage struct {
-	id       []byte
-	metadata map[string]string
-	data     []byte
-}
-
-func (s *stubSourceMessage) GetID() []byte {
-	return s.id
-}
-
-func (s *stubSourceMessage) GetMetadata() (map[string]string, error) {
-	return s.metadata, nil
-}
-
-func (s *stubSourceMessage) GetData() ([]byte, error) {
-	return s.data, nil
-}
-
-func (s *stubSourceMessage) Ack() error {
-	return nil
-}
-
-func (s *stubSourceMessage) Nak() error {
-	return nil
-}
-
-func (s *stubSourceMessage) Reply(_ *message.ReplyData) error {
-	return nil
-}
-
 // getTestAssetPath returns the absolute path to a test asset
 func getTestAssetPath(filename string) string {
 	return filepath.Join("testassets", filename)
@@ -94,14 +64,11 @@ func getTestAssetPath(filename string) string {
 
 // createTestMessage creates a simple test message
 func createTestMessage() *message.RunnerMessage {
-	stub := &stubSourceMessage{
-		id: []byte(testMsgID),
-		metadata: map[string]string{
-			"source": "test",
-			"type":   "test-message",
-		},
-		data: []byte(testMsgData),
-	}
+	stub := testutil.NewAdapter([]byte(testMsgData), map[string]string{
+		"source": "test",
+		"type":   "test-message",
+	})
+	stub.ID = []byte(testMsgID)
 	return message.NewRunnerMessage(stub)
 }
 
@@ -432,13 +399,10 @@ func TestProcessMultipleMessages(t *testing.T) {
 
 	// Process multiple messages
 	for i := 0; i < 5; i++ {
-		stub := &stubSourceMessage{
-			id: []byte(testMsgID),
-			metadata: map[string]string{
-				"iteration": string(rune(i)),
-			},
-			data: []byte("test data"),
-		}
+		stub := testutil.NewAdapter([]byte("test data"), map[string]string{
+			"iteration": string(rune(i)),
+		})
+		stub.ID = []byte(testMsgID)
 		msg := message.NewRunnerMessage(stub)
 
 		err := runner.Process(msg)
@@ -462,11 +426,8 @@ func TestProcessEmptyMetadata(t *testing.T) {
 	t.Parallel()
 	runner := getSharedRunner()
 
-	stub := &stubSourceMessage{
-		id:       []byte(testMsgID),
-		metadata: map[string]string{},
-		data:     []byte(testMsgData),
-	}
+	stub := testutil.NewAdapter([]byte(testMsgData), map[string]string{})
+	stub.ID = []byte(testMsgID)
 	msg := message.NewRunnerMessage(stub)
 
 	err := runner.Process(msg)
@@ -483,13 +444,10 @@ func TestProcessEmptyData(t *testing.T) {
 	t.Parallel()
 	runner := getSharedRunner()
 
-	stub := &stubSourceMessage{
-		id: []byte(testMsgID),
-		metadata: map[string]string{
-			"test": "value",
-		},
-		data: []byte{},
-	}
+	stub := testutil.NewAdapter([]byte{}, map[string]string{
+		"test": "value",
+	})
+	stub.ID = []byte(testMsgID)
 	msg := message.NewRunnerMessage(stub)
 
 	err := runner.Process(msg)

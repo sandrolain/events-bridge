@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 )
 
 func BenchmarkES5RunnerProcess(b *testing.B) {
@@ -37,11 +38,9 @@ message.AddMetadata("processed", "true");
 	}
 	runner := runnerAny.(*ES5Runner)
 
-	msg := message.NewRunnerMessage(&stubSourceMessage{
-		id:       []byte(benchID),
-		data:     []byte(benchData),
-		metadata: map[string]string{"source": benchSource},
-	})
+	stub := testutil.NewAdapter([]byte(benchData), map[string]string{"source": benchSource})
+	stub.ID = []byte(benchID)
+	msg := message.NewRunnerMessage(stub)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -90,11 +89,9 @@ message.AddMetadata("timestamp", new Date().toISOString());
 	}
 	runner := runnerAny.(*ES5Runner)
 
-	msg := message.NewRunnerMessage(&stubSourceMessage{
-		id:       []byte(benchID),
-		data:     []byte(benchDataComplex),
-		metadata: map[string]string{"source": benchSource, "type": "test"},
-	})
+	stub := testutil.NewAdapter([]byte(benchDataComplex), map[string]string{"source": benchSource, "type": "test"})
+	stub.ID = []byte(benchID)
+	msg := message.NewRunnerMessage(stub)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

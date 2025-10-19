@@ -10,6 +10,7 @@ import (
 
 	"github.com/sandrolain/events-bridge/src/common/encdec"
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 )
 
 const (
@@ -203,16 +204,8 @@ type targetPayload struct {
 	Payload  []byte            `json:"data" cbor:"data"`
 }
 
-type targetStubSourceMessage struct {
-	metadata map[string]string
-	data     []byte
-}
-
 func newRunnerMessage(metadata map[string]string, data []byte) *message.RunnerMessage {
-	stub := &targetStubSourceMessage{
-		metadata: metadata,
-		data:     data,
-	}
+	stub := testutil.NewAdapter(data, metadata)
 	msg := message.NewRunnerMessage(stub)
 	if metadata != nil {
 		msg.MergeMetadata(metadata)
@@ -222,24 +215,3 @@ func newRunnerMessage(metadata map[string]string, data []byte) *message.RunnerMe
 	}
 	return msg
 }
-
-func (s *targetStubSourceMessage) GetID() []byte {
-	return nil
-}
-
-func (s *targetStubSourceMessage) GetMetadata() (map[string]string, error) {
-	if s.metadata == nil {
-		return map[string]string{}, nil
-	}
-	return s.metadata, nil
-}
-
-func (s *targetStubSourceMessage) GetData() ([]byte, error) {
-	return s.data, nil
-}
-
-func (s *targetStubSourceMessage) Ack() error { return nil }
-
-func (s *targetStubSourceMessage) Nak() error { return nil }
-
-func (s *targetStubSourceMessage) Reply(*message.ReplyData) error { return nil }

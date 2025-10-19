@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 )
 
 const (
@@ -18,44 +19,9 @@ const (
 	errFmtXRangeFailed = "XRange failed: %v"
 )
 
-type stubSourceMessage struct {
-	id       []byte
-	data     []byte
-	metadata map[string]string
-}
-
-func (m *stubSourceMessage) GetID() []byte {
-	if len(m.id) == 0 {
-		return []byte("id")
-	}
-	return m.id
-}
-
-func (m *stubSourceMessage) GetMetadata() (map[string]string, error) {
-	return m.metadata, nil
-}
-
-func (m *stubSourceMessage) GetData() ([]byte, error) {
-	return m.data, nil
-}
-
-func (m *stubSourceMessage) Ack() error {
-	return nil
-}
-
-func (m *stubSourceMessage) Nak() error {
-	return nil
-}
-
-func (m *stubSourceMessage) Reply(_ *message.ReplyData) error {
-	return nil
-}
-
 func newStubRunnerMessage(data string, metadata map[string]string) *message.RunnerMessage {
-	msg := message.NewRunnerMessage(&stubSourceMessage{
-		data:     []byte(data),
-		metadata: metadata,
-	})
+	stub := testutil.NewAdapter([]byte(data), metadata)
+	msg := message.NewRunnerMessage(stub)
 	if metadata != nil {
 		msg.SetMetadata(metadata)
 	}

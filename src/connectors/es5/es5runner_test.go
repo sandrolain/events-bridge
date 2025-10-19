@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 )
 
 const (
@@ -79,11 +80,9 @@ if (typeof message !== 'undefined') {
 	}
 	runner := runnerAny.(*ES5Runner)
 
-	msg := message.NewRunnerMessage(&stubSourceMessage{
-		id:       []byte("id"),
-		data:     []byte("hello"),
-		metadata: map[string]string{"source": "test"},
-	})
+	stub := testutil.NewAdapter([]byte("hello"), map[string]string{"source": "test"})
+	stub.ID = []byte("id")
+	msg := message.NewRunnerMessage(stub)
 
 	if err := runner.Process(msg); err != nil {
 		t.Fatalf("process returned error: %v", err)
@@ -122,7 +121,8 @@ func TestES5RunnerProcessRuntimeError(t *testing.T) {
 	}
 	runner := runnerAny.(*ES5Runner)
 
-	msg := message.NewRunnerMessage(&stubSourceMessage{data: []byte("payload")})
+	stub := testutil.NewAdapter([]byte("payload"), nil)
+	msg := message.NewRunnerMessage(stub)
 	err = runner.Process(msg)
 	if err == nil {
 		t.Fatalf("expected runtime error, got nil")
@@ -155,7 +155,8 @@ func TestES5RunnerProcessInvalidServiceMethod(t *testing.T) {
 	}
 	runner := runnerAny.(*ES5Runner)
 
-	msg := message.NewRunnerMessage(&stubSourceMessage{data: []byte("payload")})
+	stub := testutil.NewAdapter([]byte("payload"), nil)
+	msg := message.NewRunnerMessage(stub)
 	err = runner.Process(msg)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
@@ -165,35 +166,3 @@ func TestES5RunnerProcessInvalidServiceMethod(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
-
-type stubSourceMessage struct {
-	id       []byte
-	data     []byte
-	metadata map[string]string
-}
-
-func (s *stubSourceMessage) GetID() []byte {
-	if s.id != nil {
-		return s.id
-	}
-	return []byte("stub-id")
-}
-
-func (s *stubSourceMessage) GetMetadata() (map[string]string, error) {
-	if s.metadata == nil {
-		return map[string]string{}, nil
-	}
-	return s.metadata, nil
-}
-
-func (s *stubSourceMessage) GetData() ([]byte, error) {
-	return s.data, nil
-}
-
-func (s *stubSourceMessage) Ack() error { return nil }
-
-func (s *stubSourceMessage) Nak() error { return nil }
-
-func (s *stubSourceMessage) Reply(data *message.ReplyData) error { return nil }
-
-func (s *stubSourceMessage) ReplySource() error { return nil }

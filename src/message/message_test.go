@@ -12,6 +12,9 @@ const (
 	errMsgExpectedNilError = "expected error from %s, got nil"
 )
 
+// stubSourceMessage is a local test stub for SourceMessage.
+// Note: this is kept here to avoid import cycles. For tests outside
+// the message package, use github.com/sandrolain/events-bridge/src/testutil.StubSourceMessage
 type stubSourceMessage struct {
 	id          []byte
 	metadata    map[string]string

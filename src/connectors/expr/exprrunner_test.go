@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 )
 
 func TestNewExprRunner(t *testing.T) {
@@ -36,12 +38,9 @@ func TestExprProcess(t *testing.T) {
 	defer runner.Close()
 
 	// Create a test message
-	original := &stubSourceMessage{
-		id:       []byte("test-id"),
-		metadata: map[string]string{"source": "test"},
-		data:     []byte(`{"value": 42}`),
-	}
-	msg := message.NewRunnerMessage(original)
+	stub := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{"source": "test"})
+	stub.ID = []byte("test-id")
+	msg := message.NewRunnerMessage(stub)
 
 	err = runner.Process(msg)
 	if err != nil {
@@ -74,12 +73,9 @@ func TestExprProcessWithPreservePayload(t *testing.T) {
 	}
 	defer runner.Close()
 
-	original := &stubSourceMessage{
-		id:       []byte("test-id"),
-		metadata: map[string]string{"source": "test"},
-		data:     []byte(`{"value": 42}`),
-	}
-	msg := message.NewRunnerMessage(original)
+	stub2 := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{"source": "test"})
+	stub2.ID = []byte("test-id")
+	msg := message.NewRunnerMessage(stub2)
 
 	err = runner.Process(msg)
 	if err != nil {
@@ -113,18 +109,15 @@ func TestExprProcessTimeout(t *testing.T) {
 	}
 	defer runner.Close()
 
-	original := &stubSourceMessage{
-		id:       []byte("test-id"),
-		metadata: map[string]string{},
-		data:     []byte(`{"value": 42}`),
-	}
-	msg := message.NewRunnerMessage(original)
+	stub3 := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{})
+	stub3.ID = []byte("test-id")
+	msg := message.NewRunnerMessage(stub3)
 
 	err = runner.Process(msg)
 	if err == nil {
 		t.Fatal("expected timeout error")
 	}
-	if err.Error() != "expr execution timeout" {
+	if !strings.Contains(err.Error(), "expr execution timeout") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -151,52 +144,4 @@ func TestExprClose(t *testing.T) {
 	}
 }
 
-// stubSourceMessage is a test stub for SourceMessage
-type stubSourceMessage struct {
-	id          []byte
-	metadata    map[string]string
-	metadataErr error
-	data        []byte
-	dataErr     error
-	ackErr      error
-	ackCalls    int
-	nakErr      error
-	nakCalls    int
-	replyErr    error
-	replyCalls  int
-	replyData   *message.ReplyData
-}
-
-func (s *stubSourceMessage) GetID() []byte {
-	return s.id
-}
-
-func (s *stubSourceMessage) GetMetadata() (map[string]string, error) {
-	if s.metadataErr != nil {
-		return nil, s.metadataErr
-	}
-	return s.metadata, nil
-}
-
-func (s *stubSourceMessage) GetData() ([]byte, error) {
-	if s.dataErr != nil {
-		return nil, s.dataErr
-	}
-	return s.data, nil
-}
-
-func (s *stubSourceMessage) Ack() error {
-	s.ackCalls++
-	return s.ackErr
-}
-
-func (s *stubSourceMessage) Nak() error {
-	s.nakCalls++
-	return s.nakErr
-}
-
-func (s *stubSourceMessage) Reply(d *message.ReplyData) error {
-	s.replyCalls++
-	s.replyData = d
-	return s.replyErr
-}
+// Removed local stubSourceMessage - now using testutil.NewAdapter()

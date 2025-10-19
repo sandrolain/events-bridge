@@ -12,23 +12,11 @@ import (
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
 
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/sandrolain/events-bridge/src/testutil"
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
 const coapRunnerErrCreate = "unexpected error creating coap runner: %v"
-
-// stubSourceMessage reused (duplicated minimal) from http runner tests for isolation.
-type stubSourceMessage struct {
-	data     []byte
-	metadata map[string]string
-}
-
-func (s *stubSourceMessage) GetID() []byte                           { return []byte("id") }
-func (s *stubSourceMessage) GetMetadata() (map[string]string, error) { return s.metadata, nil }
-func (s *stubSourceMessage) GetData() ([]byte, error)                { return s.data, nil }
-func (s *stubSourceMessage) Ack() error                              { return nil }
-func (s *stubSourceMessage) Nak() error                              { return nil }
-func (s *stubSourceMessage) Reply(d *message.ReplyData) error        { return nil }
 
 func mustParseCoAPRunnerConfig(t *testing.T, opts map[string]any) *CoAPRunnerConfig {
 	t.Helper()
@@ -76,7 +64,8 @@ func TestCoAPRunnerSuccess(t *testing.T) {
 	}
 	runner := r.(*CoAPRunner)
 
-	msg := message.NewRunnerMessage(&stubSourceMessage{data: []byte(`{"in":1}`), metadata: map[string]string{"Content-Type": "application/json"}})
+	stub := testutil.NewAdapter([]byte(`{"in":1}`), map[string]string{"Content-Type": "application/json"})
+	msg := message.NewRunnerMessage(stub)
 	if err := runner.Process(msg); err != nil {
 		t.Fatalf("unexpected process error: %v", err)
 	}
@@ -104,7 +93,8 @@ func TestCoAPRunnerNon2XX(t *testing.T) {
 	}
 	runner := r.(*CoAPRunner)
 	orig := []byte(`{"in":2}`)
-	msg := message.NewRunnerMessage(&stubSourceMessage{data: orig, metadata: map[string]string{"Content-Type": "application/json"}})
+	stub2 := testutil.NewAdapter(orig, map[string]string{"Content-Type": "application/json"})
+	msg := message.NewRunnerMessage(stub2)
 	if err := runner.Process(msg); err == nil {
 		t.Fatalf("expected error for non-2.xx code")
 	}
@@ -129,7 +119,8 @@ func TestCoAPRunnerTimeout(t *testing.T) {
 		t.Fatalf(coapRunnerErrCreate, err)
 	}
 	runner := r.(*CoAPRunner)
-	msg := message.NewRunnerMessage(&stubSourceMessage{data: []byte("{}"), metadata: map[string]string{}})
+	stub3 := testutil.NewAdapter([]byte("{}"), map[string]string{})
+	msg := message.NewRunnerMessage(stub3)
 	// Process already has its own timeout; just invoke
 	if err := runner.Process(msg); err == nil {
 		t.Fatalf("expected timeout error")
