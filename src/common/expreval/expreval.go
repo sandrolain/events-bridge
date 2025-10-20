@@ -168,12 +168,13 @@ func detectDangerousPatterns(expression string) error {
 	maxDepth := 0
 	currentDepth := 0
 	for _, char := range expression {
-		if char == '(' || char == '[' || char == '{' {
+		switch char {
+		case '(', '[', '{':
 			currentDepth++
 			if currentDepth > maxDepth {
 				maxDepth = currentDepth
 			}
-		} else if char == ')' || char == ']' || char == '}' {
+		case ')', ']', '}':
 			currentDepth--
 		}
 	}
