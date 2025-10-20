@@ -17,6 +17,90 @@ func TestNewTargetConfig(t *testing.T) {
 	assert.True(t, ok, "NewTargetConfig should return *TargetConfig")
 }
 
+const validConnString = "postgres://user:pass@localhost/db"
+
+// TestTargetConfigInvalidIdentifiers tests SQL injection prevention
+func TestTargetConfigInvalidIdentifiers(t *testing.T) {
+	tests := []struct {
+		name        string
+		cfg         *TargetConfig
+		errContains string
+	}{
+		{
+			name: "invalid table name - SQL injection attempt",
+			cfg: &TargetConfig{
+				ConnString:       validConnString,
+				Table:            "test'; DROP TABLE users; --",
+				BatchSize:        100,
+				StrictValidation: true,
+			},
+			errContains: "invalid table name",
+		},
+		{
+			name: "invalid other column - SQL injection attempt",
+			cfg: &TargetConfig{
+				ConnString:       validConnString,
+				Table:            "test_table",
+				OtherColumn:      "col'; DROP TABLE users; --",
+				BatchSize:        100,
+				StrictValidation: true,
+			},
+			errContains: "invalid other column name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target, err := NewTarget(tt.cfg)
+
+			require.Error(t, err, "should reject invalid identifier")
+			assert.Contains(t, err.Error(), tt.errContains)
+			assert.Nil(t, target)
+		})
+	}
+}
+
+// TestTargetConfigMissingFields tests validation of required fields
+func TestTargetConfigMissingFields(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  *TargetConfig
+	}{
+		{
+			name: "missing connection string",
+			cfg: &TargetConfig{
+				Table:     "test_table",
+				BatchSize: 100,
+			},
+		},
+		{
+			name: "missing table",
+			cfg: &TargetConfig{
+				ConnString: validConnString,
+				BatchSize:  100,
+			},
+		},
+		{
+			name: "invalid connection string format",
+			cfg: &TargetConfig{
+				ConnString: "not-a-valid-conn-string",
+				Table:      "test_table",
+				BatchSize:  100,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target, err := NewTarget(tt.cfg)
+
+			// Should fail (validation or connection error)
+			require.Error(t, err, "should fail with invalid config")
+			assert.Nil(t, target)
+		})
+	}
+}
+
 func TestTargetConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -24,34 +108,18 @@ func TestTargetConfigValidation(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid config",
+			name: "valid config structure",
 			cfg: &TargetConfig{
-				ConnString: "postgres://user:pass@localhost/db",
+				ConnString: validConnString,
 				Table:      "test_table",
 				BatchSize:  100,
 			},
-			wantErr: false,
+			wantErr: false, // May fail on DB connection in unit test
 		},
 		{
-			name: "missing connection string",
+			name: "with valid other column",
 			cfg: &TargetConfig{
-				Table:     "test_table",
-				BatchSize: 100,
-			},
-			wantErr: true,
-		},
-		{
-			name: "missing table",
-			cfg: &TargetConfig{
-				ConnString: "postgres://user:pass@localhost/db",
-				BatchSize:  100,
-			},
-			wantErr: true,
-		},
-		{
-			name: "with other column",
-			cfg: &TargetConfig{
-				ConnString:  "postgres://user:pass@localhost/db",
+				ConnString:  validConnString,
 				Table:       "test_table",
 				OtherColumn: "extra_data",
 				BatchSize:   50,
@@ -62,8 +130,20 @@ func TestTargetConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This is a basic structure test, actual validation happens in the connector framework
-			assert.NotNil(t, tt.cfg)
+			require.NotNil(t, tt.cfg)
+
+			target, err := NewTarget(tt.cfg)
+
+			if err != nil {
+				// Config valid but connection may fail in unit tests
+				t.Logf("Config valid but connection failed (expected): %v", err)
+			} else if target != nil {
+				defer func() {
+					if closer, ok := target.(interface{ Close() error }); ok {
+						_ = closer.Close()
+					}
+				}()
+			}
 		})
 	}
 }
