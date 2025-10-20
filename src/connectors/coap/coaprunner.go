@@ -128,7 +128,11 @@ func (r *CoAPRunner) sendCoAP(ctx context.Context, method, path, address string,
 	if err != nil {
 		return 0, nil, err
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			r.slog.Warn("failed to close CoAP client", "error", err)
+		}
+	}()
 
 	resp, err := sendCoAPRequest(ctx, client, method, path, contentFormat, data)
 	if err != nil {

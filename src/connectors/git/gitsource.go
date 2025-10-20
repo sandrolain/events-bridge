@@ -304,12 +304,16 @@ func (s *GitSource) checkForChanges() {
 	}
 	var changes []map[string]interface{}
 	found := false
-	_ = cIter.ForEach(func(c *object.Commit) error {
+	if err := cIter.ForEach(func(c *object.Commit) error {
 		if !oldHash.IsZero() && c.Hash == oldHash {
 			return storer.ErrStop
 		}
-		files, _ := c.Files()
-		_ = files.ForEach(func(f *object.File) error {
+		files, err := c.Files()
+		if err != nil {
+			s.slog.Warn("failed to get commit files", "error", err)
+			return nil
+		}
+		if err := files.ForEach(func(f *object.File) error {
 			if s.cfg.SubDir == "" || strings.HasPrefix(f.Name, s.cfg.SubDir) {
 				found = true
 				changes = append(changes, map[string]interface{}{
@@ -322,9 +326,13 @@ func (s *GitSource) checkForChanges() {
 				})
 			}
 			return nil
-		})
+		}); err != nil {
+			s.slog.Warn("failed to iterate files", "error", err)
+		}
 		return nil
-	})
+	}); err != nil {
+		s.slog.Warn("failed to iterate commits", "error", err)
+	}
 	if found {
 		msg := &GitMessage{
 			changes: changes,

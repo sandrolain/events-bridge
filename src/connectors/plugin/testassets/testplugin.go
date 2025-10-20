@@ -43,7 +43,10 @@ var source bootstrap.SourceFn = func(req *proto.SourceReq, stream proto.PluginSe
 			return fmt.Errorf("failed to generate random id: %w", err)
 		}
 		msgMap := map[string]any{"i": i, "ts": time.Now().UnixNano()}
-		data, _ := json.Marshal(msgMap)
+		data, err := json.Marshal(msgMap)
+		if err != nil {
+			return fmt.Errorf("failed to marshal message: %w", err)
+		}
 		resp := bootstrap.ResponseMessage(id, map[string]string{"idx": fmt.Sprintf("%d", i)}, data)
 		if err := stream.Send(resp); err != nil {
 			return err

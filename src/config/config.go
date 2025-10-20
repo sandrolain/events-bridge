@@ -169,7 +169,9 @@ func loadConfigFile(path string) (cfg *Config, err error) {
 	}
 
 	// Env overrides (optional, prefix EB_)
-	loadEnv(k)
+	if e = loadEnv(k); e != nil {
+		return nil, e
+	}
 
 	cfg = &Config{}
 	if e = k.UnmarshalWithConf("", cfg, kfn.UnmarshalConf{Tag: "yaml"}); e != nil {
@@ -210,7 +212,9 @@ func loadConfigContent(content string, format string) (cfg *Config, err error) {
 	}
 
 	// Env overrides (optional, prefix EB_)
-	loadEnv(k)
+	if err = loadEnv(k); err != nil {
+		return nil, err
+	}
 
 	cfg = &Config{}
 	if err = k.UnmarshalWithConf("", cfg, kfn.UnmarshalConf{Tag: "yaml"}); err != nil {
@@ -224,19 +228,22 @@ func loadConfigContent(content string, format string) (cfg *Config, err error) {
 	return cfg, nil
 }
 
-func loadEnv(k *kfn.Koanf) {
+func loadEnv(k *kfn.Koanf) error {
 	// Allow overriding config via environment variables with prefix EB_.
 	// Example: EB_SOURCE__TYPE=http
 	// Array example: EB_SOURCE__KAFKA__BROKERS__0=localhost:9092
 	const prefix = "EB_"
-	_ = k.Load(kenv.Provider(prefix, ".", func(s string) string {
+	if err := k.Load(kenv.Provider(prefix, ".", func(s string) string {
 		// Transform: EB_FOO__BAR__BAZ -> foo.bar.baz
 		noPrefix := strings.TrimPrefix(s, prefix)
 		noPrefix = strings.ToLower(noPrefix)
 		// Double underscore becomes dot for nesting
 		noPrefix = strings.ReplaceAll(noPrefix, "__", ".")
 		return noPrefix
-	}), nil)
+	}), nil); err != nil {
+		return fmt.Errorf("failed to load environment variables: %w", err)
+	}
+	return nil
 }
 
 type UnsupportedExtensionError struct {

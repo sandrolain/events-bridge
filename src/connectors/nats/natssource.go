@@ -274,7 +274,9 @@ func (s *NATSSource) Close() error {
 	// Unsubscribe/Drain subscription before closing channel to avoid send-on-closed-channel
 	if s.sub != nil {
 		if err := s.sub.Drain(); err != nil {
-			_ = s.sub.Unsubscribe()
+			if err := s.sub.Unsubscribe(); err != nil {
+				s.slog.Warn("failed to unsubscribe", "error", err)
+			}
 		}
 		s.sub = nil
 	}

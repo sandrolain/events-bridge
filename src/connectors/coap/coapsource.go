@@ -104,7 +104,7 @@ func (s *CoAPSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 	}
 
 	if s.cfg.Protocol == CoAPProtocolDTLS {
-		if err := buildDTLSServer(s.cfg, router); err != nil {
+		if err := buildDTLSServer(s.cfg, router, s.slog); err != nil {
 			return nil, fmt.Errorf("failed to start DTLS server: %w", err)
 		}
 	} else {
@@ -123,7 +123,10 @@ const failResponseError = "failed to send CoAP response"
 
 func (s *CoAPSource) handleCoAP(w coapmux.ResponseWriter, req *coapmux.Message) {
 	method := req.Code().String()
-	path, _ := req.Options().Path()
+	path, err := req.Options().Path()
+	if err != nil {
+		s.slog.Warn("failed to get request path", "error", err)
+	}
 
 	s.slog.Debug("received CoAP request", "method", method, "path", path)
 
@@ -177,7 +180,10 @@ func (s *CoAPSource) readRequestBody(w coapmux.ResponseWriter, req *coapmux.Mess
 	var buf bytes.Buffer
 	if s.cfg.MaxPayloadSize > 0 {
 		lr := &io.LimitedReader{R: body, N: int64(s.cfg.MaxPayloadSize) + 1}
-		n, _ := buf.ReadFrom(lr)
+		n, err := buf.ReadFrom(lr)
+		if err != nil {
+			s.slog.Warn("failed to read from limited reader", "error", err)
+		}
 		if n > int64(s.cfg.MaxPayloadSize) {
 			if err := w.SetResponse(coapcodes.RequestEntityTooLarge, coapmessage.TextPlain, nil); err != nil {
 				s.slog.Error(failResponseError, "err", err)
@@ -185,7 +191,9 @@ func (s *CoAPSource) readRequestBody(w coapmux.ResponseWriter, req *coapmux.Mess
 			return nil, fmt.Errorf("payload too large: %d bytes", n)
 		}
 	} else {
-		_, _ = buf.ReadFrom(body)
+		if _, err := buf.ReadFrom(body); err != nil {
+			s.slog.Warn("failed to read from body", "error", err)
+		}
 	}
 
 	return buf.Bytes(), nil
@@ -246,7 +254,10 @@ func (s *CoAPSource) Close() error {
 func loggingMiddleware(next coapmux.Handler) coapmux.Handler {
 	return coapmux.HandlerFunc(func(w coapmux.ResponseWriter, r *coapmux.Message) {
 		// Avoid logging full message payloads to prevent sensitive data leakage
-		p, _ := r.Options().Path()
+		p, err := r.Options().Path()
+		if err != nil {
+			log.Printf("Failed to get path: %v", err)
+		}
 		log.Printf("ClientAddress %v, Code %v, Path %v\n", w.Conn().RemoteAddr(), r.Code(), p)
 		next.ServeCOAP(w, r)
 	})

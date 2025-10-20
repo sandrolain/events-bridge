@@ -52,7 +52,10 @@ func (w *clientWrapper[T]) Post(ctx context.Context, path string, contentFormat 
 	if err != nil {
 		return nil, err
 	}
-	payload, _ := resp.ReadBody()
+	payload, err := resp.ReadBody()
+	if err != nil {
+		w.logger.Warn("failed to read response body", "error", err)
+	}
 	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
 }
 
@@ -61,7 +64,10 @@ func (w *clientWrapper[T]) Put(ctx context.Context, path string, contentFormat c
 	if err != nil {
 		return nil, err
 	}
-	payload, _ := resp.ReadBody()
+	payload, err := resp.ReadBody()
+	if err != nil {
+		w.logger.Warn("failed to read response body", "error", err)
+	}
 	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
 }
 
@@ -70,7 +76,10 @@ func (w *clientWrapper[T]) Get(ctx context.Context, path string) (*CoAPClientRes
 	if err != nil {
 		return nil, err
 	}
-	payload, _ := resp.ReadBody()
+	payload, err := resp.ReadBody()
+	if err != nil {
+		w.logger.Warn("failed to read response body", "error", err)
+	}
 	return &CoAPClientResponse{Code: resp.Code(), Payload: payload}, nil
 }
 

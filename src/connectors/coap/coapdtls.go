@@ -6,6 +6,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 
 	piondtls "github.com/pion/dtls/v3"
 	"github.com/plgd-dev/go-coap/v3"
@@ -16,7 +17,7 @@ import (
 )
 
 // buildDTLSServer constructs a DTLS server (PSK or cert mode) and starts listening.
-func buildDTLSServer(cfg *SourceConfig, router *coapmux.Router) error {
+func buildDTLSServer(cfg *SourceConfig, router *coapmux.Router, logger *slog.Logger) error {
 	// Accept only PSK or cert pair, and resolve PSK secret
 	psk := cfg.PSK
 	if psk != "" {
@@ -34,7 +35,9 @@ func buildDTLSServer(cfg *SourceConfig, router *coapmux.Router) error {
 
 	go func() {
 		// ListenAndServeDTLS blocks; errors are logged by caller if needed
-		_ = coap.ListenAndServeDTLS("udp", cfg.Address, dtlsConfig, router)
+		if err := coap.ListenAndServeDTLS("udp", cfg.Address, dtlsConfig, router); err != nil {
+			logger.Error("DTLS server error", "error", err)
+		}
 	}()
 	return nil
 }

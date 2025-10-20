@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -86,7 +87,12 @@ func VerifyPluginHash(pluginPath string, expectedHash string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open plugin executable: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			// Log error but don't fail the function as hash validation is complete
+			log.Printf("failed to close plugin file: %v", err)
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
@@ -171,7 +177,11 @@ func ComputePluginHash(pluginPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open plugin executable: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("failed to close plugin file: %v", err)
+		}
+	}()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {

@@ -132,12 +132,16 @@ func (s *CLISource) Close() error {
 
 	s.cancel()
 	if s.stdout != nil {
-		_ = s.stdout.Close()
+		if err := s.stdout.Close(); err != nil {
+			s.slog.Warn("failed to close stdout", "error", err)
+		}
 	}
 
 	// Close the executor as well
 	if s.executor != nil {
-		_ = s.executor.Close()
+		if err := s.executor.Close(); err != nil {
+			s.slog.Warn("failed to close executor", "error", err)
+		}
 	}
 
 	if s.waitDone != nil {
@@ -150,7 +154,9 @@ func (s *CLISource) Close() error {
 			}
 		case <-time.After(s.cfg.Timeout):
 			if s.cmd != nil && s.cmd.Process != nil {
-				_ = s.cmd.Process.Kill()
+				if err := s.cmd.Process.Kill(); err != nil {
+					s.slog.Warn("failed to kill process", "error", err)
+				}
 			}
 			if err, ok := <-s.waitDone; ok && err != nil && s.ctx.Err() == nil {
 				return fmt.Errorf("cli command exited with error: %w", err)
