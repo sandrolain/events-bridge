@@ -86,7 +86,7 @@ func TestResolveFromFile(t *testing.T) {
 	// Create temporary file with secret
 	tmpDir := t.TempDir()
 	secretFile := filepath.Join(tmpDir, "secret.txt")
-	secretContent := "file-based-secret-content"
+	const secretContent = "file-based-secret-content" // #nosec G101 - test constant, not a credential
 
 	err := os.WriteFile(secretFile, []byte(secretContent), 0600)
 	if err != nil {

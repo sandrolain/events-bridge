@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -253,7 +252,6 @@ func TestProcessWithArgs(t *testing.T) {
 		Args:    []string{"arg1", "arg2", "arg3"},
 		Format:  "cli",
 	}
-	fmt.Printf("cfg: %v\n", cfg)
 
 	runner, err := NewRunner(cfg)
 	if err != nil {

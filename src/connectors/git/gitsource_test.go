@@ -66,11 +66,12 @@ func TestGitSourceCheckForChangesCloneAndFetch(t *testing.T) {
 
 	localParent := t.TempDir()
 	localDir := filepath.Join(localParent, "gitsource-local")
-	cmd := exec.Command("git", "clone", remoteDir, localDir)
+	cmd := exec.Command("git", "clone", remoteDir, localDir) // #nosec G204 - test with controlled paths
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to clone: %v", err)
 	}
 	filePath := filepath.Join(localDir, "foo.txt")
+	// #nosec G306 - test file, not sensitive
 	if err := os.WriteFile(filePath, []byte("bar"), 0644); err != nil {
 		t.Fatalf(errWriteFile, err)
 	}
@@ -113,6 +114,7 @@ func TestGitSourceCheckForChangesSubDirNoMatch(t *testing.T) {
 	}()
 	initWorkRepo(t, tmpDir)
 	filePath := filepath.Join(tmpDir, "test.txt")
+	// #nosec G306 - test file, not sensitive
 	if err := os.WriteFile(filePath, []byte("hello world"), 0644); err != nil {
 		t.Fatalf(errWriteFile, err)
 	}
@@ -159,6 +161,7 @@ func TestGitSourceCheckForChangesRealRepo(t *testing.T) {
 
 	// Create a file and commit it
 	filePath := filepath.Join(tmpDir, "test.txt")
+	// #nosec G306 - test file, not sensitive
 	if err := os.WriteFile(filePath, []byte("hello world"), 0644); err != nil {
 		t.Fatalf(errWriteFile, err)
 	}
@@ -207,11 +210,12 @@ func TestGitSourceProduceAndClose(t *testing.T) {
 	initBareRepo(t, remoteDir)
 	localParent := t.TempDir()
 	localDir := filepath.Join(localParent, "gitsource-local")
-	cmd := exec.Command("git", "clone", remoteDir, localDir)
+	cmd := exec.Command("git", "clone", remoteDir, localDir) // #nosec G204 - test with controlled paths
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to clone: %v", err)
 	}
 	filePath := filepath.Join(localDir, "foo.txt")
+	// #nosec G306 - test file, not sensitive
 	if err := os.WriteFile(filePath, []byte("data"), 0644); err != nil {
 		t.Fatalf(errWriteFile, err)
 	}

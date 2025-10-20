@@ -71,7 +71,7 @@ func TestScriptIntegrityVerificationSuccess(t *testing.T) {
 	scriptPath := filepath.Join(tmpDir, testScriptName)
 	scriptContent := []byte(`message.data = "processed";`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -107,7 +107,7 @@ func TestScriptIntegrityVerificationFailure(t *testing.T) {
 	scriptPath := filepath.Join(tmpDir, testScriptName)
 	scriptContent := []byte(`message.data = "processed";`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -130,7 +130,7 @@ func TestScriptIntegrityVerificationDisabled(t *testing.T) {
 	scriptPath := filepath.Join(tmpDir, testScriptName)
 	scriptContent := []byte(`message.data = "processed";`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -166,7 +166,7 @@ func TestRunnerWithCallStackLimit(t *testing.T) {
 		recursive(1000);
 	`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -203,7 +203,7 @@ func TestRunnerTimeout(t *testing.T) {
 		}
 	`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -245,7 +245,7 @@ func TestRunnerPanicRecovery(t *testing.T) {
 		throw new Error("intentional error");
 	`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -279,7 +279,7 @@ func TestRunnerWithAllowedGlobals(t *testing.T) {
 	scriptPath := filepath.Join(tmpDir, testScriptName)
 	scriptContent := []byte(`(function() { return 42; })();`) // IIFE that returns a value
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -331,7 +331,7 @@ func TestRunnerInvalidJavaScript(t *testing.T) {
 	scriptPath := filepath.Join(tmpDir, "invalid.js")
 	scriptContent := []byte(`this is not valid javascript {{{`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 
@@ -352,7 +352,7 @@ func TestRunnerClose(t *testing.T) {
 	scriptPath := filepath.Join(tmpDir, testScriptName)
 	scriptContent := []byte(`// test script`)
 
-	if err := os.WriteFile(scriptPath, scriptContent, 0644); err != nil {
+	if err := os.WriteFile(scriptPath, scriptContent, 0600); err != nil {
 		t.Fatalf(errWriteScript, err)
 	}
 

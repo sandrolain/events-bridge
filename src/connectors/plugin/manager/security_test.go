@@ -14,12 +14,14 @@ func TestValidatePluginPath(t *testing.T) {
 
 	// Create a valid plugin executable
 	validPlugin := filepath.Join(tmpDir, "test-plugin")
+	// #nosec G306 - test executable needs exec permissions
 	if err := os.WriteFile(validPlugin, []byte("#!/bin/sh\necho test"), 0755); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	// Create a non-executable file
 	nonExecFile := filepath.Join(tmpDir, "non-exec")
+	// #nosec G306 - test file, intentionally non-executable
 	if err := os.WriteFile(nonExecFile, []byte("test"), 0644); err != nil {
 		t.Fatalf("Failed to create non-executable file: %v", err)
 	}
@@ -95,6 +97,7 @@ func TestVerifyPluginHash(t *testing.T) {
 	// Create a temporary executable with known content
 	tmpFile := filepath.Join(t.TempDir(), "test-plugin")
 	content := []byte("#!/bin/sh\necho 'test plugin'")
+	// #nosec G306 - test executable needs exec permissions
 	if err := os.WriteFile(tmpFile, content, 0755); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
@@ -378,6 +381,7 @@ func TestComputePluginHash(t *testing.T) {
 	// Create a temporary executable with known content
 	tmpFile := filepath.Join(t.TempDir(), "test-plugin")
 	content := []byte("#!/bin/sh\necho test")
+	// #nosec G306 - test executable needs exec permissions
 	if err := os.WriteFile(tmpFile, content, 0755); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
@@ -415,6 +419,7 @@ func TestPluginSecurityValidation(t *testing.T) {
 
 	// Create a valid plugin executable
 	validPlugin := filepath.Join(tmpDir, "test-plugin-exec")
+	// #nosec G306 - test executable needs exec permissions
 	if err := os.WriteFile(validPlugin, []byte("#!/bin/sh\necho 'plugin'"), 0755); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}

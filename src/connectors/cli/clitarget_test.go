@@ -185,7 +185,7 @@ func readFileWithRetry(t *testing.T, path string) []byte {
 	t.Helper()
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for {
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G304 - test file path is controlled
 		if err == nil {
 			return data
 		}
