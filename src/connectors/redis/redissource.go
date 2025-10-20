@@ -68,13 +68,13 @@ func NewSourceConfig() any {
 // Returns error if the key contains dangerous characters
 func validateRedisKey(key string, strict bool) error {
 	if key == "" {
-		return fmt.Errorf("Redis key cannot be empty")
+		return fmt.Errorf("redis key cannot be empty")
 	}
 
 	// Check for control characters and newlines (command injection)
 	for _, c := range key {
 		if c == '\r' || c == '\n' || c < 32 {
-			return fmt.Errorf("Redis key contains invalid control characters")
+			return fmt.Errorf("redis key contains invalid control characters")
 		}
 	}
 
