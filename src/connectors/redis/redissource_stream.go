@@ -12,6 +12,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+const defaultStreamDataKey = "data"
+
 func NewStreamSource(cfg *SourceConfig) (connectors.Source, error) {
 	// Validate configuration
 	if err := validateStreamConfig(cfg); err != nil {
@@ -148,7 +150,7 @@ func (s *RedisStreamSource) consume() {
 	stream := s.config.Stream
 	dataKey := s.config.StreamDataKey
 	if dataKey == "" {
-		dataKey = "data" // Default data key
+		dataKey = defaultStreamDataKey // Default data key
 	}
 
 	for {

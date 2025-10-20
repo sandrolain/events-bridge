@@ -17,6 +17,7 @@ const (
 	errFmtGetMetadata    = "GetMetadata returned error: %v"
 	errFmtCloseStreamSrc = "failed to close stream source: %v"
 	errFmtXAdd           = "XAdd returned error: %v"
+	testDataString       = "data"
 )
 
 func TestRedisChannelSourceReceivesMessage(t *testing.T) {
@@ -102,7 +103,7 @@ func TestRedisStreamSourceReceivesMessage(t *testing.T) {
 	client := newRedisClient(t, srv.Addr())
 	if err := client.XAdd(context.Background(), &redis.XAddArgs{
 		Stream: "events",
-		Values: map[string]any{"payload": "data"},
+		Values: map[string]any{"payload": testDataString},
 	}).Err(); err != nil {
 		t.Fatalf(errFmtXAdd, err)
 	}
@@ -113,7 +114,7 @@ func TestRedisStreamSourceReceivesMessage(t *testing.T) {
 		if err != nil {
 			t.Fatalf(errFmtGetData, err)
 		}
-		if string(data) != "data" {
+		if string(data) != testDataString {
 			t.Fatalf("expected payload 'data', got %q", string(data))
 		}
 
@@ -121,7 +122,7 @@ func TestRedisStreamSourceReceivesMessage(t *testing.T) {
 		if err != nil {
 			t.Fatalf(errFmtGetMetadata, err)
 		}
-		if metadata["payload"] != "data" {
+		if metadata["payload"] != testDataString {
 			t.Fatalf("expected metadata payload 'data', got %q", metadata["payload"])
 		}
 	case <-time.After(2 * time.Second):
