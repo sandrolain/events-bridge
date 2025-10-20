@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"testing"
 	"time"
 )
@@ -276,7 +277,10 @@ func TestMaxOutputSizeDefault(t *testing.T) {
 		t.Fatalf("NewRunner() error = %v", err)
 	}
 
-	cliRunner := runner.(*CLIRunner)
+	cliRunner, ok := runner.(*CLIRunner)
+	if !ok {
+		t.Fatal("failed to cast runner to CLIRunner")
+	}
 
 	// Check that default was applied to the executor
 	expectedDefault := int64(1048576) // 1MB
@@ -343,12 +347,14 @@ func TestLimitedReader(t *testing.T) {
 			)
 
 			buf := make([]byte, len(tt.input))
-			n, _ := reader.Read(buf)
+			n, err := reader.Read(buf)
+			if err != nil && err != io.EOF {
+				t.Fatalf("Read() error = %v", err)
+			}
 
 			if n != tt.wantBytes {
 				t.Errorf("Read() bytes = %d, want %d", n, tt.wantBytes)
 			}
-
 			if tt.wantErr {
 				// Try to read more
 				_, err := reader.Read(buf)

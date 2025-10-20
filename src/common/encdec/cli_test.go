@@ -57,7 +57,10 @@ func TestCLIDecoder_DecodeMessage(t *testing.T) {
 func TestCLIDecoder_DecodeStream(t *testing.T) {
 	decoder := &CLIDecoder{}
 	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte(testDataString))
-	encoded, _ := decoder.EncodeMessage(msg)
+	encoded, err := decoder.EncodeMessage(msg)
+	if err != nil {
+		t.Fatalf("Failed to encode message: %v", err)
+	}
 	reader := bytes.NewReader(encoded)
 	stream := decoder.DecodeStream(reader)
 	count := 0

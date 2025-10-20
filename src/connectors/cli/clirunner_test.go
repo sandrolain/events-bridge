@@ -80,7 +80,11 @@ func TestCLIRunnerProcess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner error: %v", err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	originalMeta := map[string]string{"key1": "value1", "key2": "value2"}
 	originalData := []byte("test data")
@@ -135,7 +139,11 @@ func TestCLIRunnerProcessError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner error: %v", err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	originalMeta := map[string]string{"key": "value"}
 	originalData := []byte("data")
@@ -167,7 +175,11 @@ func TestCLIRunnerProcessDecodeError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner error: %v", err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	originalMeta := map[string]string{"key": "value"}
 	originalData := []byte("data")

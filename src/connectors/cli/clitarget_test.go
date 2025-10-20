@@ -47,7 +47,10 @@ func TestCLITargetJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf(targetErrNewTargetFmt, err)
 	}
-	target := targetAny.(*CLITarget)
+	target, ok := targetAny.(*CLITarget)
+	if !ok {
+		t.Fatal("failed to cast target to CLITarget")
+	}
 
 	msg := newRunnerMessage(map[string]string{"foo": "bar"}, []byte("hello"))
 
@@ -168,7 +171,10 @@ func TestCLITargetJSONDataOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf(targetErrNewTargetFmt, err)
 	}
-	target := targetAny.(*CLITarget)
+	target, ok := targetAny.(*CLITarget)
+	if !ok {
+		t.Fatal("failed to cast target to CLITarget")
+	}
 
 	msg := newRunnerMessage(map[string]string{"foo": "bar"}, []byte("hello"))
 

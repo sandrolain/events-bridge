@@ -57,7 +57,11 @@ func TestResolveFromEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errMsgUnexpected, err)
 	}
-	defer os.Unsetenv(envVar)
+	defer func() {
+		if err := os.Unsetenv(envVar); err != nil {
+			t.Logf("failed to unset env var: %v", err)
+		}
+	}()
 
 	got, err := Resolve("env:" + envVar)
 	if err != nil {

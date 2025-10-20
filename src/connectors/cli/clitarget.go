@@ -163,7 +163,9 @@ func (t *CLITarget) Close() error {
 	}
 
 	if t.stdin != nil {
-		_ = t.stdin.Close()
+		if err := t.stdin.Close(); err != nil {
+			t.slog.Warn("failed to close stdin", "error", err)
+		}
 		t.stdin = nil
 	}
 
@@ -175,7 +177,9 @@ func (t *CLITarget) Close() error {
 
 	// Close the executor as well
 	if t.executor != nil {
-		_ = t.executor.Close()
+		if err := t.executor.Close(); err != nil {
+			t.slog.Warn("failed to close executor", "error", err)
+		}
 	}
 
 	if waitErr != nil && ctxErr == nil {
@@ -199,7 +203,9 @@ func (t *CLITarget) waitForExit(timeout time.Duration) error {
 		return t.commandExitError()
 	case <-time.After(timeout):
 		if t.cmd != nil && t.cmd.Process != nil {
-			_ = t.cmd.Process.Kill()
+			if err := t.cmd.Process.Kill(); err != nil {
+				t.slog.Warn("failed to kill process", "error", err)
+			}
 		}
 		if err, ok := <-t.waitDone; ok {
 			return err

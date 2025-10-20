@@ -127,7 +127,10 @@ func setupCLISource(t *testing.T, format string, records []map[string]any, metad
 	if err != nil {
 		t.Fatalf(sourceErrNewSourceFmt, err)
 	}
-	src := srcAny.(*CLISource)
+	src, ok := srcAny.(*CLISource)
+	if !ok {
+		t.Fatal("failed to cast source to CLISource")
+	}
 
 	ch, err := src.Produce(len(records))
 	if err != nil {
