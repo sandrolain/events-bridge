@@ -7,12 +7,14 @@ import (
 	"time"
 )
 
+const sqlNull = "NULL"
+
 // valueToPgValue converts a Go value to a PostgreSQL literal string suitable for inline SQL.
 // Handles common types, including time.Time, []byte, and nulls.
 func valueToPgValue(value interface{}) string {
 	switch v := value.(type) {
 	case nil:
-		return "NULL"
+		return sqlNull
 	case int, int8, int16, int32, int64:
 		return fmt.Sprintf("%d", v)
 	case uint, uint8, uint16, uint32, uint64:
@@ -28,7 +30,7 @@ func valueToPgValue(value interface{}) string {
 	case time.Time:
 		return QuoteLiteral(v.UTC().Format(time.RFC3339))
 	default:
-		return "NULL"
+		return sqlNull
 	}
 }
 
