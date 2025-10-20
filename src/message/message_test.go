@@ -10,6 +10,7 @@ const (
 	errMsgExpectedError    = "expected error %v, got %v"
 	errMsgUnexpectedError  = "unexpected error: %v"
 	errMsgExpectedNilError = "expected error from %s, got nil"
+	testValueString        = "value"
 )
 
 // stubSourceMessage is a local test stub for SourceMessage.
@@ -411,7 +412,7 @@ func TestRunnerMessageConcurrentMetadataAccess(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		go func(idx int) {
 			defer wg.Done()
-			msg.AddMetadata("concurrent", "value")
+			msg.AddMetadata("concurrent", testValueString)
 		}(i)
 	}
 	wg.Wait()
@@ -421,7 +422,7 @@ func TestRunnerMessageConcurrentMetadataAccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
-	if metadata["concurrent"] != "value" {
+	if metadata["concurrent"] != testValueString {
 		t.Fatalf("expected concurrent metadata to be set")
 	}
 }

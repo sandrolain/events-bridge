@@ -7,6 +7,7 @@ const (
 	testCertFile     = "cert.pem"
 	testKeyFile      = "key.pem"
 	errMsgKeyMissing = "expected error when key missing"
+	testPSKSecret    = "secret"
 )
 
 // Test DTLS configuration validation for source, target, runner.
@@ -29,14 +30,14 @@ func TestDTLSValidationSource(t *testing.T) {
 
 	// PSK missing identity
 	pskMissingID := base
-	pskMissingID.PSK = "secret"
+	pskMissingID.PSK = testPSKSecret
 	if err := validateSourceSecurity(&pskMissingID); err == nil {
 		t.Fatalf("expected error when pskIdentity missing")
 	}
 
 	// Valid PSK
 	pskOK := base
-	pskOK.PSK = "secret"
+	pskOK.PSK = testPSKSecret
 	pskOK.PSKIdentity = "device1"
 	if err := validateSourceSecurity(&pskOK); err != nil {
 		t.Fatalf("unexpected error for valid PSK mode: %v", err)
@@ -74,13 +75,13 @@ func TestDTLSValidationTarget(t *testing.T) {
 	}
 
 	pskMissingID := base
-	pskMissingID.PSK = "secret"
+	pskMissingID.PSK = testPSKSecret
 	if err := validateTargetSecurity(&pskMissingID); err == nil {
 		t.Fatalf("expected error when identity missing")
 	}
 
 	pskOK := base
-	pskOK.PSK = "secret"
+	pskOK.PSK = testPSKSecret
 	pskOK.PSKIdentity = "id"
 	if err := validateTargetSecurity(&pskOK); err != nil {
 		t.Fatalf("unexpected error for valid PSK mode: %v", err)
@@ -116,13 +117,13 @@ func TestDTLSValidationRunner(t *testing.T) {
 	}
 
 	pskMissingID := base
-	pskMissingID.PSK = "secret"
+	pskMissingID.PSK = testPSKSecret
 	if err := validateRunnerSecurity(&pskMissingID); err == nil {
 		t.Fatalf("expected error when identity missing")
 	}
 
 	pskOK := base
-	pskOK.PSK = "secret"
+	pskOK.PSK = testPSKSecret
 	pskOK.PSKIdentity = "id"
 	if err := validateRunnerSecurity(&pskOK); err != nil {
 		t.Fatalf("unexpected error for valid PSK: %v", err)

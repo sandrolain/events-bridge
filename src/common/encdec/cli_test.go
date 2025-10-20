@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const testDataString = "test data"
+
 func TestCLIDecoder_Encode(t *testing.T) {
 	decoder := &CLIDecoder{}
 	_, err := decoder.Encode(map[string]string{"key": "value"})
@@ -15,7 +17,7 @@ func TestCLIDecoder_Encode(t *testing.T) {
 
 func TestCLIDecoder_EncodeMessage(t *testing.T) {
 	decoder := &CLIDecoder{}
-	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte(testDataString))
 	encoded, err := decoder.EncodeMessage(msg)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -27,7 +29,7 @@ func TestCLIDecoder_EncodeMessage(t *testing.T) {
 
 func TestCLIDecoder_DecodeMessage(t *testing.T) {
 	decoder := &CLIDecoder{}
-	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte(testDataString))
 	encoded, _ := decoder.EncodeMessage(msg)
 	decoded, err := decoder.DecodeMessage(encoded)
 	if err != nil {
@@ -38,14 +40,14 @@ func TestCLIDecoder_DecodeMessage(t *testing.T) {
 		t.Fatalf("Expected meta id '123', got %v", meta["id"])
 	}
 	d, _ := decoded.GetData()
-	if string(d) != "test data" {
+	if string(d) != testDataString {
 		t.Fatalf("Expected data 'test data', got %v", string(d))
 	}
 }
 
 func TestCLIDecoder_DecodeStream(t *testing.T) {
 	decoder := &CLIDecoder{}
-	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte(testDataString))
 	encoded, _ := decoder.EncodeMessage(msg)
 	reader := bytes.NewReader(encoded)
 	stream := decoder.DecodeStream(reader)

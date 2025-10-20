@@ -16,7 +16,10 @@ import (
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
-const coapRunnerErrCreate = "unexpected error creating coap runner: %v"
+const (
+	coapRunnerErrCreate = "unexpected error creating coap runner: %v"
+	testCoapPath        = "/test"
+)
 
 func mustParseCoAPRunnerConfig(t *testing.T, opts map[string]any) *CoAPRunnerConfig {
 	t.Helper()
@@ -52,7 +55,7 @@ func startTestCoAPServer(t *testing.T, path string, handler coapmux.Handler) str
 }
 
 func TestCoAPRunnerSuccess(t *testing.T) {
-	path := "/test"
+	path := testCoapPath
 	addr := startTestCoAPServer(t, path, coapmux.HandlerFunc(func(w coapmux.ResponseWriter, m *coapmux.Message) {
 		_ = w.SetResponse(coapcodes.Content, coapmessage.AppJSON, bytes.NewReader([]byte(`{"ok":true}`)))
 	}))
@@ -82,7 +85,7 @@ func TestCoAPRunnerSuccess(t *testing.T) {
 }
 
 func TestCoAPRunnerNon2XX(t *testing.T) {
-	path := "/test"
+	path := testCoapPath
 	addr := startTestCoAPServer(t, path, coapmux.HandlerFunc(func(w coapmux.ResponseWriter, m *coapmux.Message) {
 		_ = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
 	}))
@@ -108,7 +111,7 @@ func TestCoAPRunnerNon2XX(t *testing.T) {
 }
 
 func TestCoAPRunnerTimeout(t *testing.T) {
-	path := "/test"
+	path := testCoapPath
 	addr := startTestCoAPServer(t, path, coapmux.HandlerFunc(func(w coapmux.ResponseWriter, m *coapmux.Message) {
 		time.Sleep(300 * time.Millisecond)
 		_ = w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader([]byte("late")))

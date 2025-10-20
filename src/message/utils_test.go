@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const testFallbackString = "fallback"
+
 type mockSourceMessage struct {
 	metadata map[string]string
 }
@@ -66,20 +68,20 @@ func TestResolveFromMetadata(t *testing.T) {
 	base := map[string]string{"color": "blue"}
 	msg := NewRunnerMessage(&mockSourceMessage{metadata: base})
 
-	if got := ResolveFromMetadata(msg, "color", "fallback"); got != "blue" {
+	if got := ResolveFromMetadata(msg, "color", testFallbackString); got != "blue" {
 		t.Fatalf("expected metadata value to be returned, got %q", got)
 	}
 
-	if got := ResolveFromMetadata(msg, "missing", "fallback"); got != "fallback" {
+	if got := ResolveFromMetadata(msg, "missing", testFallbackString); got != testFallbackString {
 		t.Fatalf("expected fallback for missing key, got %q", got)
 	}
 
-	if got := ResolveFromMetadata(msg, "", "fallback"); got != "fallback" {
+	if got := ResolveFromMetadata(msg, "", testFallbackString); got != testFallbackString {
 		t.Fatalf("expected fallback for empty key, got %q", got)
 	}
 
 	msg.AddMetadata("color", "green")
-	if got := ResolveFromMetadata(msg, "color", "fallback"); got != "green" {
+	if got := ResolveFromMetadata(msg, "color", testFallbackString); got != "green" {
 		t.Fatalf("expected overridden metadata value, got %q", got)
 	}
 }
@@ -87,7 +89,7 @@ func TestResolveFromMetadata(t *testing.T) {
 func TestResolveFromMetadataFallbackOnError(t *testing.T) {
 	msg := NewRunnerMessage(&mockSourceMessageError{metadataErr: errors.New("boom")})
 
-	if got := ResolveFromMetadata(msg, "color", "fallback"); got != "fallback" {
+	if got := ResolveFromMetadata(msg, "color", testFallbackString); got != testFallbackString {
 		t.Fatalf("expected fallback when metadata retrieval fails, got %q", got)
 	}
 }
@@ -96,7 +98,7 @@ func TestResolveFromMetadataEmptyValue(t *testing.T) {
 	base := map[string]string{"color": ""}
 	msg := NewRunnerMessage(&mockSourceMessage{metadata: base})
 
-	if got := ResolveFromMetadata(msg, "color", "fallback"); got != "fallback" {
+	if got := ResolveFromMetadata(msg, "color", testFallbackString); got != testFallbackString {
 		t.Fatalf("expected fallback when metadata value empty, got %q", got)
 	}
 }

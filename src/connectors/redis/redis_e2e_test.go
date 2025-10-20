@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const testMessageHello = "hello"
+
 func TestRedisStreamEndToEnd(t *testing.T) {
 	srv := newMiniredis(t)
 
@@ -109,7 +111,7 @@ func TestRedisChannelEndToEnd(t *testing.T) {
 		t.Fatalf(errFmtProduce, err)
 	}
 
-	if err := channelTarget.Consume(newStubRunnerMessage("hello", nil)); err != nil {
+	if err := channelTarget.Consume(newStubRunnerMessage(testMessageHello, nil)); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 
@@ -122,7 +124,7 @@ func TestRedisChannelEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf(errFmtGetData, err)
 		}
-		if string(data) != "hello" {
+		if string(data) != testMessageHello {
 			t.Fatalf("expected data 'hello', got %q", string(data))
 		}
 	case <-ctx.Done():

@@ -4,35 +4,37 @@ import (
 	"testing"
 )
 
+const testValueString = "value"
+
 func TestConvertToStringMap_MapStringString(t *testing.T) {
-	input := map[string]string{"key": "value"}
+	input := map[string]string{"key": testValueString}
 	result, err := convertToStringMap(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if result["key"] != "value" {
+	if result["key"] != testValueString {
 		t.Fatalf("Expected 'value', got %v", result["key"])
 	}
 }
 
 func TestConvertToStringMap_MapStringAny(t *testing.T) {
-	input := map[string]any{"key": "value"}
+	input := map[string]any{"key": testValueString}
 	result, err := convertToStringMap(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if result["key"] != "value" {
+	if result["key"] != testValueString {
 		t.Fatalf("Expected 'value', got %v", result["key"])
 	}
 }
 
 func TestConvertToStringMap_MapAnyAny(t *testing.T) {
-	input := map[any]any{"key": "value"}
+	input := map[any]any{"key": testValueString}
 	result, err := convertToStringMap(input)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if result["key"] != "value" {
+	if result["key"] != testValueString {
 		t.Fatalf("Expected 'value', got %v", result["key"])
 	}
 }
@@ -49,7 +51,7 @@ func TestMapToMessage(t *testing.T) {
 	decoder := &JSONDecoder{metaKey: "meta", dataKey: "data"}
 	v := map[string]any{
 		"meta": map[string]string{"id": "123"},
-		"data": "test data",
+		"data": testDataString,
 	}
 	msg, err := mapToMessage(decoder, v, "meta", "data")
 	if err != nil {
@@ -60,13 +62,13 @@ func TestMapToMessage(t *testing.T) {
 		t.Fatalf("Expected '123', got %v", meta["id"])
 	}
 	d, _ := msg.GetData()
-	if string(d) != "test data" {
+	if string(d) != testDataString {
 		t.Fatalf("Expected 'test data', got %v", string(d))
 	}
 }
 
 func TestMessageToMap(t *testing.T) {
-	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
+	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte(testDataString))
 	v, err := messageToMap(msg, "meta", "data")
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -74,7 +76,7 @@ func TestMessageToMap(t *testing.T) {
 	if v["meta"].(map[string]string)["id"] != "123" {
 		t.Fatalf("Expected '123', got %v", v["meta"])
 	}
-	if string(v["data"].([]byte)) != "test data" {
+	if string(v["data"].([]byte)) != testDataString {
 		t.Fatalf("Expected 'test data', got %v", v["data"])
 	}
 }
