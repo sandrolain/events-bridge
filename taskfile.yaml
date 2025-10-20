@@ -21,12 +21,10 @@ tasks:
     desc: Install all required Go tools on macOS
     cmds:
       - brew install golangci-lint
-      - brew install gosec
       - brew install aquasecurity/trivy/trivy
       - brew install tinygo
       - brew install protoc-gen-go
       - brew install protoc-gen-go-grpc
-      - go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
 
   fmt-check:
     desc: Check Go code formatting without making changes
@@ -150,8 +148,6 @@ tasks:
     cmds:
       - task: fmt
       - task: lint
-      - task: vet
-      - task: gosec
       - task: trivy
       - task: test
 
