@@ -73,17 +73,17 @@ func (r *CoAPRunner) Process(msg *message.RunnerMessage) error {
 	var code coapcodes.Code
 	var payload []byte
 	switch protocol {
-	case "udp":
-		code, payload, err = r.sendCoAP(ctx, method, path, address, contentFormat, data, "udp")
-	case "tcp":
-		code, payload, err = r.sendCoAP(ctx, method, path, address, contentFormat, data, "tcp")
-	case "dtls":
-		code, payload, err = r.sendCoAP(ctx, method, path, address, contentFormat, data, "dtls")
+	case string(CoAPProtocolUDP):
+		code, payload, err = r.sendCoAP(ctx, method, path, address, contentFormat, data, string(CoAPProtocolUDP))
+	case string(CoAPProtocolTCP):
+		code, payload, err = r.sendCoAP(ctx, method, path, address, contentFormat, data, string(CoAPProtocolTCP))
+	case string(CoAPProtocolDTLS):
+		code, payload, err = r.sendCoAP(ctx, method, path, address, contentFormat, data, string(CoAPProtocolDTLS))
 	default:
 		return fmt.Errorf("unsupported coap protocol: %s", protocol)
 	}
 	if err != nil {
-		return fmt.Errorf("error performing coap request: %w", err)
+		return fmt.Errorf("error performing coap protocol: %w", err)
 	}
 
 	// Accept 2.xx success codes only
@@ -115,11 +115,11 @@ func (r *CoAPRunner) sendCoAP(ctx context.Context, method, path, address string,
 	var err error
 
 	switch protocol {
-	case "udp":
+	case string(CoAPProtocolUDP):
 		client, err = createUDPClient(address, r.slog)
-	case "tcp":
+	case string(CoAPProtocolTCP):
 		client, err = createTCPClient(address, r.slog)
-	case "dtls":
+	case string(CoAPProtocolDTLS):
 		client, err = createDTLSClient(r.cfg.PSKIdentity, r.cfg.PSK, r.cfg.TLSCertFile, r.cfg.TLSKeyFile, address, r.slog)
 	default:
 		return 0, nil, fmt.Errorf("unsupported coap protocol: %s", protocol)
