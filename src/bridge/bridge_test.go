@@ -167,6 +167,170 @@ func TestMessageHandlerHandleRunnerError(t *testing.T) {
 	}
 }
 
+// Test MessageHandler error paths
+
+func TestMessageHandlerHandleSuccess_AckError(t *testing.T) {
+	logger := newTestLogger()
+	handler := NewMessageHandler(logger)
+
+	// Create adapter that returns error on Ack
+	adapter := testutil.NewAdapter([]byte("test"), nil)
+	adapter.AckErr = errors.New("ack failed")
+	msg := message.NewRunnerMessage(adapter)
+
+	// Should not panic even if Ack fails
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("HandleSuccess() panicked with Ack error: %v", r)
+		}
+	}()
+
+	handler.HandleSuccess(msg, "test operation", "key", "value")
+
+	// Should still attempt to Ack
+	if adapter.AckCalls != 1 {
+		t.Errorf("HandleSuccess() AckCalls = %d, want 1", adapter.AckCalls)
+	}
+}
+
+func TestMessageHandlerHandleSuccess_NilMessage(t *testing.T) {
+	logger := newTestLogger()
+	handler := NewMessageHandler(logger)
+
+	// Should not panic with nil message
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("HandleSuccess() panicked with nil message: %v", r)
+		}
+	}()
+
+	handler.HandleSuccess(nil, "test operation", "key", "value")
+}
+
+func TestMessageHandlerHandleError_NakError(t *testing.T) {
+	logger := newTestLogger()
+	handler := NewMessageHandler(logger)
+
+	// Create adapter that returns error on Nak
+	adapter := testutil.NewAdapter([]byte("test"), nil)
+	adapter.NakErr = errors.New("nak failed")
+	msg := message.NewRunnerMessage(adapter)
+
+	// Should not panic even if Nak fails
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("HandleError() panicked with Nak error: %v", r)
+		}
+	}()
+
+	testErr := errors.New("test error")
+	handler.HandleError(msg, testErr, "test operation", "key", "value")
+
+	// Should still attempt to Nak
+	if adapter.NakCalls != 1 {
+		t.Errorf("HandleError() NakCalls = %d, want 1", adapter.NakCalls)
+	}
+}
+
+func TestMessageHandlerHandleError_NilMessage(t *testing.T) {
+	logger := newTestLogger()
+	handler := NewMessageHandler(logger)
+
+	// Should not panic with nil message
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("HandleError() panicked with nil message: %v", r)
+		}
+	}()
+
+	testErr := errors.New("test error")
+	handler.HandleError(nil, testErr, "test operation", "key", "value")
+}
+
+func TestMessageHandlerHandleError_NilError(t *testing.T) {
+	logger := newTestLogger()
+	handler := NewMessageHandler(logger)
+
+	adapter := testutil.NewAdapter([]byte("test"), nil)
+	msg := message.NewRunnerMessage(adapter)
+
+	// Should handle nil error gracefully
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("HandleError() panicked with nil error: %v", r)
+		}
+	}()
+
+	handler.HandleError(msg, nil, "test operation", "key", "value")
+
+	// Should still Nak the message
+	if adapter.NakCalls != 1 {
+		t.Errorf("HandleError() NakCalls = %d, want 1", adapter.NakCalls)
+	}
+}
+
+func TestMessageHandlerHandleRunnerError_NilMessage(t *testing.T) {
+	logger := newTestLogger()
+	handler := NewMessageHandler(logger)
+
+	// Should not panic with nil message
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("HandleRunnerError() panicked with nil message: %v", r)
+		}
+	}()
+
+	testErr := errors.New("runner error")
+	retMsg, ok, err := handler.HandleRunnerError(nil, testErr, "runner operation")
+
+	// Should return expected values
+	if retMsg != nil {
+		t.Error("HandleRunnerError() should return nil message")
+	}
+	if ok {
+		t.Error("HandleRunnerError() should return false")
+	}
+	if err != nil {
+		t.Error("HandleRunnerError() should return nil error")
+	}
+}
+
+func TestMessageHandlerHandleRunnerError_NakError(t *testing.T) {
+	logger := newTestLogger()
+	handler := NewMessageHandler(logger)
+
+	// Create adapter that returns error on Nak
+	adapter := testutil.NewAdapter([]byte("test"), nil)
+	adapter.NakErr = errors.New("nak failed")
+	msg := message.NewRunnerMessage(adapter)
+
+	// Should not panic even if Nak fails
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("HandleRunnerError() panicked with Nak error: %v", r)
+		}
+	}()
+
+	testErr := errors.New("runner error")
+	retMsg, ok, err := handler.HandleRunnerError(msg, testErr, "runner operation")
+
+	// Should still return expected values
+	if retMsg != nil {
+		t.Error("HandleRunnerError() should return nil message")
+	}
+	if ok {
+		t.Error("HandleRunnerError() should return false")
+	}
+	if err != nil {
+		t.Error("HandleRunnerError() should return nil error")
+	}
+
+	// Should still attempt to Nak
+	if adapter.NakCalls != 1 {
+		t.Errorf("HandleRunnerError() NakCalls = %d, want 1", adapter.NakCalls)
+	}
+}
+
 // Test NewEventsBridge
 
 func TestNewEventsBridge_NilConfig(t *testing.T) {

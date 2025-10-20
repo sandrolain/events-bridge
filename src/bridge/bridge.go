@@ -49,6 +49,10 @@ func NewMessageHandler(logger *slog.Logger) *MessageHandler {
 // HandleSuccess acknowledges a message successfully and logs at info level
 func (h *MessageHandler) HandleSuccess(msg *message.RunnerMessage, operation string, logArgs ...any) {
 	h.logger.Info(operation, logArgs...)
+	if msg == nil {
+		h.logger.Warn("cannot ack nil message in " + operation)
+		return
+	}
 	if ackErr := msg.Ack(); ackErr != nil {
 		h.logger.Error("failed to ack message after "+operation, "error", ackErr)
 	}
@@ -58,6 +62,10 @@ func (h *MessageHandler) HandleSuccess(msg *message.RunnerMessage, operation str
 func (h *MessageHandler) HandleError(msg *message.RunnerMessage, err error, operation string, additionalFields ...any) {
 	logArgs := append([]any{"error", err}, additionalFields...)
 	h.logger.Error(operation, logArgs...)
+	if msg == nil {
+		h.logger.Warn("cannot nak nil message in " + operation)
+		return
+	}
 	if nakErr := msg.Nak(); nakErr != nil {
 		h.logger.Error("failed to nak message after "+operation, "error", nakErr)
 	}
