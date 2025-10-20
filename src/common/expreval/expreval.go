@@ -224,6 +224,12 @@ func toBool(v any) bool {
 		return false
 	}
 
+	// Handle pointer types - check if pointer is nil using reflection
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		return !rv.IsNil()
+	}
+
 	switch val := v.(type) {
 	case bool:
 		return val
@@ -258,7 +264,6 @@ func toBool(v any) bool {
 	}
 
 	// handle empty collections
-	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.Slice, reflect.Array, reflect.Map:
 		return rv.Len() > 0

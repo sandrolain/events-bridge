@@ -175,6 +175,13 @@ func TestToBool(t *testing.T) {
 		{"bool false", false, false},
 		{"non-empty string", "hello", true},
 		{"empty string", "", false},
+		{"string false", "false", false},
+		{"string False", "False", true}, // Only "false" is checked
+		{"string FALSE", "FALSE", true}, // Only "false" is checked
+		{"string 0", "0", false},
+		{"string 1", "1", true},
+		{"string with spaces", "  hello  ", true}, // Non-empty after whitespace
+		{"string only spaces", "   ", true},       // Still non-empty
 		{"non-zero int", int(42), true},
 		{"negative int", int(-42), true},
 		{"zero int", int(0), false},
@@ -210,11 +217,41 @@ func TestToBool(t *testing.T) {
 		{"zero float32", float32(0), false},
 		{"non-empty slice", []int{1, 2, 3}, true},
 		{"empty slice", []int{}, false},
+		{"nil slice", []int(nil), false},
 		{"non-empty map", map[string]int{"a": 1}, true},
 		{"empty map", map[string]int{}, false},
+		{"nil map", map[string]int(nil), false},
 		{"non-zero struct", nonZeroStruct{A: 1}, true},
 		{"zero struct", zeroStruct{}, false},
 		{"nil value", nil, false},
+		{"non-empty array", [3]int{1, 2, 3}, true},
+		{"zero array", [0]int{}, false},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			got := toBool(c.input)
+			if got != c.want {
+				t.Fatalf("with %v (%T) expected %v, got %v", c.input, c.input, c.want, got)
+			}
+		})
+	}
+}
+
+// TestToBoolPointers verifies pointer types fall through to the fallback (true if non-nil).
+func TestToBoolPointers(t *testing.T) {
+	var nilPtr *int
+	nonNilInt := 42
+	nonNilPtr := &nonNilInt
+
+	cases := []struct {
+		name  string
+		input any
+		want  bool
+	}{
+		{"nil pointer", nilPtr, false},
+		{"non-nil pointer", nonNilPtr, true},
 	}
 
 	for _, c := range cases {
