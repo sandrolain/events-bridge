@@ -42,7 +42,9 @@ func startTestCoAPServer(t *testing.T, path string, handler coapmux.Handler) str
 		t.Fatalf("failed to reserve udp port: %v", err)
 	}
 	addr := pc.LocalAddr().String()
-	_ = pc.Close()
+	if err := pc.Close(); err != nil {
+		t.Logf("failed to close packet connection: %v", err)
+	}
 	go func() {
 		if e := coap.ListenAndServe("udp", addr, router); e != nil {
 			// cannot t.Fatalf in goroutine safely; best effort logging via testing logger
@@ -57,7 +59,9 @@ func startTestCoAPServer(t *testing.T, path string, handler coapmux.Handler) str
 func TestCoAPRunnerSuccess(t *testing.T) {
 	path := testCoapPath
 	addr := startTestCoAPServer(t, path, coapmux.HandlerFunc(func(w coapmux.ResponseWriter, m *coapmux.Message) {
-		_ = w.SetResponse(coapcodes.Content, coapmessage.AppJSON, bytes.NewReader([]byte(`{"ok":true}`)))
+		if err := w.SetResponse(coapcodes.Content, coapmessage.AppJSON, bytes.NewReader([]byte(`{"ok":true}`))); err != nil {
+			t.Logf("failed to set response: %v", err)
+		}
 	}))
 
 	cfg := mustParseCoAPRunnerConfig(t, map[string]any{"protocol": "udp", "address": addr, "path": path, "method": "POST", "timeout": "1s"})
@@ -87,7 +91,9 @@ func TestCoAPRunnerSuccess(t *testing.T) {
 func TestCoAPRunnerNon2XX(t *testing.T) {
 	path := testCoapPath
 	addr := startTestCoAPServer(t, path, coapmux.HandlerFunc(func(w coapmux.ResponseWriter, m *coapmux.Message) {
-		_ = w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil)
+		if err := w.SetResponse(coapcodes.InternalServerError, coapmessage.TextPlain, nil); err != nil {
+			t.Logf("failed to set response: %v", err)
+		}
 	}))
 	cfg := mustParseCoAPRunnerConfig(t, map[string]any{"protocol": "udp", "address": addr, "path": path, "method": "GET", "timeout": "1s"})
 	r, err := NewRunner(cfg)
@@ -114,7 +120,9 @@ func TestCoAPRunnerTimeout(t *testing.T) {
 	path := testCoapPath
 	addr := startTestCoAPServer(t, path, coapmux.HandlerFunc(func(w coapmux.ResponseWriter, m *coapmux.Message) {
 		time.Sleep(300 * time.Millisecond)
-		_ = w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader([]byte("late")))
+		if err := w.SetResponse(coapcodes.Content, coapmessage.TextPlain, bytes.NewReader([]byte("late"))); err != nil {
+			t.Logf("failed to set response: %v", err)
+		}
 	}))
 	cfg := mustParseCoAPRunnerConfig(t, map[string]any{"protocol": "udp", "address": addr, "path": path, "method": "GET", "timeout": "100ms"})
 	r, err := NewRunner(cfg)

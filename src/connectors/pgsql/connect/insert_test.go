@@ -70,7 +70,11 @@ func setupPostgresContainer(t *testing.T) (container *postgres.PostgresContainer
 
 	return container, pool, func() {
 		pool.Close()
-		_ = container.Terminate(ctx)
+		if err := container.Terminate(ctx); err != nil {
+			if t != nil {
+				t.Logf("failed to terminate container: %v", err)
+			}
+		}
 	}
 }
 
@@ -84,7 +88,9 @@ func TestMain(m *testing.M) {
 }
 
 func createTestTable(t *testing.T, db *pgxpool.Pool) {
-	_, _ = db.Exec(context.Background(), `DROP TABLE IF EXISTS test_records`)
+	if _, err := db.Exec(context.Background(), `DROP TABLE IF EXISTS test_records`); err != nil {
+		t.Logf("failed to drop table: %v", err)
+	}
 	_, err := db.Exec(context.Background(), `
 		CREATE TABLE test_records (
 			id SERIAL PRIMARY KEY,

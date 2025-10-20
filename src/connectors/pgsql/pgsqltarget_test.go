@@ -140,7 +140,9 @@ func TestTargetConfigValidation(t *testing.T) {
 			} else if target != nil {
 				defer func() {
 					if closer, ok := target.(interface{ Close() error }); ok {
-						_ = closer.Close()
+						if err := closer.Close(); err != nil {
+							t.Logf("failed to close target: %v", err)
+						}
 					}
 				}()
 			}

@@ -57,11 +57,17 @@ func TestMapToMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	meta, _ := msg.GetMetadata()
+	meta, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf("Failed to get metadata: %v", err)
+	}
 	if meta["id"] != "123" {
 		t.Fatalf("Expected '123', got %v", meta["id"])
 	}
-	d, _ := msg.GetData()
+	d, err := msg.GetData()
+	if err != nil {
+		t.Fatalf("Failed to get data: %v", err)
+	}
 	if string(d) != testDataString {
 		t.Fatalf("Expected 'test data', got %v", string(d))
 	}

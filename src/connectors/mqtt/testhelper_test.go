@@ -21,10 +21,14 @@ func startMochi(t *testing.T) (string, func()) {
 		t.Fatalf("cannot get free port: %v", err)
 	}
 	addr := ln.Addr().String()
-	_ = ln.Close()
+	if err := ln.Close(); err != nil {
+		t.Logf("failed to close listener: %v", err)
+	}
 
 	server := mmqtt.New(nil)
-	_ = server.AddHook(new(auth.AllowHook), nil)
+	if err := server.AddHook(new(auth.AllowHook), nil); err != nil {
+		t.Fatalf("failed to add hook: %v", err)
+	}
 
 	port := addr[strings.LastIndex(addr, ":")+1:]
 	tcp := listeners.NewTCP(listeners.Config{ID: "t1", Address: ":" + port})
@@ -32,10 +36,18 @@ func startMochi(t *testing.T) (string, func()) {
 		t.Fatalf("add listener: %v", err)
 	}
 
-	go func() { _ = server.Serve() }()
+	go func() {
+		if err := server.Serve(); err != nil {
+			t.Logf("server error: %v", err)
+		}
+	}()
 	time.Sleep(100 * time.Millisecond)
 
-	cleanup := func() { _ = server.Close() }
+	cleanup := func() {
+		if err := server.Close(); err != nil {
+			t.Logf("failed to close server: %v", err)
+		}
+	}
 	return addr, cleanup
 }
 

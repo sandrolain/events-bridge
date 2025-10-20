@@ -415,7 +415,9 @@ func TestPluginStopInvokesShutdownAndClose(t *testing.T) {
 	listener := bufconn.Listen(1024)
 	srv := grpc.NewServer()
 	go func() {
-		_ = srv.Serve(listener)
+		if err := srv.Serve(listener); err != nil {
+			t.Logf("server error: %v", err)
+		}
 	}()
 	t.Cleanup(func() {
 		srv.Stop()

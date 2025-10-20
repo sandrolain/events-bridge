@@ -33,16 +33,25 @@ func TestCBORDecoder_DecodeMessage(t *testing.T) {
 	decoder := &CBORDecoder{metaKey: "meta", dataKey: "data"}
 	// For CBOR, we need to encode first to get valid CBOR data
 	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
-	encoded, _ := decoder.EncodeMessage(msg)
+	encoded, err := decoder.EncodeMessage(msg)
+	if err != nil {
+		t.Fatalf("Failed to encode message: %v", err)
+	}
 	decoded, err := decoder.DecodeMessage(encoded)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	meta, _ := decoded.GetMetadata()
+	meta, err := decoded.GetMetadata()
+	if err != nil {
+		t.Fatalf("Failed to get metadata: %v", err)
+	}
 	if meta["id"] != "123" {
 		t.Fatalf("Expected meta id '123', got %v", meta["id"])
 	}
-	d, _ := decoded.GetData()
+	d, err := decoded.GetData()
+	if err != nil {
+		t.Fatalf("Failed to get data: %v", err)
+	}
 	if string(d) != "test data" {
 		t.Fatalf("Expected data 'test data', got %v", string(d))
 	}
@@ -51,7 +60,10 @@ func TestCBORDecoder_DecodeMessage(t *testing.T) {
 func TestCBORDecoder_DecodeStream(t *testing.T) {
 	decoder := &CBORDecoder{metaKey: "meta", dataKey: "data"}
 	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte("test data"))
-	encoded, _ := decoder.EncodeMessage(msg)
+	encoded, err := decoder.EncodeMessage(msg)
+	if err != nil {
+		t.Fatalf("Failed to encode message: %v", err)
+	}
 	reader := bytes.NewReader(encoded)
 	stream := decoder.DecodeStream(reader)
 	count := 0

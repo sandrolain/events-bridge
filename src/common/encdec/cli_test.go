@@ -30,16 +30,25 @@ func TestCLIDecoder_EncodeMessage(t *testing.T) {
 func TestCLIDecoder_DecodeMessage(t *testing.T) {
 	decoder := &CLIDecoder{}
 	msg := NewEncDecMessage(map[string]string{"id": "123"}, []byte(testDataString))
-	encoded, _ := decoder.EncodeMessage(msg)
+	encoded, err := decoder.EncodeMessage(msg)
+	if err != nil {
+		t.Fatalf("Failed to encode message: %v", err)
+	}
 	decoded, err := decoder.DecodeMessage(encoded)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	meta, _ := decoded.GetMetadata()
+	meta, err := decoded.GetMetadata()
+	if err != nil {
+		t.Fatalf("Failed to get metadata: %v", err)
+	}
 	if meta["id"] != "123" {
 		t.Fatalf("Expected meta id '123', got %v", meta["id"])
 	}
-	d, _ := decoded.GetData()
+	d, err := decoded.GetData()
+	if err != nil {
+		t.Fatalf("Failed to get data: %v", err)
+	}
 	if string(d) != testDataString {
 		t.Fatalf("Expected data 'test data', got %v", string(d))
 	}

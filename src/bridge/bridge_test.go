@@ -656,7 +656,11 @@ func TestEventsBridge_Run_Cancelled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewEventsBridge() unexpected error = %v", err)
 	}
-	defer bridge.Close()
+	defer func() {
+		if err := bridge.Close(); err != nil {
+			t.Logf("failed to close bridge: %v", err)
+		}
+	}()
 
 	// Create cancelled context
 	ctx, cancel := context.WithCancel(context.Background())

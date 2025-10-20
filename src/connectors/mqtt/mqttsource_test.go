@@ -71,10 +71,14 @@ func TestMQTTSharedSubscriptionBasic(t *testing.T) {
 	for got1+got2 < 10 {
 		select {
 		case m := <-ch1:
-			_ = m.Ack()
+			if err := m.Ack(); err != nil {
+				t.Logf("failed to ack message: %v", err)
+			}
 			got1++
 		case m := <-ch2:
-			_ = m.Ack()
+			if err := m.Ack(); err != nil {
+				t.Logf("failed to ack message: %v", err)
+			}
 			got2++
 		case <-timeout:
 			t.Fatalf("timeout waiting shared messages, got1=%d got2=%d", got1, got2)

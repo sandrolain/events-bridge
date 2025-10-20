@@ -101,7 +101,9 @@ func createTestCertFiles(t *testing.T) (certFile, keyFile string, cleanup func()
 	}
 
 	cleanup = func() {
-		os.RemoveAll(tmpDir)
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Logf("failed to cleanup temp dir: %v", err)
+		}
 	}
 
 	return certFile, keyFile, cleanup

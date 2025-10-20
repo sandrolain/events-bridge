@@ -35,7 +35,11 @@ func TestExprProcess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create runner: %v", err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	// Create a test message
 	stub := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{"source": "test"})
@@ -71,7 +75,11 @@ func TestExprProcessWithPreservePayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create runner: %v", err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	stub2 := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{"source": "test"})
 	stub2.ID = []byte("test-id")
@@ -117,7 +125,11 @@ func TestExprProcessTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create runner: %v", err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	stub := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{})
 	stub.ID = []byte("test-id")

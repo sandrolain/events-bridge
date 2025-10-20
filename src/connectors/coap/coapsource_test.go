@@ -50,7 +50,11 @@ func startCoAPSource(t *testing.T, protocol CoAPProtocol, addr string, method st
 	}
 	// small delay to ensure server bind
 	time.Sleep(150 * time.Millisecond)
-	return ch, func() { _ = src.Close() }
+	return ch, func() {
+		if err := src.Close(); err != nil {
+			t.Logf("failed to close source: %v", err)
+		}
+	}
 }
 
 func TestCoAPSourceUDPAckChanged(t *testing.T) {
@@ -81,7 +85,9 @@ func TestCoAPSourceUDPAckChanged(t *testing.T) {
 	if rm == nil {
 		t.Fatal(errNilRunnerMsg)
 	}
-	_ = rm.Ack()
+	if err := rm.Ack(); err != nil {
+		t.Fatalf("failed to ack: %v", err)
+	}
 
 	select {
 	case err := <-errCh:
@@ -121,7 +127,9 @@ func TestCoAPSourceUDPNakInternalError(t *testing.T) {
 	if rm == nil {
 		t.Fatal(errNilRunnerMsg)
 	}
-	_ = rm.Nak()
+	if err := rm.Nak(); err != nil {
+		t.Fatalf("failed to nak: %v", err)
+	}
 
 	select {
 	case err := <-errCh:
@@ -165,7 +173,9 @@ func TestCoAPSourceUDPReplyContentJSON(t *testing.T) {
 	}
 	rm.SetData(expected)
 	rm.AddMetadata("Content-Type", "application/json")
-	_ = rm.ReplySource()
+	if err := rm.ReplySource(); err != nil {
+		t.Fatalf("failed to reply source: %v", err)
+	}
 
 	select {
 	case err := <-errCh:
@@ -247,7 +257,9 @@ func TestCoAPSourceTCPAckChanged(t *testing.T) {
 	if rm == nil {
 		t.Fatal(errNilRunnerMsg)
 	}
-	_ = rm.Ack()
+	if err := rm.Ack(); err != nil {
+		t.Fatalf("failed to ack: %v", err)
+	}
 
 	select {
 	case err := <-errCh:

@@ -19,7 +19,9 @@ func startNATSServer(t *testing.T) (string, func()) {
 		t.Fatalf("cannot get free port: %v", err)
 	}
 	addr := ln.Addr().String()
-	_ = ln.Close()
+	if err := ln.Close(); err != nil {
+		t.Logf("failed to close listener: %v", err)
+	}
 
 	port := addr[strings.LastIndex(addr, ":")+1:]
 	opts := &server.Options{
