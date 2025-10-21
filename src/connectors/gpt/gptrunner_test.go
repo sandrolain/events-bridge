@@ -104,132 +104,166 @@ type mockErrorResponse struct {
 	} `json:"error"`
 }
 
+// validateMockRequest checks HTTP method, path, content-type and auth
+func validateMockRequest(w http.ResponseWriter, r *http.Request) bool {
+	// Validate request method and path
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return false
+	}
+
+	if r.URL.Path != baseURL {
+		w.WriteHeader(http.StatusNotFound)
+		return false
+	}
+
+	// Validate Content-Type
+	if r.Header.Get("Content-Type") != contentType {
+		w.WriteHeader(http.StatusBadRequest)
+		return false
+	}
+
+	// Validate Authorization header
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, authPrefix) {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(mockErrorResponse{
+			Error: struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+			}{
+				Message: "Incorrect API key provided",
+				Type:    "invalid_request_error",
+			},
+		})
+		return false
+	}
+
+	return true
+}
+
+// parseMockChatRequest parses and validates the request body
+func parseMockChatRequest(w http.ResponseWriter, r *http.Request) (*mockChatRequest, bool) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, false
+	}
+
+	var req mockChatRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, false
+	}
+
+	// Validate required fields
+	if req.Model == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(mockErrorResponse{
+			Error: struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+			}{
+				Message: "Missing required parameter: 'model'",
+				Type:    "invalid_request_error",
+			},
+		})
+		return nil, false
+	}
+
+	return &req, true
+}
+
+// extractTextContent extracts text from message content parts
+func extractTextContent(messages []mockChatMessageInput) string {
+	if len(messages) == 0 || len(messages[0].Content) == 0 {
+		return ""
+	}
+
+	var content strings.Builder
+	for _, part := range messages[0].Content {
+		if part.Type == "text" {
+			content.WriteString(part.Text)
+			content.WriteString(" ")
+		}
+	}
+	return content.String()
+}
+
+// handleMockTestScenarios handles special test scenarios (timeout, error)
+func handleMockTestScenarios(w http.ResponseWriter, content string) bool {
+	// Test timeout scenario
+	if strings.Contains(content, "timeout") {
+		time.Sleep(2 * time.Second)
+		w.WriteHeader(http.StatusRequestTimeout)
+		return true
+	}
+
+	// Test error response
+	if strings.Contains(content, "error") {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(mockErrorResponse{
+			Error: struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+			}{
+				Message: "Invalid request",
+				Type:    "invalid_request_error",
+			},
+		})
+		return true
+	}
+
+	return false
+}
+
+// buildMockChatResponse creates a successful chat completion response
+func buildMockChatResponse(req *mockChatRequest) mockChatResponse {
+	content := extractTextContent(req.Messages)
+	responseContent := ""
+	if content != "" {
+		responseContent = fmt.Sprintf("Response to: %s", strings.TrimSpace(content))
+	}
+
+	return mockChatResponse{
+		ID:      "chatcmpl-test123",
+		Object:  "chat.completion",
+		Created: time.Now().Unix(),
+		Model:   req.Model,
+		Choices: []mockChatChoice{
+			{
+				Index: 0,
+				Message: mockChatMessage{
+					Role:    assistantRole,
+					Content: responseContent,
+				},
+				FinishReason: "stop",
+			},
+		},
+	}
+}
+
 func createMockOpenAIServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Validate request method and path
-		if r.Method != http.MethodPost {
-			w.WriteHeader(http.StatusMethodNotAllowed)
+		// Validate request
+		if !validateMockRequest(w, r) {
 			return
 		}
 
-		if r.URL.Path != baseURL {
-			w.WriteHeader(http.StatusNotFound)
+		// Parse and validate request body
+		req, ok := parseMockChatRequest(w, r)
+		if !ok {
 			return
 		}
 
-		// Validate Content-Type
-		if r.Header.Get("Content-Type") != contentType {
-			w.WriteHeader(http.StatusBadRequest)
+		// Handle special test scenarios
+		content := extractTextContent(req.Messages)
+		if handleMockTestScenarios(w, content) {
 			return
-		}
-
-		// Validate Authorization header
-		auth := r.Header.Get("Authorization")
-		if !strings.HasPrefix(auth, authPrefix) {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(mockErrorResponse{
-				Error: struct {
-					Message string `json:"message"`
-					Type    string `json:"type"`
-				}{
-					Message: "Incorrect API key provided",
-					Type:    "invalid_request_error",
-				},
-			})
-			return
-		}
-
-		// Parse request body
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		var req mockChatRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		// Validate required fields
-		if req.Model == "" {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(mockErrorResponse{
-				Error: struct {
-					Message string `json:"message"`
-					Type    string `json:"type"`
-				}{
-					Message: "Missing required parameter: 'model'",
-					Type:    "invalid_request_error",
-				},
-			})
-			return
-		}
-
-		// Handle different test scenarios based on request content
-		if len(req.Messages) > 0 && len(req.Messages[0].Content) > 0 {
-			var content string
-			// Extract text from Content parts
-			for _, part := range req.Messages[0].Content {
-				if part.Type == "text" {
-					content += part.Text + " "
-				}
-			}
-
-			// Test timeout scenario
-			if strings.Contains(content, "timeout") {
-				time.Sleep(2 * time.Second)
-				w.WriteHeader(http.StatusRequestTimeout)
-				return
-			}
-
-			// Test error response
-			if strings.Contains(content, "error") {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(mockErrorResponse{
-					Error: struct {
-						Message string `json:"message"`
-						Type    string `json:"type"`
-					}{
-						Message: "Invalid request",
-						Type:    "invalid_request_error",
-					},
-				})
-				return
-			}
 		}
 
 		// Return successful response
-		var responseContent string
-		if len(req.Messages) > 0 && len(req.Messages[0].Content) > 0 {
-			// Extract text from Content for response
-			var texts []string
-			for _, part := range req.Messages[0].Content {
-				if part.Type == "text" {
-					texts = append(texts, part.Text)
-				}
-			}
-			responseContent = fmt.Sprintf("Response to: %s", strings.Join(texts, " "))
-		}
-
-		response := mockChatResponse{
-			ID:      "chatcmpl-test123",
-			Object:  "chat.completion",
-			Created: time.Now().Unix(),
-			Model:   req.Model,
-			Choices: []mockChatChoice{
-				{
-					Index: 0,
-					Message: mockChatMessage{
-						Role:    assistantRole,
-						Content: responseContent,
-					},
-					FinishReason: "stop",
-				},
-			},
-		}
-
+		response := buildMockChatResponse(req)
 		w.Header().Set("Content-Type", contentType)
 		json.NewEncoder(w).Encode(response)
 	}))
