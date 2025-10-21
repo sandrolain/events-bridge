@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 )
@@ -15,7 +16,11 @@ func GetFreePort() (port int, err error) {
 					slog.Warn("failed to close TCP listener", "error", err)
 				}
 			}()
-			return l.Addr().(*net.TCPAddr).Port, nil
+			tcpAddr, ok := l.Addr().(*net.TCPAddr)
+			if !ok {
+				return 0, fmt.Errorf("failed to get TCP address")
+			}
+			return tcpAddr.Port, nil
 		}
 	}
 	return

@@ -64,7 +64,10 @@ func TestPluginSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSource error: %v", err)
 	}
-	src := srcAny.(*PluginSource)
+	src, ok := srcAny.(*PluginSource)
+	if !ok {
+		t.Fatal("failed to cast source to PluginSource")
+	}
 
 	ch, err := src.Produce(10)
 	if err != nil {
@@ -97,7 +100,10 @@ func TestPluginRunner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner error: %v", err)
 	}
-	r := rAny.(*PluginRunner)
+	r, ok := rAny.(*PluginRunner)
+	if !ok {
+		t.Fatal("failed to cast runner to PluginRunner")
+	}
 
 	// JSON payload the runner will convert to CBOR
 	payload := map[string]any{"hello": "world", "num": 42}
@@ -159,7 +165,10 @@ func TestPluginTarget(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTarget error: %v", err)
 	}
-	tgt := tAny.(*PluginTarget)
+	tgt, ok := tAny.(*PluginTarget)
+	if !ok {
+		t.Fatal("failed to cast target to PluginTarget")
+	}
 
 	sm := &stubSourceMessage{meta: map[string]string{"k": "v"}, data: []byte("data"), id: []byte("id2")}
 	msg := message.NewRunnerMessage(sm)

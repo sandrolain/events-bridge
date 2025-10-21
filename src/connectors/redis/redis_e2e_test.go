@@ -20,7 +20,10 @@ func TestRedisStreamEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewTarget, err)
 	}
-	target := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamTarget)
+	if !ok {
+		t.Fatal("failed to cast target to RedisStreamTarget")
+	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
 			t.Fatalf(errFmtCloseTarget, err)
@@ -37,7 +40,10 @@ func TestRedisStreamEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewSource, err)
 	}
-	streamSource := sourceAny.(*RedisStreamSource)
+	streamSource, ok := sourceAny.(*RedisStreamSource)
+	if !ok {
+		t.Fatal("failed to cast source to RedisStreamSource")
+	}
 	t.Cleanup(func() {
 		if err := streamSource.Close(); err != nil {
 			t.Fatalf(errFmtCloseStreamSrc, err)
@@ -83,7 +89,10 @@ func TestRedisChannelEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewTarget, err)
 	}
-	channelTarget := targetAny.(*RedisTarget)
+	channelTarget, ok := targetAny.(*RedisTarget)
+	if !ok {
+		t.Fatal("failed to cast target to RedisTarget")
+	}
 	t.Cleanup(func() {
 		if err := channelTarget.Close(); err != nil {
 			t.Fatalf(errFmtCloseTarget, err)
@@ -99,7 +108,10 @@ func TestRedisChannelEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewSource, err)
 	}
-	source := sourceAny.(*RedisSource)
+	source, ok := sourceAny.(*RedisSource)
+	if !ok {
+		t.Fatal("failed to cast source to RedisSource")
+	}
 	t.Cleanup(func() {
 		if err := source.Close(); err != nil {
 			t.Fatalf(errFmtCloseSource, err)
@@ -110,6 +122,9 @@ func TestRedisChannelEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtProduce, err)
 	}
+
+	// Wait for subscription to be ready
+	time.Sleep(50 * time.Millisecond)
 
 	if err := channelTarget.Consume(newStubRunnerMessage(testMessageHello, nil)); err != nil {
 		t.Fatalf(errFmtConsume, err)

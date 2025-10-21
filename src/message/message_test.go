@@ -510,7 +510,9 @@ func TestRunnerMessageConcurrentReadWrite(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			_, _ = msg.GetMetadata()
+			if _, err := msg.GetMetadata(); err != nil {
+				t.Logf("failed to get metadata: %v", err)
+			}
 		}()
 	}
 	wg.Wait()

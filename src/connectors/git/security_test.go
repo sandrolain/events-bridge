@@ -309,7 +309,10 @@ func TestBuildAuthMethodPriority(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	gitSource := source.(*GitSource)
+	gitSource, ok := source.(*GitSource)
+	if !ok {
+		t.Fatal("failed to cast source to GitSource")
+	}
 
 	// Note: buildAuthMethod is called internally, we can't test it directly here
 	// but we verify the config is set correctly

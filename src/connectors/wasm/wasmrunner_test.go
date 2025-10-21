@@ -45,7 +45,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	sharedRunner = r.(*WasmRunner)
+	var ok bool
+	sharedRunner, ok = r.(*WasmRunner)
+	if !ok {
+		panic("failed to cast runner to WasmRunner")
+	}
 
 	code := m.Run()
 

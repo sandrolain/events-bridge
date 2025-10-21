@@ -22,7 +22,10 @@ func BenchmarkWasmRunnerProcess(b *testing.B) {
 		}
 	}()
 
-	wasmRunner := runner.(*WasmRunner)
+	wasmRunner, ok := runner.(*WasmRunner)
+	if !ok {
+		b.Fatal("failed to cast runner to WasmRunner")
+	}
 	msg := createTestMessage()
 
 	b.ResetTimer()
@@ -50,7 +53,10 @@ func BenchmarkWasmRunnerProcessParallel(b *testing.B) {
 		}
 	}()
 
-	wasmRunner := runner.(*WasmRunner)
+	wasmRunner, ok := runner.(*WasmRunner)
+	if !ok {
+		b.Fatal("failed to cast runner to WasmRunner")
+	}
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {

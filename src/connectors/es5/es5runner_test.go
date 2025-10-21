@@ -122,7 +122,10 @@ func TestES5RunnerProcessRuntimeError(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errMsgCreateRunner, err)
 	}
-	runner := runnerAny.(*ES5Runner)
+	runner, ok := runnerAny.(*ES5Runner)
+	if !ok {
+		t.Fatal("failed to cast runner to ES5Runner")
+	}
 
 	stub := testutil.NewAdapter([]byte("payload"), nil)
 	msg := message.NewRunnerMessage(stub)
@@ -156,7 +159,10 @@ func TestES5RunnerProcessInvalidServiceMethod(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errMsgCreateRunner, err)
 	}
-	runner := runnerAny.(*ES5Runner)
+	runner, ok := runnerAny.(*ES5Runner)
+	if !ok {
+		t.Fatal("failed to cast runner to ES5Runner")
+	}
 
 	stub := testutil.NewAdapter([]byte("payload"), nil)
 	msg := message.NewRunnerMessage(stub)

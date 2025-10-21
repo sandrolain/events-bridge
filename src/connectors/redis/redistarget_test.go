@@ -107,7 +107,10 @@ func TestRedisStreamTargetMetadataOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewTarget, err)
 	}
-	target := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamTarget)
+	if !ok {
+		t.Fatal("failed to cast target to RedisStreamTarget")
+	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
 			t.Fatalf(errFmtCloseTarget, err)
@@ -151,7 +154,10 @@ func TestRedisStreamTargetCustomDataKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewTarget, err)
 	}
-	target := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamTarget)
+	if !ok {
+		t.Fatal("failed to cast target to RedisStreamTarget")
+	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
 			t.Fatalf(errFmtCloseTarget, err)
@@ -186,7 +192,10 @@ func TestRedisStreamTargetClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewTarget, err)
 	}
-	target := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamTarget)
+	if !ok {
+		t.Fatal("failed to cast target to RedisStreamTarget")
+	}
 
 	if err := target.Close(); err != nil {
 		t.Fatalf("Close returned error: %v", err)
@@ -209,7 +218,10 @@ func TestRedisChannelTargetPublishesMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewTarget, err)
 	}
-	target := targetAny.(*RedisTarget)
+	target, ok := targetAny.(*RedisTarget)
+	if !ok {
+		t.Fatal("failed to cast target to RedisTarget")
+	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
 			t.Fatalf(errFmtCloseTarget, err)
@@ -223,6 +235,9 @@ func TestRedisChannelTargetPublishesMessage(t *testing.T) {
 			t.Logf("failed to close pubsub: %v", err)
 		}
 	}()
+
+	// Wait for subscription to be ready
+	time.Sleep(50 * time.Millisecond)
 
 	msg := newStubRunnerMessage("notify", nil)
 
@@ -255,7 +270,10 @@ func TestRedisChannelTargetMetadataOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errFmtNewTarget, err)
 	}
-	target := targetAny.(*RedisTarget)
+	target, ok := targetAny.(*RedisTarget)
+	if !ok {
+		t.Fatal("failed to cast target to RedisTarget")
+	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
 			t.Fatalf(errFmtCloseTarget, err)
@@ -269,6 +287,9 @@ func TestRedisChannelTargetMetadataOverride(t *testing.T) {
 			t.Logf("failed to close pubsub: %v", err)
 		}
 	}()
+
+	// Wait for subscription to be ready
+	time.Sleep(50 * time.Millisecond)
 
 	msg := newStubRunnerMessage("notify", map[string]string{"channel": "custom"})
 
