@@ -212,6 +212,48 @@ func (b *EventsBridge) Run(ctx context.Context) error {
 	return b.replyToSource(out)
 }
 
+// processRunnerMessage processes a single message with the given runner and evaluators
+func (b *EventsBridge) processRunnerMessage(
+	msg *message.RunnerMessage,
+	runner connectors.Runner,
+	cfg connectors.RunnerConfig,
+	ifEval *expreval.ExprEvaluator,
+	filterEval *expreval.ExprEvaluator,
+) (*message.RunnerMessage, bool, error) {
+	// Evaluate if condition
+	if ifEval != nil {
+		pass, err := ifEval.EvalMessage(msg)
+		if err != nil {
+			return b.handler.HandleRunnerError(msg, err, "failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr)
+		}
+		if !pass {
+			b.logger.Debug("ifExpr evaluated to false, skipping runner processing", "ifExpr", cfg.IfExpr)
+			return msg, true, nil
+		}
+	}
+
+	// Process message with runner
+	if runner != nil {
+		if err := runner.Process(msg); err != nil {
+			return b.handler.HandleRunnerError(msg, err, "error processing message")
+		}
+	}
+
+	// Evaluate filter condition
+	if filterEval != nil {
+		pass, err := filterEval.EvalMessage(msg)
+		if err != nil {
+			return b.handler.HandleRunnerError(msg, err, "failed to evaluate filterExpr, skipping message", "filterExpr", cfg.FilterExpr)
+		}
+		if !pass {
+			b.handler.HandleSuccess(msg, "message filtered out by filterExpr", "filterExpr", cfg.FilterExpr)
+			return nil, false, nil
+		}
+	}
+
+	return msg, true, nil
+}
+
 // applyRunners applies all configured runners to the message stream
 func (b *EventsBridge) applyRunners(stream rill.Stream[*message.RunnerMessage]) rill.Stream[*message.RunnerMessage] {
 	out := stream
@@ -234,38 +276,7 @@ func (b *EventsBridge) applyRunners(stream rill.Stream[*message.RunnerMessage]) 
 		}
 
 		out = rill.OrderedFilterMap(out, routines, func(msg *message.RunnerMessage) (*message.RunnerMessage, bool, error) {
-			// Evaluate if condition
-			if ifEval != nil {
-				pass, err := ifEval.EvalMessage(msg)
-				if err != nil {
-					return b.handler.HandleRunnerError(msg, err, "failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr)
-				}
-				if !pass {
-					b.logger.Debug("ifExpr evaluated to false, skipping runner processing", "ifExpr", cfg.IfExpr)
-					return msg, true, nil
-				}
-			}
-
-			// Process message with runner
-			if runner != nil {
-				if err := runner.Process(msg); err != nil {
-					return b.handler.HandleRunnerError(msg, err, "error processing message")
-				}
-			}
-
-			// Evaluate filter condition
-			if filterEval != nil {
-				pass, err := filterEval.EvalMessage(msg)
-				if err != nil {
-					return b.handler.HandleRunnerError(msg, err, "failed to evaluate filterExpr, skipping message", "filterExpr", cfg.FilterExpr)
-				}
-				if !pass {
-					b.handler.HandleSuccess(msg, "message filtered out by filterExpr", "filterExpr", cfg.FilterExpr)
-					return nil, false, nil
-				}
-			}
-
-			return msg, true, nil
+			return b.processRunnerMessage(msg, runner, cfg, ifEval, filterEval)
 		})
 	}
 
