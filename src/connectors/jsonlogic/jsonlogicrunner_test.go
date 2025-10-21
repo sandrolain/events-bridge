@@ -38,7 +38,7 @@ func TestProcess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create runner: %v", err)
 	}
-	defer runner.Close()
+	defer func() { _ = runner.Close() }()
 
 	// Create a test message
 	stub := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{"source": "test"})
@@ -74,7 +74,7 @@ func TestProcessWithPreservePayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create runner: %v", err)
 	}
-	defer runner.Close()
+	defer func() { _ = runner.Close() }()
 
 	stub := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{"source": "test"})
 	stub.ID = []byte("test-id")
@@ -111,7 +111,7 @@ func TestProcessTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create runner: %v", err)
 	}
-	defer runner.Close()
+	defer func() { _ = runner.Close() }()
 
 	stub := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{})
 	stub.ID = []byte("test-id")

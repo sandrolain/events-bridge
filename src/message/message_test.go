@@ -617,16 +617,26 @@ func TestRunnerMessageMultipleAckNakCalls(t *testing.T) {
 	msg := NewRunnerMessage(original)
 
 	// Call Ack multiple times
-	_ = msg.Ack()
-	_ = msg.Ack()
+	if err := msg.Ack(); err != nil {
+		t.Logf("ack error (acceptable): %v", err)
+	}
+	if err := msg.Ack(); err != nil {
+		t.Logf("ack error (acceptable): %v", err)
+	}
 	if original.ackCalls != 2 {
 		t.Fatalf("expected 2 Ack calls, got %d", original.ackCalls)
 	}
 
 	// Call Nak multiple times
-	_ = msg.Nak()
-	_ = msg.Nak()
-	_ = msg.Nak()
+	if err := msg.Nak(); err != nil {
+		t.Logf("nak error (acceptable): %v", err)
+	}
+	if err := msg.Nak(); err != nil {
+		t.Logf("nak error (acceptable): %v", err)
+	}
+	if err := msg.Nak(); err != nil {
+		t.Logf("nak error (acceptable): %v", err)
+	}
 	if original.nakCalls != 3 {
 		t.Fatalf("expected 3 Nak calls, got %d", original.nakCalls)
 	}

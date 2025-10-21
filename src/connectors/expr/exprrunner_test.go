@@ -158,7 +158,11 @@ func TestExprProcessNoTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create runner: %v", err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	stub := testutil.NewAdapter([]byte(`{"value": 42}`), map[string]string{})
 	stub.ID = []byte("test-id")

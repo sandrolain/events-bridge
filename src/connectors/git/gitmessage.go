@@ -13,7 +13,9 @@ type GitMessage struct {
 
 func (m *GitMessage) GetID() []byte {
 	if len(m.changes) > 0 {
-		return []byte(m.changes[0]["commit"].(string))
+		if commitHash, ok := m.changes[0]["commit"].(string); ok {
+			return []byte(commitHash)
+		}
 	}
 	return nil
 }

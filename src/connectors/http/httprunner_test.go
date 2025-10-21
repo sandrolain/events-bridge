@@ -32,7 +32,9 @@ func TestHTTPRunnerSuccess(t *testing.T) {
 		w.Header().Set("X-Echo", "ok")
 		w.Header().Set("X-Another", "value")
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"ok":true}`))
+		if _, err := w.Write([]byte(`{"ok":true}`)); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}))
 	defer ts.Close()
 
@@ -93,7 +95,10 @@ func TestHTTPRunnerNon2XX(t *testing.T) {
 	if err != nil {
 		t.Fatalf(httpRunnerErrCreate, err)
 	}
-	runner := r.(*HTTPRunner)
+	runner, ok := r.(*HTTPRunner)
+	if !ok {
+		t.Fatal("failed to cast to HTTPRunner")
+	}
 
 	origPayload := []byte(`{"in":2}`)
 	stub2 := testutil.NewAdapter(origPayload, map[string]string{"A": "b"})
@@ -128,7 +133,10 @@ func TestHTTPRunnerTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf(httpRunnerErrCreate, err)
 	}
-	runner := r.(*HTTPRunner)
+	runner, ok := r.(*HTTPRunner)
+	if !ok {
+		t.Fatal("failed to cast to HTTPRunner")
+	}
 
 	stub3 := testutil.NewAdapter([]byte("{}"), map[string]string{"A": "b"})
 	msg := message.NewRunnerMessage(stub3)

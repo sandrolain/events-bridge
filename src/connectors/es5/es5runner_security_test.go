@@ -53,7 +53,11 @@ func (s *stubSecuritySourceMessage) Nak() error { return nil }
 func (s *stubSecuritySourceMessage) Reply(data *message.ReplyData) error { return nil }
 
 func TestRunnerConfigDefaults(t *testing.T) {
-	cfg := NewRunnerConfig().(*RunnerConfig)
+	cfgAny := NewRunnerConfig()
+	cfg, ok := cfgAny.(*RunnerConfig)
+	if !ok {
+		t.Fatal("NewRunnerConfig did not return *RunnerConfig")
+	}
 
 	if cfg == nil {
 		t.Fatal("NewRunnerConfig returned nil")
@@ -98,7 +102,9 @@ func TestScriptIntegrityVerificationSuccess(t *testing.T) {
 	}
 
 	if runner != nil {
-		_ = runner.Close()
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
 	}
 }
 
@@ -148,7 +154,9 @@ func TestScriptIntegrityVerificationDisabled(t *testing.T) {
 	}
 
 	if runner != nil {
-		_ = runner.Close()
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
 	}
 }
 
@@ -180,7 +188,10 @@ func TestRunnerWithCallStackLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errCreateRunner, err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+		}
+	}()
 
 	msg := message.NewRunnerMessage(&stubSecuritySourceMessage{
 		data: []byte(testDataPayload),
@@ -217,7 +228,10 @@ func TestRunnerTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errCreateRunner, err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+		}
+	}()
 
 	msg := message.NewRunnerMessage(&stubSecuritySourceMessage{
 		data: []byte(testDataPayload),
@@ -259,7 +273,10 @@ func TestRunnerPanicRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errCreateRunner, err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+		}
+	}()
 
 	msg := message.NewRunnerMessage(&stubSecuritySourceMessage{
 		data: []byte(testDataPayload),
@@ -294,7 +311,10 @@ func TestRunnerWithAllowedGlobals(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errCreateRunner, err)
 	}
-	defer runner.Close()
+	defer func() {
+		if err := runner.Close(); err != nil {
+		}
+	}()
 
 	msg := message.NewRunnerMessage(&stubSecuritySourceMessage{
 		data: []byte(testDataPayload),

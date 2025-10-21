@@ -56,8 +56,10 @@ func (t *RedisStreamTarget) Consume(msg *message.RunnerMessage) error {
 	}
 	stream := t.cfg.Stream
 	if t.cfg.StreamFromMetadataKey != "" {
-		metadata, _ := msg.GetMetadata()
-		if v, ok := metadata[t.cfg.StreamFromMetadataKey]; ok && len(v) > 0 {
+		metadata, err := msg.GetMetadata()
+		if err != nil {
+			t.slog.Warn("failed to get metadata for stream resolution", "error", err)
+		} else if v, ok := metadata[t.cfg.StreamFromMetadataKey]; ok && len(v) > 0 {
 			stream = v
 		}
 	}

@@ -110,7 +110,11 @@ func (t *CoAPTarget) sendCoAP(ctx context.Context, method, path, address string,
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.slog.Warn("failed to close client", "error", err)
+		}
+	}()
 
 	_, err = sendCoAPRequest(ctx, client, method, path, contentFormat, data)
 	return err

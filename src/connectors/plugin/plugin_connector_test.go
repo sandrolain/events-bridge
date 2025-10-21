@@ -101,7 +101,10 @@ func TestPluginRunner(t *testing.T) {
 
 	// JSON payload the runner will convert to CBOR
 	payload := map[string]any{"hello": "world", "num": 42}
-	data, _ := json.Marshal(payload)
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
 	// Compose a RunnerMessage from a stub source message
 	sm := &stubSourceMessage{meta: map[string]string{"content-type": "application/json"}, data: data, id: []byte("id1")}
 	msg := message.NewRunnerMessage(sm)
@@ -110,7 +113,10 @@ func TestPluginRunner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Process error: %v", err)
 	}
-	md, _ := msg.GetMetadata()
+	md, err := msg.GetMetadata()
+	if err != nil {
+		t.Fatalf("failed to get metadata: %v", err)
+	}
 	if md == nil || md["processed"] != "true" {
 		t.Fatalf("expected processed metadata, got %#v", md)
 	}

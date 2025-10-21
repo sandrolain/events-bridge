@@ -272,7 +272,9 @@ func (s *GitSource) checkForChanges() {
 			}
 		}
 
-		_ = repo.Fetch(fetchOpts)
+		if err := repo.Fetch(fetchOpts); err != nil && err != git.NoErrAlreadyUpToDate {
+			s.slog.Warn("failed to fetch repository", "error", err)
+		}
 	}
 
 	remoteName := s.cfg.Remote

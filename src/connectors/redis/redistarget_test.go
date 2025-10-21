@@ -218,7 +218,11 @@ func TestRedisChannelTargetPublishesMessage(t *testing.T) {
 
 	client := newRedisClient(t, srv.Addr())
 	pubsub := client.Subscribe(context.Background(), "notifications")
-	defer pubsub.Close()
+	defer func() {
+		if err := pubsub.Close(); err != nil {
+			t.Logf("failed to close pubsub: %v", err)
+		}
+	}()
 
 	msg := newStubRunnerMessage("notify", nil)
 
@@ -260,7 +264,11 @@ func TestRedisChannelTargetMetadataOverride(t *testing.T) {
 
 	client := newRedisClient(t, srv.Addr())
 	pubsub := client.Subscribe(context.Background(), "custom")
-	defer pubsub.Close()
+	defer func() {
+		if err := pubsub.Close(); err != nil {
+			t.Logf("failed to close pubsub: %v", err)
+		}
+	}()
 
 	msg := newStubRunnerMessage("notify", map[string]string{"channel": "custom"})
 

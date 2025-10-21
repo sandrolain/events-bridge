@@ -87,7 +87,11 @@ func clonePluginMessage(msg *proto.PluginMessage) *proto.PluginMessage {
 		return nil
 	}
 	cloned := gproto.Clone(msg)
-	return cloned.(*proto.PluginMessage)
+	result, ok := cloned.(*proto.PluginMessage)
+	if !ok {
+		return nil
+	}
+	return result
 }
 
 type fakeSourceStream struct {

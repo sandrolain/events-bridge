@@ -170,7 +170,9 @@ func startUDPServer(t *testing.T, addr string, onMsg func()) {
 	}
 	s := coapudp.NewServer(coapoptions.WithMux(router))
 	go func() {
-		_ = s.Serve(l)
+		if err := s.Serve(l); err != nil {
+			t.Logf("UDP server error: %v", err)
+		}
 	}()
 	t.Cleanup(func() { s.Stop() })
 	time.Sleep(100 * time.Millisecond)
@@ -195,7 +197,9 @@ func startTCPServer(t *testing.T, addr string, onMsg func()) {
 	}
 	s := coaptcp.NewServer(coapoptions.WithMux(router))
 	go func() {
-		_ = s.Serve(ln)
+		if err := s.Serve(ln); err != nil {
+			t.Logf("TCP server error: %v", err)
+		}
 	}()
 	t.Cleanup(func() { s.Stop() })
 	time.Sleep(100 * time.Millisecond)

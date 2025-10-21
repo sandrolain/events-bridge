@@ -82,11 +82,16 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 
 	select {
 	case got := <-ch:
-		data, _ := got.GetData()
+		data, err := got.GetData()
+		if err != nil {
+			t.Fatalf("failed to get data: %v", err)
+		}
 		if string(data) != "dyn" {
 			t.Fatalf("unexpected payload: %s", string(data))
 		}
-		_ = got.Ack()
+		if err := got.Ack(); err != nil {
+			t.Logf("failed to ack message: %v", err)
+		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("timeout waiting for message")
 	}

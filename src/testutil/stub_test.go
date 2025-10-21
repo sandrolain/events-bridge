@@ -76,19 +76,27 @@ func TestStubSourceMessageCallCounters(t *testing.T) {
 		t.Errorf("expected 0 ack calls, got %d", stub.AckCalls)
 	}
 
-	_ = stub.Ack()
-	_ = stub.Ack()
+	if err := stub.Ack(); err != nil {
+		t.Logf("ack error (acceptable): %v", err)
+	}
+	if err := stub.Ack(); err != nil {
+		t.Logf("ack error (acceptable): %v", err)
+	}
 	if stub.AckCalls != 2 {
 		t.Errorf("expected 2 ack calls, got %d", stub.AckCalls)
 	}
 
-	_ = stub.Nak()
+	if err := stub.Nak(); err != nil {
+		t.Logf("nak error (acceptable): %v", err)
+	}
 	if stub.NakCalls != 1 {
 		t.Errorf("expected 1 nak call, got %d", stub.NakCalls)
 	}
 
 	replyData := "test reply"
-	_ = stub.Reply(replyData)
+	if err := stub.Reply(replyData); err != nil {
+		t.Logf("reply error (acceptable): %v", err)
+	}
 	if stub.ReplyCalls != 1 {
 		t.Errorf("expected 1 reply call, got %d", stub.ReplyCalls)
 	}

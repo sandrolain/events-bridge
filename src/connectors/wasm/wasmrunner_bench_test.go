@@ -76,6 +76,8 @@ func BenchmarkWasmRunnerCreation(b *testing.B) {
 		if err != nil {
 			b.Fatalf(errMsgCreateRunner, err)
 		}
-		_ = runner.Close()
+		if err := runner.Close(); err != nil {
+			b.Logf("failed to close runner: %v", err)
+		}
 	}
 }

@@ -297,13 +297,14 @@ func TestMaxMemoryPagesEnforcement(t *testing.T) {
 		// If it somehow succeeds, try to process a message
 		// It might fail during processing due to memory constraints
 		msg := createTestMessage()
-		_ = runner.Process(msg) // Error is acceptable here
+		if err := runner.Process(msg); err != nil {
+			// Error is acceptable here - the limit is being enforced
+			t.Logf("process failed as expected due to memory limit: %v", err)
+		}
 	}
 	// Either runner creation fails or processing fails - both prove limit is enforced
 	// The important part is that wazero respects MaxMemoryPages
-}
-
-// TestLogWriterBuffering verifies that logWriter correctly buffers partial writes
+} // TestLogWriterBuffering verifies that logWriter correctly buffers partial writes
 func TestLogWriterBuffering(t *testing.T) {
 	t.Parallel()
 

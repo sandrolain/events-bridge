@@ -79,10 +79,18 @@ func TestMessageToMap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if v["meta"].(map[string]string)["id"] != "123" {
-		t.Fatalf("Expected '123', got %v", v["meta"])
+	meta, ok := v["meta"].(map[string]string)
+	if !ok {
+		t.Fatal("failed to cast meta to map[string]string")
 	}
-	if string(v["data"].([]byte)) != testDataString {
-		t.Fatalf("Expected 'test data', got %v", v["data"])
+	if meta["id"] != "123" {
+		t.Fatalf("Expected '123', got %v", meta)
+	}
+	data, ok := v["data"].([]byte)
+	if !ok {
+		t.Fatal("failed to cast data to []byte")
+	}
+	if string(data) != testDataString {
+		t.Fatalf("Expected 'test data', got %v", string(data))
 	}
 }

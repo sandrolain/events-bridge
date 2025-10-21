@@ -36,7 +36,10 @@ message.AddMetadata("processed", "true");
 	if err != nil {
 		b.Fatalf(errMsgCreateRunner, err)
 	}
-	runner := runnerAny.(*ES5Runner)
+	runner, ok := runnerAny.(*ES5Runner)
+	if !ok {
+		b.Fatal("failed to cast runner to ES5Runner")
+	}
 
 	stub := testutil.NewAdapter([]byte(benchData), map[string]string{"source": benchSource})
 	stub.ID = []byte(benchID)
@@ -87,7 +90,10 @@ message.AddMetadata("timestamp", new Date().toISOString());
 	if err != nil {
 		b.Fatalf(errMsgCreateRunner, err)
 	}
-	runner := runnerAny.(*ES5Runner)
+	runner, ok := runnerAny.(*ES5Runner)
+	if !ok {
+		b.Fatal("failed to cast to ES5Runner")
+	}
 
 	stub := testutil.NewAdapter([]byte(benchDataComplex), map[string]string{"source": benchSource, "type": "test"})
 	stub.ID = []byte(benchID)
@@ -123,6 +129,8 @@ message.AddMetadata("processed", "true");
 		if err != nil {
 			b.Fatalf(errMsgCreateRunner, err)
 		}
-		_ = runner.Close()
+		if err := runner.Close(); err != nil {
+			b.Logf("failed to close runner: %v", err)
+		}
 	}
 }

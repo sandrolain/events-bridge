@@ -233,7 +233,9 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 
 	cmod, err := rt.CompileModule(ctx, wasmBytes)
 	if err != nil {
-		_ = rt.Close(ctx)
+		if closeErr := rt.Close(ctx); closeErr != nil {
+			log.Warn("failed to close runtime after compile error", "error", closeErr)
+		}
 		return nil, fmt.Errorf("failed to compile wasm module: %w", err)
 	}
 

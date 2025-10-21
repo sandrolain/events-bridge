@@ -78,7 +78,10 @@ if (typeof message !== 'undefined') {
 	if err != nil {
 		t.Fatalf(errMsgCreateRunner, err)
 	}
-	runner := runnerAny.(*ES5Runner)
+	runner, ok := runnerAny.(*ES5Runner)
+	if !ok {
+		t.Fatal("failed to cast to ES5Runner")
+	}
 
 	stub := testutil.NewAdapter([]byte("hello"), map[string]string{"source": "test"})
 	stub.ID = []byte("id")

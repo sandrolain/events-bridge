@@ -59,8 +59,13 @@ var source bootstrap.SourceFn = func(req *proto.SourceReq, stream proto.PluginSe
 var runner bootstrap.RunnerFn = func(ctx context.Context, req *proto.PluginMessage) (*proto.PluginMessage, error) {
 	// Convert JSON data to CBOR - ignoring errors for test simplicity
 	var tmp map[string]any
-	_ = json.Unmarshal(req.GetData(), &tmp)
-	cborBytes, _ := cbor.Marshal(tmp)
+	if err := json.Unmarshal(req.GetData(), &tmp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+	cborBytes, err := cbor.Marshal(tmp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal CBOR: %w", err)
+	}
 	id := make([]byte, 16)
 	if _, err := rand.Read(id); err != nil {
 		return nil, fmt.Errorf("failed to generate random id: %w", err)

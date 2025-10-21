@@ -74,7 +74,11 @@ func TestSafeFSReadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Logf("failed to close file: %v", err)
+		}
+	}()
 
 	// Attempt to write (should fail)
 	roFile, ok := file.(*readOnlyFile)
@@ -145,7 +149,11 @@ func TestReadOnlyFileWriteOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Logf("failed to close file: %v", err)
+		}
+	}()
 
 	roFile, ok := file.(*readOnlyFile)
 	if !ok {

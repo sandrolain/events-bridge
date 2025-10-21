@@ -100,7 +100,9 @@ func (s *RedisStreamSource) Produce(buffer int) (<-chan *message.RunnerMessage, 
 	}
 
 	if s.useConsumerGrp {
-		_ = s.client.XGroupCreateMkStream(s.ctx, s.config.Stream, s.config.ConsumerGroup, "0").Err()
+		if err := s.client.XGroupCreateMkStream(s.ctx, s.config.Stream, s.config.ConsumerGroup, "0").Err(); err != nil {
+			s.slog.Debug("consumer group already exists or creation failed", "error", err)
+		}
 		s.lastID = ">"
 	} else {
 		// Use configured LastID or default to "$" for newest messages
@@ -207,7 +209,9 @@ func (s *RedisStreamSource) readAndProcessMessages(stream, dataKey string) error
 			select {
 			case s.c <- message.NewRunnerMessage(m):
 				if s.useConsumerGrp {
-					_ = s.client.XAck(s.ctx, s.config.Stream, s.config.ConsumerGroup, xmsg.ID).Err()
+					if err := s.client.XAck(s.ctx, s.config.Stream, s.config.ConsumerGroup, xmsg.ID).Err(); err != nil {
+						s.slog.Warn("failed to acknowledge message", "id", xmsg.ID, "error", err)
+					}
 				} else {
 					s.lastID = xmsg.ID
 				}

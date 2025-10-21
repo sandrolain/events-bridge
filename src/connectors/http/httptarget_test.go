@@ -76,13 +76,15 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		_ = fasthttp.Serve(ln, func(ctx *fasthttp.RequestCtx) {
+		if err := fasthttp.Serve(ln, func(ctx *fasthttp.RequestCtx) {
 			if string(ctx.Method()) != "POST" || string(ctx.Path()) != "/test" {
 				ctx.SetStatusCode(405)
 				return
 			}
 			ctx.SetStatusCode(200)
-		})
+		}); err != nil {
+			t.Logf("serve error: %v", err)
+		}
 		close(done)
 	}()
 
@@ -102,7 +104,9 @@ func TestHTTPTargetConsumeAndClose(t *testing.T) {
 		t.Fatalf(errMsg, err)
 	}
 	// Close listener and target
-	_ = ln.Close()
+	if err := ln.Close(); err != nil {
+		t.Logf("failed to close listener: %v", err)
+	}
 	<-done
 	if err := httpTgt.Close(); err != nil {
 		t.Fatalf("unexpected error on close: %v", err)

@@ -303,7 +303,9 @@ func TestCoAPSourceTCPReplyContentJSON(t *testing.T) {
 	}
 	rm.SetData(expected)
 	rm.AddMetadata("Content-Type", "application/json")
-	_ = rm.ReplySource()
+	if err := rm.ReplySource(); err != nil {
+		t.Logf("failed to reply source: %v", err)
+	}
 
 	select {
 	case err := <-errCh:

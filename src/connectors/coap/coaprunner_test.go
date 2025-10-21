@@ -69,7 +69,10 @@ func TestCoAPRunnerSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf(coapRunnerErrCreate, err)
 	}
-	runner := r.(*CoAPRunner)
+	runner, ok := r.(*CoAPRunner)
+	if !ok {
+		t.Fatal("failed to cast to CoAPRunner")
+	}
 
 	stub := testutil.NewAdapter([]byte(`{"in":1}`), map[string]string{"Content-Type": "application/json"})
 	msg := message.NewRunnerMessage(stub)
@@ -100,7 +103,10 @@ func TestCoAPRunnerNon2XX(t *testing.T) {
 	if err != nil {
 		t.Fatalf(coapRunnerErrCreate, err)
 	}
-	runner := r.(*CoAPRunner)
+	runner, ok := r.(*CoAPRunner)
+	if !ok {
+		t.Fatal("failed to cast to CoAPRunner")
+	}
 	orig := []byte(`{"in":2}`)
 	stub2 := testutil.NewAdapter(orig, map[string]string{"Content-Type": "application/json"})
 	msg := message.NewRunnerMessage(stub2)
@@ -129,7 +135,10 @@ func TestCoAPRunnerTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf(coapRunnerErrCreate, err)
 	}
-	runner := r.(*CoAPRunner)
+	runner, ok := r.(*CoAPRunner)
+	if !ok {
+		t.Fatal("failed to cast to CoAPRunner")
+	}
 	stub3 := testutil.NewAdapter([]byte("{}"), map[string]string{})
 	msg := message.NewRunnerMessage(stub3)
 	// Process already has its own timeout; just invoke

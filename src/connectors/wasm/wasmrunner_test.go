@@ -51,7 +51,12 @@ func TestMain(m *testing.M) {
 
 	// Close shared runner once after all tests
 	if sharedRunner != nil {
-		_ = sharedRunner.Close()
+		if err := sharedRunner.Close(); err != nil {
+			// Just log to stderr since we're in test cleanup
+			if _, writeErr := os.Stderr.WriteString("failed to close shared runner\n"); writeErr != nil {
+				// Ignore write error during cleanup
+			}
+		}
 	}
 	os.Exit(code)
 }
