@@ -44,6 +44,31 @@ func LoadConfig() (cfg *Config, err error) {
 	return loadConfigFile(envCfg.ConfigFilePath)
 }
 
+// parseStringArg extracts a string value from CLI argument
+func parseStringArg(args []string, i int, argName string) (value string, newIndex int, err error) {
+	arg := args[i]
+	prefix := argName + "="
+
+	if strings.HasPrefix(arg, prefix) {
+		value = strings.TrimPrefix(arg, prefix)
+		if strings.TrimSpace(value) == "" {
+			return "", i, fmt.Errorf("%s cannot be empty", argName)
+		}
+		return value, i, nil
+	}
+
+	// Check for separate value argument
+	if i+1 >= len(args) {
+		return "", i, fmt.Errorf("%s requires a value", argName)
+	}
+
+	value = args[i+1]
+	if strings.TrimSpace(value) == "" {
+		return "", i, fmt.Errorf("%s cannot be empty", argName)
+	}
+	return value, i + 1, nil
+}
+
 // applyCLIOverrides sets EnvConfig fields from CLI flags if provided.
 // Supported flags (long form only):
 //
@@ -57,63 +82,37 @@ func applyCLIOverrides(cfg *EnvConfig) error {
 	supportedFormats := map[string]bool{"yaml": true, "yml": true, "json": true}
 
 	for i := 0; i < len(args); i++ {
-		a := args[i]
+		arg := args[i]
+		var value string
+		var err error
+
 		switch {
-		case strings.HasPrefix(a, "--config-file-path="):
-			path := strings.TrimPrefix(a, "--config-file-path=")
-			if strings.TrimSpace(path) == "" {
-				return fmt.Errorf("--config-file-path cannot be empty")
+		case strings.HasPrefix(arg, "--config-file-path="), arg == "--config-file-path":
+			value, i, err = parseStringArg(args, i, "--config-file-path")
+			if err != nil {
+				return err
 			}
-			cfg.ConfigFilePath = path
-		case a == "--config-file-path":
-			if i+1 < len(args) {
-				path := args[i+1]
-				if strings.TrimSpace(path) == "" {
-					return fmt.Errorf("--config-file-path cannot be empty")
-				}
-				cfg.ConfigFilePath = path
-				i++
-			} else {
-				return fmt.Errorf("--config-file-path requires a value")
+			cfg.ConfigFilePath = value
+
+		case strings.HasPrefix(arg, "--config-content="), arg == "--config-content":
+			value, i, err = parseStringArg(args, i, "--config-content")
+			if err != nil {
+				return err
 			}
-		case strings.HasPrefix(a, "--config-content="):
-			content := strings.TrimPrefix(a, "--config-content=")
-			if strings.TrimSpace(content) == "" {
-				return fmt.Errorf("--config-content cannot be empty")
+			cfg.ConfigContent = value
+
+		case strings.HasPrefix(arg, "--config-format="), arg == "--config-format":
+			value, i, err = parseStringArg(args, i, "--config-format")
+			if err != nil {
+				return err
 			}
-			cfg.ConfigContent = content
-		case a == "--config-content":
-			if i+1 < len(args) {
-				content := args[i+1]
-				if strings.TrimSpace(content) == "" {
-					return fmt.Errorf("--config-content cannot be empty")
-				}
-				cfg.ConfigContent = content
-				i++
-			} else {
-				return fmt.Errorf("--config-content requires a value")
+			if !supportedFormats[strings.ToLower(value)] {
+				return fmt.Errorf("unsupported config format: %s (supported: yaml, yml, json)", value)
 			}
-		case strings.HasPrefix(a, "--config-format="):
-			format := strings.TrimPrefix(a, "--config-format=")
-			if !supportedFormats[strings.ToLower(format)] {
-				return fmt.Errorf("unsupported config format: %s (supported: yaml, yml, json)", format)
-			}
-			cfg.ConfigFormat = format
-		case a == "--config-format":
-			if i+1 < len(args) {
-				format := args[i+1]
-				if !supportedFormats[strings.ToLower(format)] {
-					return fmt.Errorf("unsupported config format: %s (supported: yaml, yml, json)", format)
-				}
-				cfg.ConfigFormat = format
-				i++
-			} else {
-				return fmt.Errorf("--config-format requires a value")
-			}
+			cfg.ConfigFormat = value
 		}
 	}
 	return nil
-
 }
 
 // loadEnvConfig loads EnvConfig using Koanf env provider.
