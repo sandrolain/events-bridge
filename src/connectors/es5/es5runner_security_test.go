@@ -190,6 +190,7 @@ func TestRunnerWithCallStackLimit(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
 		}
 	}()
 
@@ -230,6 +231,7 @@ func TestRunnerTimeout(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
 		}
 	}()
 
@@ -275,6 +277,7 @@ func TestRunnerPanicRecovery(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
 		}
 	}()
 
@@ -313,6 +316,7 @@ func TestRunnerWithAllowedGlobals(t *testing.T) {
 	}
 	defer func() {
 		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
 		}
 	}()
 

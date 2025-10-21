@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -57,9 +58,8 @@ func TestMain(m *testing.M) {
 	if sharedRunner != nil {
 		if err := sharedRunner.Close(); err != nil {
 			// Just log to stderr since we're in test cleanup
-			if _, writeErr := os.Stderr.WriteString("failed to close shared runner\n"); writeErr != nil {
-				// Ignore write error during cleanup
-			}
+			// nolint:errcheck // Ignore write errors during cleanup
+			fmt.Fprintf(os.Stderr, "failed to close shared runner: %v\n", err)
 		}
 	}
 	os.Exit(code)
