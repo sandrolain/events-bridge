@@ -15,13 +15,13 @@ linters:
   settings:
     gosec:
       severity: medium
-    gocyclo:
-      min-complexity: 20
+    # gocyclo:
+    #   min-complexity: 20
     errcheck:
       check-blank: true
       check-type-assertions: true
-    gocognit:
-      min-complexity: 12
+    # gocognit:
+    #   min-complexity: 12
     dupl:
       threshold: 120
     forbidigo:

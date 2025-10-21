@@ -50,6 +50,109 @@ type Plugin struct {
 	cancel  context.CancelFunc
 }
 
+// setupAddress configures the plugin address based on protocol
+func (p *Plugin) setupAddress() (address string, err error) {
+	cfg := p.Config
+	switch cfg.Protocol {
+	case "unix":
+		// For Unix sockets, we use the ID as the address
+		address = fmt.Sprintf("/tmp/%s_%d.sock", p.ID, time.Now().UnixMilli())
+		p.Address = fmt.Sprintf("unix://%s", address)
+	case "tcp":
+		var port int
+		port, err = GetFreePort()
+		if err != nil {
+			return "", fmt.Errorf("cannot get free port: %w", err)
+		}
+		p.Port = port
+		// For TCP, we use the ID as the host and a default port
+		address = fmt.Sprintf("%s:%d", "0.0.0.0", p.Port)
+		p.Address = fmt.Sprintf("%s:%d", "localhost", p.Port)
+	default:
+		return "", fmt.Errorf("unsupported protocol: %s", cfg.Protocol)
+	}
+	return address, nil
+}
+
+// handleStdoutPipe manages stdout from the plugin process
+func (p *Plugin) handleStdoutPipe(stdout io.ReadCloser) {
+	defer func() {
+		if err := stdout.Close(); err != nil {
+			p.slog.Error("Failed to close stdout pipe", "name", p.Config.Name, "err", err)
+		}
+	}()
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		select {
+		case <-p.ctx.Done():
+			return
+		default:
+		}
+
+		if p.stopped {
+			return
+		}
+
+		m := scanner.Text()
+		s := fmt.Sprintf("[PLUGIN: %s] %s\n", p.Config.Name, m)
+		if _, err := os.Stdout.WriteString(s); err != nil {
+			p.slog.Error("Error writing to stdout", "name", p.Config.Name, "err", err)
+		}
+	}
+}
+
+// handleStderrPipe manages stderr from the plugin process
+func (p *Plugin) handleStderrPipe(stderr io.ReadCloser) {
+	defer func() {
+		if err := stderr.Close(); err != nil {
+			p.slog.Error("Failed to close stderr pipe", "name", p.Config.Name, "err", err)
+		}
+	}()
+
+	scanner := bufio.NewScanner(stderr)
+	for scanner.Scan() {
+		select {
+		case <-p.ctx.Done():
+			return
+		default:
+		}
+
+		if p.stopped {
+			return
+		}
+
+		m := scanner.Text()
+		s := fmt.Sprintf("[PLUGIN: %s] %s\n", p.Config.Name, m)
+		if _, err := os.Stderr.WriteString(s); err != nil {
+			p.slog.Error("Error writing to stderr", "name", p.Config.Name, "err", err)
+		}
+	}
+}
+
+// setupOutputPipes configures stdout/stderr pipes if output is enabled
+func (p *Plugin) setupOutputPipes() error {
+	if !p.Config.Output {
+		return nil
+	}
+
+	stdout, err := p.cmd.StdoutPipe()
+	if err != nil {
+		p.slog.Error("Cannot get stdout pipe", "name", p.Config.Name, "err", err)
+		return err
+	}
+	go p.handleStdoutPipe(stdout)
+
+	stderr, err := p.cmd.StderrPipe()
+	if err != nil {
+		p.slog.Error("Cannot get stderr pipe", "name", p.Config.Name, "err", err)
+		return err
+	}
+	go p.handleStderrPipe(stderr)
+
+	return nil
+}
+
 func (p *Plugin) Start() (err error) {
 	cfg := p.Config
 
@@ -63,26 +166,10 @@ func (p *Plugin) Start() (err error) {
 
 	p.slog.Info("Starting plugin", "name", cfg.Name, "retries", cfg.Retry, "delay", cfg.Delay)
 
-	var address string
-	switch cfg.Protocol {
-	case "unix":
-		// For Unix sockets, we use the ID as the address
-		address = fmt.Sprintf("/tmp/%s_%d.sock", p.ID, time.Now().UnixMilli())
-		p.Address = fmt.Sprintf("unix://%s", address)
-	case "tcp":
-		var port int
-		port, err = GetFreePort()
-		if err != nil {
-			err = fmt.Errorf("cannot get free port: %w", err)
-			return
-		}
-		p.Port = port
-		// For TCP, we use the ID as the host and a default port
-		address = fmt.Sprintf("%s:%d", "0.0.0.0", p.Port)
-		p.Address = fmt.Sprintf("%s:%d", "localhost", p.Port)
-	default:
-		err = fmt.Errorf("unsupported protocol: %s", p.Config.Protocol)
-		return
+	// Setup address
+	address, err := p.setupAddress()
+	if err != nil {
+		return err
 	}
 
 	p.cmd = exec.Command(cfg.Exec, cfg.Args...) // #nosec G204 - plugin execution requires external command execution
@@ -94,77 +181,9 @@ func (p *Plugin) Start() (err error) {
 
 	p.slog.Debug("Plugin start", "name", cfg.Name, "protocol", cfg.Protocol, "exec", cfg.Exec, "args", cfg.Args, "address", address)
 
-	if cfg.Output {
-		var stdout io.ReadCloser
-		var stderr io.ReadCloser
-
-		stdout, err = p.cmd.StdoutPipe()
-		if err != nil {
-			p.slog.Error("Cannot get stdout pipe", "name", cfg.Name, "err", err)
-			return
-		}
-
-		go func() {
-			defer func() {
-				if err := stdout.Close(); err != nil {
-					p.slog.Error("Failed to close stdout pipe", "name", cfg.Name, "err", err)
-				}
-			}()
-			// print the output of the subprocess
-			scanner := bufio.NewScanner(stdout)
-			for scanner.Scan() {
-				select {
-				case <-p.ctx.Done():
-					return
-				default:
-				}
-
-				if p.stopped {
-					return
-				}
-
-				m := scanner.Text()
-				s := fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m)
-				_, err := os.Stdout.WriteString(s)
-				if err != nil {
-					p.slog.Error("Error writing to stdout", "name", cfg.Name, "err", err)
-				}
-			}
-		}()
-
-		stderr, err = p.cmd.StderrPipe()
-		if err != nil {
-			p.slog.Error("Cannot get stderr pipe", "name", cfg.Name, "err", err)
-			return
-		}
-
-		go func() {
-			defer func() {
-				if err := stderr.Close(); err != nil {
-					p.slog.Error("Failed to close stderr pipe", "name", cfg.Name, "err", err)
-				}
-			}()
-			// print the error output of the subprocess
-			scanner := bufio.NewScanner(stderr)
-			for scanner.Scan() {
-				select {
-				case <-p.ctx.Done():
-					return
-				default:
-				}
-
-				if p.stopped {
-					return
-				}
-
-				m := scanner.Text()
-				s := fmt.Sprintf("[PLUGIN: %s] %s\n", cfg.Name, m)
-				_, err := os.Stderr.WriteString(s)
-				if err != nil {
-					p.slog.Error("Error writing to stderr", "name", cfg.Name, "err", err)
-				}
-			}
-		}()
+	// Setup output pipes if enabled
+	if err = p.setupOutputPipes(); err != nil {
+		return err
 	}
 
 	err = p.cmd.Start()
