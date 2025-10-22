@@ -38,8 +38,10 @@ bin/
 todo.md
 TECNOLOGIE_E_NOZIONI.md
 
+# Reports
 security-report.json
 trivy-results.json
+licenses.csv
 
 context/
 /main

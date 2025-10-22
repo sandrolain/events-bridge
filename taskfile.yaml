@@ -25,6 +25,7 @@ tasks:
       - brew install tinygo
       - brew install protoc-gen-go
       - brew install protoc-gen-go-grpc
+      - go install github.com/google/go-licenses/v2@latest
 
   fmt-check:
     desc: Check Go code formatting without making changes
@@ -143,6 +144,19 @@ tasks:
       - trivy fs --scanners vuln,secret,misconfig .
       - trivy fs --format json --output trivy-results.json .
 
+  licenses:
+    desc: Check for forbidden licenses (GPL-like) and export CSV report
+    cmds:
+      - echo "Checking for forbidden licenses (GPL, LGPL, AGPL)..."
+      - |
+        go-licenses check ./src/... \
+          --disallowed_types=GPL-2.0,GPL-3.0,LGPL-2.0,LGPL-2.1,LGPL-3.0,AGPL-1.0,AGPL-3.0 \
+          || echo "⚠️  WARNING: Found forbidden licenses!"
+      - echo "Generating CSV license report..."
+      - go-licenses csv ./src/... > licenses.csv
+      - echo "✅ License report saved to licenses.csv"
+      - echo "Review licenses.csv to verify all dependencies"
+
   check:
     desc: Run all checks (fmt, lint, vet, test, gosec, trivy)
     cmds:
@@ -150,6 +164,7 @@ tasks:
       - task: lint
       - task: trivy
       - task: test
+      - task: licenses
 
   install-deps:
     desc: Install and tidy Go module dependencies
@@ -167,6 +182,7 @@ tasks:
       - rm -f coverage.html
       - rm -f security-report.json
       - rm -f trivy-results.json
+      - rm -f licenses.csv
       - task: clean-wasm-test-assets
       - task: clean-plugin-test-assets
 
