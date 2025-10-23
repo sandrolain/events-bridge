@@ -92,12 +92,12 @@ flowchart LR
     Shutdown --> CloseAll[Close All Connectors]
     CloseAll --> End([End])
     
-    style Start fill:#90EE90
-    style End fill:#FFB6C1
-    style MsgBuffer fill:#87CEEB
-    style ProcessRunner fill:#FFD700
-    style ConsumeTarget fill:#FFA500
-    style ReplySource fill:#DDA0DD
+  style Start fill:#90EE90,color:#111
+  style End fill:#FFB6C1,color:#111
+  style MsgBuffer fill:#87CEEB,color:#111
+  style ProcessRunner fill:#FFD700,color:#111
+  style ConsumeTarget fill:#FFA500,color:#111
+  style ReplySource fill:#DDA0DD,color:#111
 ```
 
 - **Source**: Produces messages from a data source (connector plugins)
@@ -200,11 +200,11 @@ graph TB
     Bridge --> RunnerIface
     Bridge --> TargetIface
     
-    style Main fill:#4A90E2
-    style Bridge fill:#F5A623
-    style SourceIface fill:#7ED321
-    style RunnerIface fill:#BD10E0
-    style TargetIface fill:#F8E71C
+  style Main fill:#4A90E2,color:#fff
+  style Bridge fill:#F5A623,color:#111
+  style SourceIface fill:#7ED321,color:#111
+  style RunnerIface fill:#BD10E0,color:#fff
+  style TargetIface fill:#F8E71C,color:#111
 ```
 
 **Plugin Interfaces:**
