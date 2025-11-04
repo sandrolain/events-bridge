@@ -63,9 +63,9 @@ func terminateProcess(cmd *exec.Cmd, killTimeout time.Duration, done <-chan erro
 func startProcess(c CommandConfig) (cmd *exec.Cmd, ctx context.Context, cancel context.CancelFunc, stdout, stderr io.ReadCloser, err error) {
 	if dur := mustParseDurationField("duration", c.Duration, c.Name); dur > 0 {
 		ctx, cancel = context.WithTimeout(context.Background(), dur)
-		cmd = exec.CommandContext(ctx, c.Cmd, c.Args...)
+		cmd = exec.CommandContext(ctx, c.Cmd, c.Args...) // #nosec G204 -- test tool with controlled config
 	} else {
-		cmd = exec.Command(c.Cmd, c.Args...)
+		cmd = exec.Command(c.Cmd, c.Args...) // #nosec G204 -- test tool with controlled config
 	}
 	if c.Env != nil {
 		env := os.Environ()

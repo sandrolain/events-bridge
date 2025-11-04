@@ -49,12 +49,12 @@ func GenerateSentimentPhrase() string {
 	starts := []string{"I love", "I hate", "I think", "I feel", "I wish", "I see"}
 	adjectives := []string{"great", "terrible", "amazing", "awful", "funny", "boring"}
 	objects := []string{"this product", "the service", "the movie", "the food", "the weather", "the app"}
-	return starts[rand.Intn(len(starts))] + " " + adjectives[rand.Intn(len(adjectives))] + " " + objects[rand.Intn(len(objects))]
+	return starts[rand.Intn(len(starts))] + " " + adjectives[rand.Intn(len(adjectives))] + " " + objects[rand.Intn(len(objects))] // #nosec G404 -- test data generator
 }
 
 func GenerateRandomDateTime() string {
 	// Generate a random Unix timestamp between 1 and 10 years ago
-	timestamp := rand.Int63n(10*365*24*3600) + (time.Now().Unix() - 10*365*24*3600)
+	timestamp := rand.Int63n(10*365*24*3600) + (time.Now().Unix() - 10*365*24*3600) // #nosec G404 -- test data generator
 	return time.Unix(timestamp, 0).Format(time.RFC3339Nano)
 }
 

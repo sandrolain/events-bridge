@@ -67,7 +67,7 @@ func main() {
 					fmt.Fprintln(os.Stderr, err)
 					continue
 				}
-				insert := fmt.Sprintf("INSERT INTO %s (data) VALUES ($1)", table)
+				insert := fmt.Sprintf("INSERT INTO %s (data) VALUES ($1)", table) // #nosec G201 -- test tool with controlled table name
 				if _, err := db.Exec(insert, string(b)); err != nil {
 					fmt.Fprintf(os.Stderr, "Insert error: %v\n", err)
 				} else {

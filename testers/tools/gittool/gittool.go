@@ -159,7 +159,7 @@ func checkoutOrCreateBranch(repo *git.Repository, branch string) error {
 func doCommit(repo *git.Repository, repoPath, branch, filename, message, username, password, remote string) error {
 	filePath := filepath.Join(repoPath, filename)
 	content := fmt.Sprintf("Automated update at %s\n", time.Now().Format(time.RFC3339))
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600) // #nosec G304 -- test tool with controlled path
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
