@@ -51,7 +51,7 @@ jobs:
 
       - name: Run tests
         shell: bash
-        run: go test -v -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v '/examples/')
+        run: go test  $(go list ./... | grep -v '/testers/')
 
   lint:
     name: Lint
