@@ -10,11 +10,10 @@ vars:
 
 tasks:
   default:
-    desc: Run default checks (fmt, lint, vet, test)
+    desc: Run default checks (fmt, lint, test)
     cmds:
       - task: fmt
       - task: lint
-      - task: vet
       - task: test
 
   install-tools-mac:
@@ -44,12 +43,6 @@ tasks:
     cmds:
       - echo "Running golangci-lint..."
       - golangci-lint run
-
-  vet:
-    desc: Run static analysis with go vet
-    cmds:
-      - echo "Running go vet..."
-      - go vet ./src/...
 
   build-wasm-test-assets:
     desc: Build WASM test assets for unit tests
@@ -127,15 +120,6 @@ tasks:
       - cd ./src/connectors/pgsql && go test -tags=integration -v -timeout=120s
       - echo "All integration tests completed successfully!"
 
-  gosec:
-    desc: Run security checks with gosec
-    vars:
-      GOSEC_INSTALLED:
-        sh: command -v gosec || echo "not_found"
-    cmds:
-      - echo "Running gosec security scanner..."
-      - gosec -exclude-generated ./src/...
-
   trivy:
     desc: Run Trivy filesystem scanner (vuln, secret, misconfig)
     vars:
@@ -158,7 +142,7 @@ tasks:
       - echo "Review licenses.csv to verify all dependencies"
 
   check:
-    desc: Run all checks (fmt, lint, vet, test, gosec, trivy)
+    desc: Run all checks (fmt, lint, test, trivy, licenses)
     cmds:
       - task: fmt
       - task: lint
