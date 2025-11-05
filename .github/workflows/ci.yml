@@ -49,6 +49,23 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
+      - name: Build WASM test assets
+        working-directory: ./src/connectors/wasm/testassets
+        run: |
+          echo "Building WASM test assets..."
+          GOOS=wasip1 GOARCH=wasm go build -o testrunner.wasm testrunner.go
+          GOOS=wasip1 GOARCH=wasm go build -o errorrunner.wasm errorrunner.go
+          GOOS=wasip1 GOARCH=wasm go build -o timeoutrunner.wasm timeoutrunner.go
+          echo "WASM test assets built successfully"
+          du -h *.wasm
+
+      - name: Build plugin test asset
+        working-directory: ./src/connectors/plugin/testassets
+        run: |
+          echo "Building test plugin asset for connector tests..."
+          go build -o test-plugin-connector testplugin.go
+          du -h test-plugin-connector
+
       - name: Run tests
         shell: bash
         run: go test  $(go list ./... | grep -v '/testers/')
