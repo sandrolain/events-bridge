@@ -1,0 +1,53 @@
+# JWT Runner with Auth0 Example
+
+source:
+  type: http
+  buffer: 100
+  options:
+    address: "0.0.0.0:8080"
+    path: "/api/events"
+    # No auth here - handled by JWT runner
+
+runners:
+  # JWT validation
+  - type: jwt
+    options:
+      tokenMetadataKey: "authorization"
+      tokenPrefix: "Bearer "
+      jwksUrl: "https://YOUR-TENANT.auth0.com/.well-known/jwks.json"
+      issuer: "https://YOUR-TENANT.auth0.com/"
+      audience: "your-api-identifier"
+      requiredClaims:
+        - "sub"
+        - "email"
+      claimPrefix: "jwt_"
+      failOnError: true
+      allowedAlgorithms:
+        - "RS256"
+      clockSkew: "60s"
+      jwksRefreshInterval: "1h"
+
+  # Authorization based on permissions
+  - type: expr
+    options:
+      filterExpr: 'contains(metadata.jwt_permissions, "write:events")'
+
+  # Add user context to data
+  - type: expr
+    options:
+      expression: |
+        {
+          "user": {
+            "id": metadata.jwt_sub,
+            "email": metadata.jwt_email,
+            "name": metadata.jwt_name
+          },
+          "timestamp": now(),
+          "event": data
+        }
+
+target:
+  type: nats
+  options:
+    address: "nats://localhost:4222"
+    subject: "events.validated"
