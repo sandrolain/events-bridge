@@ -202,18 +202,9 @@ tasks:
       - rm -rf ./bin
       - task: build-testers
 
-  build-goncurrently:
-    desc: Build only goncurrently binary
-    dir: ./testers
-    cmds:
-      - mkdir -p ./bin
-      - echo "Building goncurrently..."
-      - go build -o ./bin/goncurrently ./goncurrently && du -h ./bin/goncurrently
-
   build-testers:
     dir: ./testers
     cmds:
-      - task: build-goncurrently
       - echo "Building testers..."
       - |
         echo "Building tools..."
@@ -234,4 +225,4 @@ tasks:
     vars:
       CONFIG_NAME: "{{index .MATCH 0}}"
     cmds:
-      - cat ./testers/config/{{.CONFIG_NAME}}.yaml | ./testers/bin/goncurrently
+      - cat ./testers/config/{{.CONFIG_NAME}}.yaml | goncurrently
