@@ -1,5 +1,5 @@
 commands:
-  - cmd: "./testers/bin/httptool"
+  - cmd: "httptool"
     args: ["serve", "--address", "0.0.0.0:8081"]
     restartTries: 0
   - cmd: "./bin/events-bridge"
@@ -33,7 +33,7 @@ commands:
             timeout: 5s
     args: []
     restartTries: 0
-  - cmd: "./testers/bin/httptool"
+  - cmd: "httptool"
     args:
       [
         "send",

@@ -1,6 +1,6 @@
 commands:
   - name: redis-target
-    cmd: "./testers/bin/redistool"
+    cmd: "redistool"
     args:
       ["serve", "--address", "localhost:6379", "--channel", "test.channel.out"]
     restartTries: 0
@@ -29,7 +29,7 @@ commands:
     args: []
     restartTries: 0
   - name: redis-source
-    cmd: "./testers/bin/redistool"
+    cmd: "redistool"
     args:
       [
         "send",

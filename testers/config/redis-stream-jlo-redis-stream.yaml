@@ -1,6 +1,6 @@
 commands:
   - name: redistarget-stream
-    cmd: "./testers/bin/redistool"
+    cmd: "redistool"
     args:
       [
         "serve",
@@ -53,7 +53,7 @@ commands:
     args: []
     restartTries: 0
   - name: redissource-stream
-    cmd: "./testers/bin/redistool"
+    cmd: "redistool"
     args:
       [
         "send",

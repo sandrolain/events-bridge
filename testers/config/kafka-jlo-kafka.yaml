@@ -1,6 +1,6 @@
 commands:
   - name: kafka-target
-    cmd: "./testers/bin/kafkatool"
+    cmd: "kafkatool"
     args: ["serve", "--brokers", "localhost:9092", "--topic", "test.topic.out"]
     restartTries: 0
   - name: task
@@ -30,7 +30,7 @@ commands:
     args: []
     restartTries: 0
   - name: kafka-source
-    cmd: "./testers/bin/kafkatool"
+    cmd: "kafkatool"
     args:
       [
         "send",

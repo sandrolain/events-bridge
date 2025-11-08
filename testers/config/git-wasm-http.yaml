@@ -1,6 +1,6 @@
 commands:
   - name: http-target
-    cmd: "./testers/bin/httptool"
+    cmd: "httptool"
     args: ["serve"]
     restartTries: 0
   - name: task
@@ -31,7 +31,7 @@ commands:
     args: []
     restartTries: 0
   - name: git-source
-    cmd: "./testers/bin/gittool"
+    cmd: "gittool"
     args:
       [
         "send",

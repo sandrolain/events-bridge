@@ -25,6 +25,9 @@ tasks:
       - brew install protoc-gen-go
       - brew install protoc-gen-go-grpc
       - go install github.com/google/go-licenses/v2@latest
+      - go install github.com/sandrolain/eventkit/...@latest
+      - go install github.com/sandrolain/goncurrently@latest
+      - asdf reshim
 
   fmt-check:
     desc: Check Go code formatting without making changes

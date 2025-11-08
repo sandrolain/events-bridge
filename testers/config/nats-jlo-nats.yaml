@@ -1,6 +1,6 @@
 commands:
   - name: nats-target
-    cmd: "./testers/bin/natstool"
+    cmd: "natstool"
     args:
       ["serve", "--address", "localhost:4222", "--subject", "test.subject.out"]
     restartTries: 0
@@ -34,7 +34,7 @@ commands:
     args: []
     restartTries: 0
   - name: nats-source
-    cmd: "./testers/bin/natstool"
+    cmd: "natstool"
     args:
       [
         "send",

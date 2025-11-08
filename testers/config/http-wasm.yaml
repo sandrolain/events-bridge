@@ -30,7 +30,7 @@ commands:
     args: []
     restartTries: 0
   - name: http-source-1
-    cmd: "./testers/bin/httptool"
+    cmd: "httptool"
     args:
       [
         "send",
@@ -43,7 +43,7 @@ commands:
       ]
     startAfter: "1500ms"
   - name: http-source-2
-    cmd: "./testers/bin/httptool"
+    cmd: "httptool"
     args:
       [
         "send",

@@ -1,6 +1,6 @@
 commands:
   - name: http-target
-    cmd: "./testers/bin/httptool"
+    cmd: "httptool"
     args: ["serve"]
     restartTries: 0
   - name: task
@@ -28,7 +28,7 @@ commands:
     args: []
     restartTries: 0
   - name: nats-source
-    cmd: "./testers/bin/natstool"
+    cmd: "natstool"
     args:
       [
         "send",
