@@ -215,7 +215,7 @@ tasks:
           go build -o "$out" "$d" && du -h "$out"
         done
       - echo "Building test plugin..."
-      - go build -o ./bin/plugin ./plugins/plugin && du -h ./bin/plugin
+      - go build -o ./bin/plugin ./runners/plugin && du -h ./bin/plugin
       - echo "Building test wasm..."
       #- tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
       - GOOS=wasip1 GOARCH=wasm go build -o ./bin/wasmrunner.wasm ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
