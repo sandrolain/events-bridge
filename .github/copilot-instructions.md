@@ -51,3 +51,7 @@ For commits use conventional commits format.
 # GIT
 
 Do not perform git operations, only suggest code changes.
+
+## Thidy party projects
+
+If you need to clone third party projects to understand or test something, do it in a temporary directory under the local `/tmp` folder.
