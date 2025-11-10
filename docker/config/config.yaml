@@ -1,0 +1,30 @@
+# Example Configuration for events-bridge
+# This file should be mounted as /app/config/config.yaml
+
+source:
+  type: http
+  buffer: 100
+  options:
+    addr: ":8080"
+    path: "/webhook"
+    # For HTTPS:
+    # tls:
+    #   certFile: /app/certs/cert.pem
+    #   keyFile: /app/certs/key.pem
+
+runners:
+  - type: pass
+    routines: 4
+    # ifExpr: "body.type == 'event'"
+    # filterExpr: "body.status == 'active'"
+
+target:
+  type: http
+  routines: 4
+  options:
+    url: "http://target-service:8080/events"
+    method: POST
+    timeout: 30s
+    # headers:
+    #   Content-Type: application/json
+    #   Authorization: Bearer ${SECRET_TOKEN}

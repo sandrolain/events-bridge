@@ -19,6 +19,7 @@ tasks:
   install-tools-mac:
     desc: Install all required Go tools on macOS
     cmds:
+      - brew install hadolint
       - brew install golangci-lint
       - brew install aquasecurity/trivy/trivy
       - brew install tinygo
@@ -27,6 +28,7 @@ tasks:
       - go install github.com/google/go-licenses/v2@latest
       - go install github.com/sandrolain/eventkit/...@latest
       - go install github.com/sandrolain/goncurrently@latest
+      - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2
       - asdf reshim
 
   fmt-check:
@@ -46,6 +48,12 @@ tasks:
     cmds:
       - echo "Running golangci-lint..."
       - golangci-lint run
+
+  hadolint:
+    desc: Run hadolint on Dockerfile
+    cmds:
+      - echo "Running hadolint on Dockerfile..."
+      - hadolint docker/Dockerfile
 
   build-wasm-test-assets:
     desc: Build WASM test assets for unit tests
@@ -152,6 +160,7 @@ tasks:
       - task: trivy
       - task: test
       - task: licenses
+      - task: hadolint
 
   install-deps:
     desc: Install and tidy Go module dependencies
@@ -229,3 +238,111 @@ tasks:
       CONFIG_NAME: "{{index .MATCH 0}}"
     cmds:
       - cat ./testers/config/{{.CONFIG_NAME}}.yaml | goncurrently
+
+  docker-build:
+    desc: Build Docker image for events-bridge
+    vars:
+      IMAGE_NAME: '{{default "events-bridge" .IMAGE_NAME}}'
+      IMAGE_TAG: '{{default "latest" .IMAGE_TAG}}'
+    cmds:
+      - echo "Building Docker image {{.IMAGE_NAME}}:{{.IMAGE_TAG}}..."
+      - docker build -f docker/Dockerfile -t {{.IMAGE_NAME}}:{{.IMAGE_TAG}} .
+      - echo "✅ Docker image built successfully"
+      - docker images | grep {{.IMAGE_NAME}}
+
+  docker-build-multiarch:
+    desc: Build multi-architecture Docker image (linux/amd64, linux/arm64)
+    vars:
+      IMAGE_NAME: '{{default "events-bridge" .IMAGE_NAME}}'
+      IMAGE_TAG: '{{default "latest" .IMAGE_TAG}}'
+    cmds:
+      - echo "Building multi-architecture Docker image {{.IMAGE_NAME}}:{{.IMAGE_TAG}}..."
+      - docker buildx create --use --name events-bridge-builder 2>/dev/null || true
+      - docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile -t {{.IMAGE_NAME}}:{{.IMAGE_TAG}} . --push
+      - echo "✅ Multi-architecture Docker image built and pushed successfully"
+
+  docker-run:
+    desc: Run Docker container locally with example config
+    vars:
+      IMAGE_NAME: '{{default "events-bridge" .IMAGE_NAME}}'
+      IMAGE_TAG: '{{default "latest" .IMAGE_TAG}}'
+      CONFIG_PATH: '{{default "./docker/config/config.yaml" .CONFIG_PATH}}'
+    cmds:
+      - echo "Running Docker container {{.IMAGE_NAME}}:{{.IMAGE_TAG}}..."
+      - |
+        docker run --rm -it \
+          -v $(pwd)/docker/config:/app/config:ro \
+          -p 8080:8080 \
+          {{.IMAGE_NAME}}:{{.IMAGE_TAG}}
+
+  docker-compose-up:
+    desc: Start services using docker-compose
+    dir: ./docker
+    cmds:
+      - echo "Starting services with docker-compose..."
+      - docker-compose up -d
+      - echo "✅ Services started successfully"
+      - docker-compose ps
+
+  docker-compose-down:
+    desc: Stop services using docker-compose
+    dir: ./docker
+    cmds:
+      - echo "Stopping services with docker-compose..."
+      - docker-compose down
+      - echo "✅ Services stopped successfully"
+
+  docker-compose-logs:
+    desc: View docker-compose logs
+    dir: ./docker
+    cmds:
+      - docker-compose logs -f events-bridge
+
+  docker-push:
+    desc: Push Docker image to registry
+    vars:
+      IMAGE_NAME: '{{default "events-bridge" .IMAGE_NAME}}'
+      IMAGE_TAG: '{{default "latest" .IMAGE_TAG}}'
+      REGISTRY: '{{default "" .REGISTRY}}'
+    cmds:
+      - |
+        if [ -n "{{.REGISTRY}}" ]; then
+          echo "Tagging image for registry {{.REGISTRY}}..."
+          docker tag {{.IMAGE_NAME}}:{{.IMAGE_TAG}} {{.REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}
+          echo "Pushing {{.REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}..."
+          docker push {{.REGISTRY}}/{{.IMAGE_NAME}}:{{.IMAGE_TAG}}
+          echo "✅ Image pushed successfully to {{.REGISTRY}}"
+        else
+          echo "Pushing {{.IMAGE_NAME}}:{{.IMAGE_TAG}}..."
+          docker push {{.IMAGE_NAME}}:{{.IMAGE_TAG}}
+          echo "✅ Image pushed successfully"
+        fi
+
+  k8s-deploy:
+    desc: Deploy to Kubernetes
+    dir: ./docker
+    cmds:
+      - echo "Deploying to Kubernetes..."
+      - kubectl apply -f kubernetes-manifest.yaml
+      - echo "✅ Deployed successfully"
+      - kubectl -n events-bridge get pods
+
+  k8s-delete:
+    desc: Delete Kubernetes resources
+    dir: ./docker
+    cmds:
+      - echo "Deleting Kubernetes resources..."
+      - kubectl delete -f kubernetes-manifest.yaml
+      - echo "✅ Resources deleted successfully"
+
+  k8s-logs:
+    desc: View Kubernetes pod logs
+    cmds:
+      - kubectl -n events-bridge logs -f -l app=events-bridge
+
+  k8s-status:
+    desc: Check Kubernetes deployment status
+    cmds:
+      - echo "Checking deployment status..."
+      - kubectl -n events-bridge get all
+      - kubectl -n events-bridge get configmap

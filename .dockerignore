@@ -1,0 +1,65 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+context/
+
+# Development files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Build artifacts
+bin/
+dist/
+*.so
+main
+events-bridge
+
+# Test files
+*_test.go
+testdata/
+testers/
+tmp/
+localtest/
+
+# Coverage and reports
+coverage.out
+coverage.html
+*.prof
+security-report.json
+trivy-results.json
+licenses.csv
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yaml
+docker/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Logs
+*.log
+logs/
+
+# Dependencies (downloaded during build)
+vendor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Config examples (not needed in image)
+*.example
+*.sample

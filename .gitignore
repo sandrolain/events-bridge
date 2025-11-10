@@ -36,7 +36,6 @@ bin/
 .idea/
 .vscode/
 todo.md
-TECNOLOGIE_E_NOZIONI.md
 
 # Reports
 security-report.json
@@ -47,3 +46,4 @@ context/
 /main
 
 src/**/*.md
+docker/**/*.md

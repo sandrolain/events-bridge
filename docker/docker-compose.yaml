@@ -1,0 +1,97 @@
+version: "3.8"
+
+services:
+  events-bridge:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: events-bridge:latest
+    container_name: events-bridge
+    restart: unless-stopped
+
+    # Mount configuration file
+    volumes:
+      - ./config:/app/config:ro
+      # Optional: mount logs directory
+      - ./logs:/app/logs
+
+    # Override default config path if needed
+    environment:
+      - CONFIG_PATH=/app/config/config.yaml
+      # Optional: set log level
+      - LOG_LEVEL=info
+
+    # Expose ports based on your configuration
+    # HTTP source/target
+    ports:
+      - "8080:8080"
+    # MQTT
+    # - "1883:1883"
+    # CoAP
+    # - "5683:5683/udp"
+
+    # Network configuration
+    networks:
+      - events-bridge-network
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "ps", "aux"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # Example: NATS server for testing
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats-server
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - events-bridge-network
+    command: ["--http_port", "8222", "--js"]
+
+  # Example: Redis for testing
+  redis:
+    image: redis:7-alpine
+    container_name: redis-server
+    ports:
+      - "6379:6379"
+    networks:
+      - events-bridge-network
+    volumes:
+      - redis-data:/data
+
+  # Example: PostgreSQL for testing
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-server
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: eventsbridge
+    ports:
+      - "5432:5432"
+    networks:
+      - events-bridge-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+networks:
+  events-bridge-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:

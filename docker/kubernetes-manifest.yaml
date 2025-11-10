@@ -1,0 +1,228 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: events-bridge
+
+---
+# ConfigMap with example configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: events-bridge-config
+  namespace: events-bridge
+data:
+  config.yaml: |
+    source:
+      type: http
+      buffer: 100
+      options:
+        addr: ":8080"
+        path: "/webhook"
+
+    runners:
+      - type: pass
+        routines: 4
+
+    target:
+      type: http
+      routines: 4
+      options:
+        url: "http://target-service:8080/events"
+        method: POST
+        timeout: 30s
+
+---
+# Service Account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: events-bridge
+  namespace: events-bridge
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-bridge
+  namespace: events-bridge
+  labels:
+    app: events-bridge
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: events-bridge
+  template:
+    metadata:
+      labels:
+        app: events-bridge
+        version: v1
+    spec:
+      serviceAccountName: events-bridge
+
+      containers:
+        - name: events-bridge
+          image: events-bridge:latest
+          imagePullPolicy: IfNotPresent
+
+          env:
+            - name: CONFIG_PATH
+              value: /app/config/config.yaml
+            - name: LOG_LEVEL
+              value: info
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - ps aux | grep events-bridge || exit 1
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - ps aux | grep events-bridge || exit 1
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+
+      volumes:
+        - name: config
+          configMap:
+            name: events-bridge-config
+
+      restartPolicy: Always
+
+      # Node selection (optional)
+      # nodeSelector:
+      #   workload: events-bridge
+
+      # Affinity rules for better distribution
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - events-bridge
+                topologyKey: kubernetes.io/hostname
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-bridge
+  namespace: events-bridge
+  labels:
+    app: events-bridge
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: events-bridge
+
+---
+# HorizontalPodAutoscaler (optional)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: events-bridge
+  namespace: events-bridge
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: events-bridge
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 2
+          periodSeconds: 15
+      selectPolicy: Max
+
+---
+# PodDisruptionBudget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: events-bridge
+  namespace: events-bridge
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: events-bridge
