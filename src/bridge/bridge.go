@@ -33,47 +33,36 @@ type EventsBridge struct {
 	source  connectors.Source
 	runners []RunnerItem
 	target  connectors.Target
-	handler *MessageHandler
-}
-
-// MessageHandler consolidates message lifecycle handling (ack/nak) with consistent logging
-type MessageHandler struct {
-	logger *slog.Logger
-}
-
-// NewMessageHandler creates a new MessageHandler instance
-func NewMessageHandler(logger *slog.Logger) *MessageHandler {
-	return &MessageHandler{logger: logger}
 }
 
 // HandleSuccess acknowledges a message successfully and logs at info level
-func (h *MessageHandler) HandleSuccess(msg *message.RunnerMessage, operation string, logArgs ...any) {
-	h.logger.Info(operation, logArgs...)
+func (b *EventsBridge) HandleSuccess(msg *message.RunnerMessage, operation string, logArgs ...any) {
+	b.logger.Info(operation, logArgs...)
 	if msg == nil {
-		h.logger.Warn("cannot ack nil message in " + operation)
+		b.logger.Warn("cannot ack nil message in " + operation)
 		return
 	}
 	if ackErr := msg.Ack(); ackErr != nil {
-		h.logger.Error("failed to ack message after "+operation, "error", ackErr)
+		b.logger.Error("failed to ack message after "+operation, "error", ackErr)
 	}
 }
 
 // HandleError handles error cases with consistent logging and nak behavior
-func (h *MessageHandler) HandleError(msg *message.RunnerMessage, err error, operation string, additionalFields ...any) {
+func (b *EventsBridge) HandleError(msg *message.RunnerMessage, err error, operation string, additionalFields ...any) {
 	logArgs := append([]any{"error", err}, additionalFields...)
-	h.logger.Error(operation, logArgs...)
+	b.logger.Error(operation, logArgs...)
 	if msg == nil {
-		h.logger.Warn("cannot nak nil message in " + operation)
+		b.logger.Warn("cannot nak nil message in " + operation)
 		return
 	}
 	if nakErr := msg.Nak(); nakErr != nil {
-		h.logger.Error("failed to nak message after "+operation, "error", nakErr)
+		b.logger.Error("failed to nak message after "+operation, "error", nakErr)
 	}
 }
 
 // HandleRunnerError is a rill-compatible version of HandleError that returns the message for pipeline processing
-func (h *MessageHandler) HandleRunnerError(msg *message.RunnerMessage, err error, operation string, additionalFields ...any) (*message.RunnerMessage, bool, error) {
-	h.HandleError(msg, err, operation, additionalFields...)
+func (b *EventsBridge) HandleRunnerError(msg *message.RunnerMessage, err error, operation string, additionalFields ...any) (*message.RunnerMessage, bool, error) {
+	b.HandleError(msg, err, operation, additionalFields...)
 	return nil, false, nil
 }
 
@@ -89,7 +78,6 @@ func NewEventsBridge(cfg *config.Config, logger *slog.Logger) (*EventsBridge, er
 	bridge := &EventsBridge{
 		cfg:     cfg,
 		logger:  logger,
-		handler: NewMessageHandler(logger),
 		runners: make([]RunnerItem, len(cfg.Runners)),
 	}
 
@@ -224,7 +212,7 @@ func (b *EventsBridge) processRunnerMessage(
 	if ifEval != nil {
 		pass, err := ifEval.EvalMessage(msg)
 		if err != nil {
-			return b.handler.HandleRunnerError(msg, err, "failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr)
+			return b.HandleRunnerError(msg, err, "failed to evaluate ifExpr, skipping runner processing", "ifExpr", cfg.IfExpr)
 		}
 		if !pass {
 			b.logger.Debug("ifExpr evaluated to false, skipping runner processing", "ifExpr", cfg.IfExpr)
@@ -235,7 +223,7 @@ func (b *EventsBridge) processRunnerMessage(
 	// Process message with runner
 	if runner != nil {
 		if err := runner.Process(msg); err != nil {
-			return b.handler.HandleRunnerError(msg, err, "error processing message")
+			return b.HandleRunnerError(msg, err, "error processing message")
 		}
 	}
 
@@ -243,10 +231,10 @@ func (b *EventsBridge) processRunnerMessage(
 	if filterEval != nil {
 		pass, err := filterEval.EvalMessage(msg)
 		if err != nil {
-			return b.handler.HandleRunnerError(msg, err, "failed to evaluate filterExpr, skipping message", "filterExpr", cfg.FilterExpr)
+			return b.HandleRunnerError(msg, err, "failed to evaluate filterExpr, skipping message", "filterExpr", cfg.FilterExpr)
 		}
 		if !pass {
-			b.handler.HandleSuccess(msg, "message filtered out by filterExpr", "filterExpr", cfg.FilterExpr)
+			b.HandleSuccess(msg, "message filtered out by filterExpr", "filterExpr", cfg.FilterExpr)
 			return nil, false, nil
 		}
 	}
@@ -290,10 +278,10 @@ func (b *EventsBridge) consumeWithTarget(stream rill.Stream[*message.RunnerMessa
 
 	return rill.ForEach(stream, routines, func(msg *message.RunnerMessage) error {
 		if err := b.target.Consume(msg); err != nil {
-			b.handler.HandleError(msg, err, "failed to consume message with target")
+			b.HandleError(msg, err, "failed to consume message with target")
 			return nil
 		}
-		b.handler.HandleSuccess(msg, "message consumed by target")
+		b.HandleSuccess(msg, "message consumed by target")
 		return nil
 	})
 }
@@ -302,7 +290,7 @@ func (b *EventsBridge) consumeWithTarget(stream rill.Stream[*message.RunnerMessa
 func (b *EventsBridge) replyToSource(stream rill.Stream[*message.RunnerMessage]) error {
 	return rill.ForEach(stream, 1, func(msg *message.RunnerMessage) error {
 		if err := msg.ReplySource(); err != nil {
-			b.handler.HandleError(msg, err, "failed to reply message back to source")
+			b.HandleError(msg, err, "failed to reply message back to source")
 		}
 		return nil
 	})

@@ -83,30 +83,22 @@ func TestConnectorPath(t *testing.T) {
 	}
 }
 
-// Test MessageHandler
+// Test EventsBridge message handling methods
 
-func TestNewMessageHandler(t *testing.T) {
+func TestEventsBridgeHandleSuccess(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
-
-	if handler == nil {
-		t.Fatal("NewMessageHandler() returned nil")
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
 	}
-	if handler.logger != logger {
-		t.Error("NewMessageHandler() did not set logger correctly")
-	}
-}
-
-func TestMessageHandlerHandleSuccess(t *testing.T) {
-	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
 
 	// Create test message
 	adapter := testutil.NewAdapter([]byte("test"), nil)
 	msg := message.NewRunnerMessage(adapter)
 
 	// Handle success
-	handler.HandleSuccess(msg, "test operation", "key", "value")
+	bridge.HandleSuccess(msg, "test operation", "key", "value")
 
 	// Verify message was acknowledged
 	if adapter.AckCalls != 1 {
@@ -117,9 +109,13 @@ func TestMessageHandlerHandleSuccess(t *testing.T) {
 	}
 }
 
-func TestMessageHandlerHandleError(t *testing.T) {
+func TestEventsBridgeHandleError(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Create test message
 	adapter := testutil.NewAdapter([]byte("test"), nil)
@@ -127,7 +123,7 @@ func TestMessageHandlerHandleError(t *testing.T) {
 
 	// Handle error
 	testErr := errors.New("test error")
-	handler.HandleError(msg, testErr, "test operation", "key", "value")
+	bridge.HandleError(msg, testErr, "test operation", "key", "value")
 
 	// Verify message was naked
 	if adapter.NakCalls != 1 {
@@ -138,9 +134,13 @@ func TestMessageHandlerHandleError(t *testing.T) {
 	}
 }
 
-func TestMessageHandlerHandleRunnerError(t *testing.T) {
+func TestEventsBridgeHandleRunnerError(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Create test message
 	adapter := testutil.NewAdapter([]byte("test"), nil)
@@ -148,7 +148,7 @@ func TestMessageHandlerHandleRunnerError(t *testing.T) {
 
 	// Handle runner error
 	testErr := errors.New("runner error")
-	retMsg, ok, err := handler.HandleRunnerError(msg, testErr, "runner operation")
+	retMsg, ok, err := bridge.HandleRunnerError(msg, testErr, "runner operation")
 
 	// Verify return values are correct for rill pipeline
 	if retMsg != nil {
@@ -167,11 +167,15 @@ func TestMessageHandlerHandleRunnerError(t *testing.T) {
 	}
 }
 
-// Test MessageHandler error paths
+// Test EventsBridge message handling error paths
 
-func TestMessageHandlerHandleSuccess_AckError(t *testing.T) {
+func TestEventsBridgeHandleSuccess_AckError(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Create adapter that returns error on Ack
 	adapter := testutil.NewAdapter([]byte("test"), nil)
@@ -185,7 +189,7 @@ func TestMessageHandlerHandleSuccess_AckError(t *testing.T) {
 		}
 	}()
 
-	handler.HandleSuccess(msg, "test operation", "key", "value")
+	bridge.HandleSuccess(msg, "test operation", "key", "value")
 
 	// Should still attempt to Ack
 	if adapter.AckCalls != 1 {
@@ -193,9 +197,13 @@ func TestMessageHandlerHandleSuccess_AckError(t *testing.T) {
 	}
 }
 
-func TestMessageHandlerHandleSuccess_NilMessage(t *testing.T) {
+func TestEventsBridgeHandleSuccess_NilMessage(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Should not panic with nil message
 	defer func() {
@@ -204,12 +212,16 @@ func TestMessageHandlerHandleSuccess_NilMessage(t *testing.T) {
 		}
 	}()
 
-	handler.HandleSuccess(nil, "test operation", "key", "value")
+	bridge.HandleSuccess(nil, "test operation", "key", "value")
 }
 
-func TestMessageHandlerHandleError_NakError(t *testing.T) {
+func TestEventsBridgeHandleError_NakError(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Create adapter that returns error on Nak
 	adapter := testutil.NewAdapter([]byte("test"), nil)
@@ -224,7 +236,7 @@ func TestMessageHandlerHandleError_NakError(t *testing.T) {
 	}()
 
 	testErr := errors.New("test error")
-	handler.HandleError(msg, testErr, "test operation", "key", "value")
+	bridge.HandleError(msg, testErr, "test operation", "key", "value")
 
 	// Should still attempt to Nak
 	if adapter.NakCalls != 1 {
@@ -232,9 +244,13 @@ func TestMessageHandlerHandleError_NakError(t *testing.T) {
 	}
 }
 
-func TestMessageHandlerHandleError_NilMessage(t *testing.T) {
+func TestEventsBridgeHandleError_NilMessage(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Should not panic with nil message
 	defer func() {
@@ -244,12 +260,16 @@ func TestMessageHandlerHandleError_NilMessage(t *testing.T) {
 	}()
 
 	testErr := errors.New("test error")
-	handler.HandleError(nil, testErr, "test operation", "key", "value")
+	bridge.HandleError(nil, testErr, "test operation", "key", "value")
 }
 
-func TestMessageHandlerHandleError_NilError(t *testing.T) {
+func TestEventsBridgeHandleError_NilError(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	adapter := testutil.NewAdapter([]byte("test"), nil)
 	msg := message.NewRunnerMessage(adapter)
@@ -261,7 +281,7 @@ func TestMessageHandlerHandleError_NilError(t *testing.T) {
 		}
 	}()
 
-	handler.HandleError(msg, nil, "test operation", "key", "value")
+	bridge.HandleError(msg, nil, "test operation", "key", "value")
 
 	// Should still Nak the message
 	if adapter.NakCalls != 1 {
@@ -269,9 +289,13 @@ func TestMessageHandlerHandleError_NilError(t *testing.T) {
 	}
 }
 
-func TestMessageHandlerHandleRunnerError_NilMessage(t *testing.T) {
+func TestEventsBridgeHandleRunnerError_NilMessage(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Should not panic with nil message
 	defer func() {
@@ -281,7 +305,7 @@ func TestMessageHandlerHandleRunnerError_NilMessage(t *testing.T) {
 	}()
 
 	testErr := errors.New("runner error")
-	retMsg, ok, err := handler.HandleRunnerError(nil, testErr, "runner operation")
+	retMsg, ok, err := bridge.HandleRunnerError(nil, testErr, "runner operation")
 
 	// Should return expected values
 	if retMsg != nil {
@@ -295,9 +319,13 @@ func TestMessageHandlerHandleRunnerError_NilMessage(t *testing.T) {
 	}
 }
 
-func TestMessageHandlerHandleRunnerError_NakError(t *testing.T) {
+func TestEventsBridgeHandleRunnerError_NakError(t *testing.T) {
+	cfg := newTestConfig()
 	logger := newTestLogger()
-	handler := NewMessageHandler(logger)
+	bridge := &EventsBridge{
+		cfg:    cfg,
+		logger: logger,
+	}
 
 	// Create adapter that returns error on Nak
 	adapter := testutil.NewAdapter([]byte("test"), nil)
@@ -312,7 +340,7 @@ func TestMessageHandlerHandleRunnerError_NakError(t *testing.T) {
 	}()
 
 	testErr := errors.New("runner error")
-	retMsg, ok, err := handler.HandleRunnerError(msg, testErr, "runner operation")
+	retMsg, ok, err := bridge.HandleRunnerError(msg, testErr, "runner operation")
 
 	// Should still return expected values
 	if retMsg != nil {
