@@ -191,7 +191,7 @@ func (c *CLIRunner) Process(msg *message.RunnerMessage) error {
 
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("cli execution error: %w, stderr: %s", err, stderr.String())
+		return fmt.Errorf("cli execution error: %w, stderr: %s, stdout: %s", err, stderr.String(), stdout.String())
 	}
 
 	res, err := c.decoder.DecodeMessage(stdout.Bytes())
