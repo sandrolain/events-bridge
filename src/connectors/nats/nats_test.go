@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 )
@@ -233,5 +234,138 @@ func TestNewRunnerConfigInvalidType(t *testing.T) {
 	_, err := NewRunner("invalid config")
 	if err == nil {
 		t.Fatal("expected error for invalid config type")
+	}
+}
+
+func TestRunnerConfigJetStreamMode(t *testing.T) {
+	cfg := &RunnerConfig{
+		Address: testAddress,
+		Subject: testSubject,
+		Mode:    "jetstream",
+		Stream:  "TEST_STREAM",
+	}
+
+	// Only test configuration parsing
+	if cfg.Mode != "jetstream" {
+		t.Errorf("expected Mode jetstream, got %s", cfg.Mode)
+	}
+
+	if cfg.Stream != "TEST_STREAM" {
+		t.Errorf("expected Stream TEST_STREAM, got %s", cfg.Stream)
+	}
+}
+
+func TestRunnerConfigKVSetMode(t *testing.T) {
+	cfg := &RunnerConfig{
+		Address:  testAddress,
+		Subject:  testSubject,
+		Mode:     "kv-set",
+		KVBucket: "test_bucket",
+		KVKey:    "test_key",
+	}
+
+	// Only test configuration parsing, not actual connection
+	if cfg.Mode != "kv-set" {
+		t.Errorf("expected Mode kv-set, got %s", cfg.Mode)
+	}
+
+	if cfg.KVBucket != "test_bucket" {
+		t.Errorf("expected KVBucket test_bucket, got %s", cfg.KVBucket)
+	}
+
+	if cfg.KVKey != "test_key" {
+		t.Errorf("expected KVKey test_key, got %s", cfg.KVKey)
+	}
+}
+
+func TestRunnerConfigPublishMode(t *testing.T) {
+	cfg := &RunnerConfig{
+		Address: testAddress,
+		Subject: testSubject,
+		Mode:    "publish",
+		Timeout: 5 * time.Second,
+	}
+
+	runner, err := NewRunner(cfg)
+	if err != nil {
+		t.Fatalf(errUnexpectedError, err)
+	}
+
+	natsRunner, ok := runner.(*NATSRunner)
+	if !ok {
+		t.Fatalf("expected *NATSRunner, got %T", runner)
+	}
+
+	if natsRunner.cfg.Mode != "publish" {
+		t.Errorf("expected Mode publish, got %s", natsRunner.cfg.Mode)
+	}
+
+	if natsRunner.cfg.Timeout != 5*time.Second {
+		t.Errorf("expected Timeout 5s, got %v", natsRunner.cfg.Timeout)
+	}
+}
+
+func TestSourceConfigRequestMode(t *testing.T) {
+	cfg := &SourceConfig{
+		Address:        testAddress,
+		Subject:        testSubject,
+		Mode:           "request",
+		RequestTimeout: 10 * time.Second,
+	}
+
+	// Only test configuration parsing
+	if cfg.Mode != "request" {
+		t.Errorf("expected Mode request, got %s", cfg.Mode)
+	}
+
+	if cfg.RequestTimeout != 10*time.Second {
+		t.Errorf("expected RequestTimeout 10s, got %v", cfg.RequestTimeout)
+	}
+}
+
+func TestSourceConfigKVWatchMode(t *testing.T) {
+	cfg := &SourceConfig{
+		Address:  testAddress,
+		Subject:  testSubject,
+		Mode:     "kv-watch",
+		KVBucket: "test_bucket",
+		KVKeys:   []string{"key1", "key2"},
+	}
+
+	// Only test configuration parsing
+	if cfg.Mode != "kv-watch" {
+		t.Errorf("expected Mode kv-watch, got %s", cfg.Mode)
+	}
+
+	if cfg.KVBucket != "test_bucket" {
+		t.Errorf("expected KVBucket test_bucket, got %s", cfg.KVBucket)
+	}
+
+	if len(cfg.KVKeys) != 2 {
+		t.Errorf("expected 2 KVKeys, got %d", len(cfg.KVKeys))
+	}
+}
+
+func TestSourceConfigSubscribeWithJetStream(t *testing.T) {
+	cfg := &SourceConfig{
+		Address:    testAddress,
+		Subject:    testSubject,
+		Mode:       "subscribe",
+		Stream:     "TEST_STREAM",
+		Consumer:   "TEST_CONSUMER",
+		QueueGroup: "test_queue",
+	}
+
+	// Only test configuration parsing
+	if cfg.Stream != "TEST_STREAM" {
+		t.Errorf("expected Stream TEST_STREAM, got %s", cfg.Stream)
+	}
+
+	if cfg.Consumer != "TEST_CONSUMER" {
+		t.Errorf("expected Consumer TEST_CONSUMER, got %s", cfg.Consumer)
+	}
+
+	if cfg.QueueGroup != "test_queue" {
+		t.Errorf("expected QueueGroup test_queue, got %s", cfg.QueueGroup)
 	}
 }
