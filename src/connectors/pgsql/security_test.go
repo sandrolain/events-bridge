@@ -8,7 +8,7 @@ import (
 
 const (
 	testConnString        = "postgres://user:pass@localhost:5432/testdb"
-	testTable             = "test_table"
+	securityTestTable     = "test_table"
 	errExpectedError      = "expected error for %s"
 	errUnexpectedError    = "unexpected error: %v"
 	sqlInjectionAttempt   = "users; DROP TABLE users;--"
@@ -116,7 +116,7 @@ func TestSourceConfigValidation(t *testing.T) {
 			name: "valid config",
 			config: &SourceConfig{
 				ConnString:       testConnString,
-				Table:            testTable,
+				Table:            securityTestTable,
 				StrictValidation: true,
 			},
 			wantErr: false,
@@ -125,7 +125,7 @@ func TestSourceConfigValidation(t *testing.T) {
 			name: "valid config with TLS",
 			config: &SourceConfig{
 				ConnString:       testConnString,
-				Table:            testTable,
+				Table:            securityTestTable,
 				StrictValidation: true,
 				TLS: &tlsconfig.Config{
 					Enabled:    true,
@@ -177,25 +177,25 @@ func TestSourceConfigValidation(t *testing.T) {
 	}
 }
 
-// TestTargetConfigSecurityValidation tests target config security validation
-func TestTargetConfigSecurityValidation(t *testing.T) {
+// TestRunnerConfigSecurityValidation tests target config security validation
+func TestRunnerConfigSecurityValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		config  *TargetConfig
+		config  *RunnerConfig
 		wantErr bool
 	}{
 		{
 			name: "valid table name",
-			config: &TargetConfig{
+			config: &RunnerConfig{
 				ConnString:       testConnString,
-				Table:            testTable,
+				Table:            securityTestTable,
 				StrictValidation: true,
 			},
 			wantErr: true, // Will fail on connection, but table name is valid
 		},
 		{
 			name: "invalid table name (SQL injection)",
-			config: &TargetConfig{
+			config: &RunnerConfig{
 				ConnString:       testConnString,
 				Table:            sqlInjectionAttempt,
 				StrictValidation: true,
@@ -204,9 +204,9 @@ func TestTargetConfigSecurityValidation(t *testing.T) {
 		},
 		{
 			name: "valid table with other column",
-			config: &TargetConfig{
+			config: &RunnerConfig{
 				ConnString:       testConnString,
-				Table:            testTable,
+				Table:            securityTestTable,
 				OtherColumn:      "metadata",
 				StrictValidation: true,
 			},
@@ -214,9 +214,9 @@ func TestTargetConfigSecurityValidation(t *testing.T) {
 		},
 		{
 			name: "invalid other column name",
-			config: &TargetConfig{
+			config: &RunnerConfig{
 				ConnString:       testConnString,
-				Table:            testTable,
+				Table:            securityTestTable,
 				OtherColumn:      "col'; DROP TABLE users;--",
 				StrictValidation: true,
 			},
@@ -226,7 +226,7 @@ func TestTargetConfigSecurityValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewTarget(tt.config)
+			_, err := NewRunner(tt.config)
 			if err == nil && tt.wantErr {
 				t.Errorf(errExpectedError, tt.name)
 			}
@@ -244,9 +244,9 @@ func TestNewSourceConfigInvalidType(t *testing.T) {
 	}
 }
 
-// TestNewTargetConfigInvalidType tests error handling for invalid config types
-func TestNewTargetConfigInvalidType(t *testing.T) {
-	_, err := NewTarget("invalid config")
+// TestNewRunnerConfigInvalidType tests error handling for invalid config types
+func TestNewRunnerConfigInvalidType(t *testing.T) {
+	_, err := NewRunner("invalid config")
 	if err == nil {
 		t.Fatal("expected error for invalid config type")
 	}
@@ -277,7 +277,7 @@ func TestChannelNameForTable(t *testing.T) {
 func TestSourceConfigDefaults(t *testing.T) {
 	cfg := &SourceConfig{
 		ConnString: testConnString,
-		Table:      testTable,
+		Table:      securityTestTable,
 	}
 
 	// After struct tag defaults are applied (would be done by mapstructure in real usage)
@@ -292,22 +292,22 @@ func TestSourceConfigDefaults(t *testing.T) {
 	}
 }
 
-// TestTargetConfigDefaults tests default values
-func TestTargetConfigDefaults(t *testing.T) {
-	cfg := &TargetConfig{
+// TestRunnerConfigDefaults tests default values
+func TestRunnerConfigDefaults(t *testing.T) {
+	cfg := &RunnerConfig{
 		ConnString: testConnString,
-		Table:      testTable,
+		Table:      securityTestTable,
 	}
 
 	// Will fail on connection but config validation should pass
-	_, err := NewTarget(cfg)
+	_, err := NewRunner(cfg)
 	// We expect an error because we can't connect, but it should be connection error not validation
 	if err == nil {
 		t.Fatal("expected connection error")
 	}
 
 	// Check that error is not about table validation
-	if err.Error() == "invalid table name: invalid identifier: "+testTable {
+	if err.Error() == "invalid table name: invalid identifier: "+securityTestTable {
 		t.Fatal("should not fail on valid table name")
 	}
 }

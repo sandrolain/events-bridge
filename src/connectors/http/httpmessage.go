@@ -41,17 +41,15 @@ func (m HTTPMessage) GetData() ([]byte, error) {
 	return m.httpCtx.Request.Body(), nil
 }
 
-func (m *HTTPMessage) Ack() error {
+func (m *HTTPMessage) Ack(data *message.ReplyData) error {
+	if data != nil {
+		message.SendReply(m.reply, data)
+	}
 	message.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *HTTPMessage) Nak() error {
 	message.SendResponseStatus(m.done, message.ResponseStatusNak)
-	return nil
-}
-
-func (m *HTTPMessage) Reply(data *message.ReplyData) error {
-	message.SendReply(m.reply, data)
 	return nil
 }

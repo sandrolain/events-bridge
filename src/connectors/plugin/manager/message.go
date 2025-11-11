@@ -32,14 +32,10 @@ func (m *PluginMessage) GetData() ([]byte, error) {
 	return m.res.Data, nil
 }
 
-func (m *PluginMessage) Ack() error {
+func (m *PluginMessage) Ack(d *message.ReplyData) error {
 	return nil
 }
 
 func (m *PluginMessage) Nak() error {
-	return nil
-}
-
-func (m *PluginMessage) Reply(d *message.ReplyData) error {
 	return nil
 }

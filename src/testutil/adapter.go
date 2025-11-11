@@ -3,7 +3,7 @@ package testutil
 import "github.com/sandrolain/events-bridge/src/message"
 
 // Adapter wraps a StubSourceMessage to implement message.SourceMessage
-// with the correct Reply signature.
+// with the correct Ack signature.
 type Adapter struct {
 	*StubSourceMessage
 }
@@ -15,9 +15,9 @@ func NewAdapter(data []byte, metadata map[string]string) *Adapter {
 	}
 }
 
-// Reply implements the message.SourceMessage interface with the correct signature.
-func (a *Adapter) Reply(d *message.ReplyData) error {
-	a.ReplyCalls++
-	a.ReplyData = d
-	return a.ReplyErr
+// Ack implements the message.SourceMessage interface with the correct signature.
+func (a *Adapter) Ack(d *message.ReplyData) error {
+	a.AckCalls++
+	a.AckData = d
+	return a.AckErr
 }

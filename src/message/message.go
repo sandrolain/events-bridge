@@ -11,9 +11,8 @@ type SourceMessage interface {
 	GetID() []byte
 	GetMetadata() (map[string]string, error)
 	GetData() ([]byte, error)
-	Ack() error
+	Ack(data *ReplyData) error
 	Nak() error
-	Reply(data *ReplyData) error
 }
 
 func NewRunnerMessage(original SourceMessage) *RunnerMessage {
@@ -119,19 +118,18 @@ func (m *RunnerMessage) GetData() ([]byte, error) {
 	return m.original.GetData()
 }
 
-func (m *RunnerMessage) Reply(d *ReplyData) error {
-	return m.original.Reply(d)
+func (m *RunnerMessage) Ack(d *ReplyData) error {
+	return m.original.Ack(d)
 }
 
-func (m *RunnerMessage) ReplySource() error {
-	return m.original.Reply(&ReplyData{
-		Data:     m.data,
-		Metadata: m.metadata,
-	})
-}
-
-func (m *RunnerMessage) Ack() error {
-	return m.original.Ack()
+func (m *RunnerMessage) AckSource(reply bool) error {
+	if reply {
+		return m.original.Ack(&ReplyData{
+			Data:     m.data,
+			Metadata: m.metadata,
+		})
+	}
+	return m.original.Ack(nil)
 }
 
 func (m *RunnerMessage) Nak() error {

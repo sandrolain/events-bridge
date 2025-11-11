@@ -25,16 +25,13 @@ func (m *MQTTMessage) GetData() ([]byte, error) {
 	return m.orig.Payload(), nil
 }
 
-func (m *MQTTMessage) Ack() error {
+func (m *MQTTMessage) Ack(data *message.ReplyData) error {
+	// MQTT doesn't support reply in ack
 	message.SendResponseStatus(m.done, message.ResponseStatusAck)
 	return nil
 }
 
 func (m *MQTTMessage) Nak() error {
 	message.SendResponseStatus(m.done, message.ResponseStatusNak)
-	return nil
-}
-
-func (m *MQTTMessage) Reply(resp *message.ReplyData) error {
 	return nil
 }

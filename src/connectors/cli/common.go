@@ -292,20 +292,6 @@ func sourceToBaseConfig(cfg *SourceConfig) *BaseConfig {
 	}
 }
 
-func targetToBaseConfig(cfg *TargetConfig) *BaseConfig {
-	return &BaseConfig{
-		Command:         cfg.Command,
-		Timeout:         cfg.Timeout,
-		Args:            cfg.Args,
-		Envs:            cfg.Envs,
-		AllowedCommands: cfg.AllowedCommands,
-		WorkDir:         cfg.WorkDir,
-		MaxOutputSize:   cfg.MaxOutputSize,
-		DenyEnvVars:     cfg.DenyEnvVars,
-		UseShell:        cfg.UseShell,
-	}
-}
-
 func runnerToBaseConfig(cfg *RunnerConfig) *BaseConfig {
 	return &BaseConfig{
 		Command:         cfg.Command,

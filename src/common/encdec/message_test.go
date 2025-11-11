@@ -47,7 +47,7 @@ func TestEncDecMessage_GetData(t *testing.T) {
 
 func TestEncDecMessage_Ack(t *testing.T) {
 	msg := NewEncDecMessage(nil, nil)
-	err := msg.Ack()
+	err := msg.Ack(nil)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -56,14 +56,6 @@ func TestEncDecMessage_Ack(t *testing.T) {
 func TestEncDecMessage_Nak(t *testing.T) {
 	msg := NewEncDecMessage(nil, nil)
 	err := msg.Nak()
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-}
-
-func TestEncDecMessage_Reply(t *testing.T) {
-	msg := NewEncDecMessage(nil, nil)
-	err := msg.Reply(nil)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}

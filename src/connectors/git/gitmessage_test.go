@@ -63,7 +63,7 @@ func TestGitMessageGetData(t *testing.T) {
 
 func TestGitMessageAckNak(t *testing.T) {
 	msg := &GitMessage{}
-	if err := msg.Ack(); err != nil {
+	if err := msg.Ack(nil); err != nil {
 		t.Errorf("Ack should return nil, got %v", err)
 	}
 	if err := msg.Nak(); err != nil {

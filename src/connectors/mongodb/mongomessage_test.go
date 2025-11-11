@@ -82,7 +82,7 @@ func TestMongoMessage_GetMetadata(t *testing.T) {
 
 func TestMongoMessage_Ack(t *testing.T) {
 	msg := &MongoMessage{event: bson.M{}}
-	err := msg.Ack()
+	err := msg.Ack(nil)
 	assert.NoError(t, err)
 }
 

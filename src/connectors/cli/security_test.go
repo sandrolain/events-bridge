@@ -398,8 +398,8 @@ func TestSourceWithAllowlist(t *testing.T) {
 	}
 }
 
-func TestTargetWithWorkDir(t *testing.T) {
-	cfg := &TargetConfig{
+func TestRunnerWithWorkDir(t *testing.T) {
+	cfg := &RunnerConfig{
 		Command:     "cat",
 		Args:        []string{},
 		WorkDir:     "/tmp",
@@ -409,10 +409,11 @@ func TestTargetWithWorkDir(t *testing.T) {
 		DataKey:     "data",
 	}
 
-	_, err := NewTarget(cfg)
+	runner, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf("NewTarget() error = %v", err)
+		t.Fatalf("NewRunner() error = %v", err)
 	}
+	defer runner.Close()
 }
 
 func TestCommandExecutorClose(t *testing.T) {

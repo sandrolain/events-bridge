@@ -79,11 +79,6 @@ func (m *MongoMessage) GetMetadata() (map[string]string, error) {
 	return metadata, nil
 }
 
-// Ack acknowledges the message (no-op for MongoDB change streams)
-func (m *MongoMessage) Ack() error {
-	return nil
-}
-
 // GetID returns the message ID from the change stream event
 func (m *MongoMessage) GetID() []byte {
 	if id, ok := m.event["_id"]; ok {
@@ -92,12 +87,13 @@ func (m *MongoMessage) GetID() []byte {
 	return []byte("mongodb-event")
 }
 
-// Nak negatively acknowledges the message (no-op for MongoDB change streams)
-func (m *MongoMessage) Nak() error {
+// Ack acknowledges the message (no-op for MongoDB change streams)
+func (m *MongoMessage) Ack(data *message.ReplyData) error {
+	// MongoDB change streams don't support reply
 	return nil
 }
 
-// Reply sends a reply (no-op for MongoDB change streams)
-func (m *MongoMessage) Reply(data *message.ReplyData) error {
+// Nak negatively acknowledges the message (no-op for MongoDB change streams)
+func (m *MongoMessage) Nak() error {
 	return nil
 }

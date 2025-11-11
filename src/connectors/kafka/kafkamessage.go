@@ -31,7 +31,11 @@ func (m *KafkaMessage) GetData() ([]byte, error) {
 	return m.msg.Value, nil
 }
 
-func (m *KafkaMessage) Ack() error {
+func (m *KafkaMessage) Ack(data *message.ReplyData) error {
+	// Kafka doesn't support reply in ack
+	if m.reader == nil {
+		return nil
+	}
 	err := m.reader.CommitMessages(context.Background(), *m.msg)
 	if err != nil {
 		return err
@@ -40,9 +44,5 @@ func (m *KafkaMessage) Ack() error {
 }
 
 func (m *KafkaMessage) Nak() error {
-	return nil
-}
-
-func (m *KafkaMessage) Reply(data *message.ReplyData) error {
 	return nil
 }

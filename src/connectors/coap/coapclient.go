@@ -101,7 +101,7 @@ func sendCoAPRequest(ctx context.Context, client coapClient, method, path string
 	case "GET":
 		return client.Get(ctx, path)
 	default:
-		return nil, fmt.Errorf(errUnsupportedCoapMethod, method)
+		return nil, fmt.Errorf("unsupported coap method: %s", method)
 	}
 }
 

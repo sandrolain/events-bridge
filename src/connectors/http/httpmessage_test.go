@@ -104,7 +104,7 @@ func TestHTTPMessageAckNak(t *testing.T) {
 	ctx.Init(req, nil, nil)
 	msg := newHTTPMessageWithCtx(ctx)
 	go func() {
-		if err := msg.Ack(); err != nil {
+		if err := msg.Ack(nil); err != nil {
 			t.Errorf("Ack error: %v", err)
 		}
 	}()

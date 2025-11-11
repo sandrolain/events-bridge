@@ -24,7 +24,7 @@ func (m *mockMQTTMessage) Read(_ []byte) (int, error) { return 0, nil }
 
 func TestMQTTMessageBasics(t *testing.T) {
 	orig := &mockMQTTMessage{id: 0x1234, topic: "test/topic", payload: []byte("hello")}
-	mm := &MQTTMessage{orig: orig, done: make(chan message.ResponseStatus, 2)}
+	mm := &MQTTMessage{orig: orig, done: make(chan message.ResponseStatus, 3)}
 
 	id := mm.GetID()
 	if len(id) != 2 || id[0] != 0x12 || id[1] != 0x34 {
@@ -48,7 +48,7 @@ func TestMQTTMessageBasics(t *testing.T) {
 	}
 
 	// Ack/Nak should be non-blocking thanks to buffered chan
-	if err := mm.Ack(); err != nil {
+	if err := mm.Ack(nil); err != nil {
 		t.Fatalf("ack error: %v", err)
 	}
 	if err := mm.Nak(); err != nil {
@@ -56,7 +56,7 @@ func TestMQTTMessageBasics(t *testing.T) {
 	}
 
 	// Reply is a no-op, must not error
-	if err := mm.Reply(&message.ReplyData{Data: []byte("resp")}); err != nil {
+	if err := mm.Ack(&message.ReplyData{Data: []byte("resp")}); err != nil {
 		t.Fatalf("reply error: %v", err)
 	}
 }

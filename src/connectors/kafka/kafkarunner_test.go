@@ -6,8 +6,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
-func TestKafkaTargetNewTargetValidation(t *testing.T) {
-	cfg := new(TargetConfig)
+func TestKafkaRunnerNewRunnerValidation(t *testing.T) {
+	cfg := new(RunnerConfig)
 	if err := utils.ParseConfig(map[string]any{"brokers": []string{}, "topic": "t", "partitions": 1, "replicationFactor": 1}, cfg); err == nil {
 		t.Fatal("expected error when brokers list is empty")
 	}
@@ -19,9 +19,9 @@ func TestKafkaTargetNewTargetValidation(t *testing.T) {
 	}
 }
 
-func TestKafkaTargetCloseWithoutStart(t *testing.T) {
+func TestKafkaRunnerCloseWithoutStart(t *testing.T) {
 	// We cannot instantiate a real target without a broker due to ensureKafkaTopic; this test ensures Close on zero-value struct is safe.
-	tgt := &KafkaTarget{}
+	tgt := &KafkaRunner{}
 	if err := tgt.Close(); err != nil {
 		t.Fatalf("unexpected close error: %v", err)
 	}

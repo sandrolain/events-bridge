@@ -13,10 +13,10 @@ func TestConfigConstructors(t *testing.T) {
 		t.Fatal("NewSourceConfig should return *SourceConfig")
 	}
 
-	// Test NewTargetConfig
-	tgtCfg := NewTargetConfig()
-	_, ok = tgtCfg.(*TargetConfig)
+	// Test NewRunnerConfig
+	runnerCfg := NewRunnerConfig()
+	_, ok = runnerCfg.(*RunnerConfig)
 	if !ok {
-		t.Fatal("NewTargetConfig should return *TargetConfig")
+		t.Fatal("NewRunnerConfig should return *RunnerConfig")
 	}
 }

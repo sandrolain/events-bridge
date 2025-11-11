@@ -13,8 +13,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// TargetConfig defines the configuration for PostgreSQL target connector
-type TargetConfig struct {
+// RunnerConfig defines the configuration for PostgreSQL runner connector
+type RunnerConfig struct {
 	// Database connection string
 	// Format: postgres://user:password@host:port/database?sslmode=disable
 	// For security, use environment variables or secret managers for credentials
@@ -52,18 +52,18 @@ type TargetConfig struct {
 	StrictValidation bool `mapstructure:"strictValidation" default:"true"`
 }
 
-func NewTargetConfig() any {
-	return new(TargetConfig)
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
 }
 
-type PGSQLTarget struct {
-	cfg  *TargetConfig
+type PGSQLRunner struct {
+	cfg  *RunnerConfig
 	slog *slog.Logger
 	pool *pgxpool.Pool
 }
 
 // buildPoolConfig creates pgxpool configuration with TLS and connection limits
-func (t *PGSQLTarget) buildPoolConfig() (*pgxpool.Config, error) {
+func (t *PGSQLRunner) buildPoolConfig() (*pgxpool.Config, error) {
 	config, err := pgxpool.ParseConfig(t.cfg.ConnString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse connection string: %w", err)
@@ -86,9 +86,9 @@ func (t *PGSQLTarget) buildPoolConfig() (*pgxpool.Config, error) {
 	return config, nil
 }
 
-// NewTarget creates a PGSQL target from config.
-func NewTarget(anyCfg any) (connectors.Target, error) {
-	cfg, ok := anyCfg.(*TargetConfig)
+// NewRunner creates a PGSQL target from config.
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
@@ -105,7 +105,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		}
 	}
 
-	target := &PGSQLTarget{
+	target := &PGSQLRunner{
 		cfg:  cfg,
 		slog: slog.Default().With("context", "PGSQL Target"),
 	}
@@ -141,7 +141,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	return target, nil
 }
 
-func (t *PGSQLTarget) Consume(msg *message.RunnerMessage) error {
+func (t *PGSQLRunner) Process(msg *message.RunnerMessage) error {
 	ctx := context.Background()
 
 	data, err := msg.GetData()
@@ -189,7 +189,7 @@ func (t *PGSQLTarget) Consume(msg *message.RunnerMessage) error {
 	return nil
 }
 
-func (t *PGSQLTarget) Close() error {
+func (t *PGSQLRunner) Close() error {
 	if t.pool != nil {
 		t.pool.Close()
 	}

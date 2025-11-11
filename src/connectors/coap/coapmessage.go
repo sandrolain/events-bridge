@@ -58,17 +58,16 @@ func (m *CoAPMessage) GetData() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (m *CoAPMessage) Ack() error {
-	message.SendResponseStatus(m.done, message.ResponseStatusAck)
+func (m *CoAPMessage) Ack(data *message.ReplyData) error {
+	if data != nil {
+		message.SendReply(m.reply, data)
+	} else {
+		message.SendResponseStatus(m.done, message.ResponseStatusAck)
+	}
 	return nil
 }
 
 func (m *CoAPMessage) Nak() error {
 	message.SendResponseStatus(m.done, message.ResponseStatusNak)
-	return nil
-}
-
-func (m *CoAPMessage) Reply(data *message.ReplyData) error {
-	message.SendReply(m.reply, data)
 	return nil
 }

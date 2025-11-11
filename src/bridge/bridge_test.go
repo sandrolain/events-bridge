@@ -38,13 +38,6 @@ func newTestConfig() *config.Config {
 				Routines: 1,
 			},
 		},
-		Target: connectors.TargetConfig{
-			Type:     "cli",
-			Routines: 1,
-			Options: map[string]any{
-				"command": "cat",
-			},
-		},
 	}
 }
 
@@ -428,6 +421,8 @@ func TestNewEventsBridge_InvalidRunnerType(t *testing.T) {
 	}
 }
 
+// Target-related tests are obsolete since Target has been removed in favor of Runners
+/*
 func TestNewEventsBridge_InvalidTargetType(t *testing.T) {
 	cfg := newTestConfig()
 	cfg.Target.Type = "nonexistent"
@@ -442,6 +437,7 @@ func TestNewEventsBridge_InvalidTargetType(t *testing.T) {
 		t.Fatal("NewEventsBridge() should return error for invalid target")
 	}
 }
+*/
 
 func TestNewEventsBridge_NoRunners(t *testing.T) {
 	t.Skip("Skipping test that requires CLI plugin - tested in integration tests")
@@ -462,6 +458,7 @@ func TestNewEventsBridge_NoRunners(t *testing.T) {
 	}
 }
 
+/*
 func TestNewEventsBridge_NoTarget(t *testing.T) {
 	t.Skip("Skipping test that requires CLI plugin - tested in integration tests")
 	cfg := newTestConfig()
@@ -499,6 +496,7 @@ func TestNewEventsBridge_EmptyTargetType(t *testing.T) {
 		t.Error("NewEventsBridge() should have nil target for empty type")
 	}
 }
+*/
 
 // Test Close
 
@@ -535,6 +533,7 @@ func TestEventsBridge_Close_NilSource(t *testing.T) {
 	}
 }
 
+/*
 func TestEventsBridge_Close_NilTarget(t *testing.T) {
 	t.Skip("Skipping test that requires CLI plugin - tested in integration tests")
 	cfg := newTestConfig()
@@ -551,6 +550,7 @@ func TestEventsBridge_Close_NilTarget(t *testing.T) {
 		t.Errorf("Close() should handle nil target, got error = %v", err)
 	}
 }
+*/
 
 func TestEventsBridge_Close_NilRunners(t *testing.T) {
 	t.Skip("Skipping test that requires CLI plugin - tested in integration tests")

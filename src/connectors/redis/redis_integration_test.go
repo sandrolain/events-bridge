@@ -83,12 +83,12 @@ func TestRedisPubSubIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup target to send test messages
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		Address: redisAddress,
 		Channel: testChannelPubSub,
 	}
 
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -104,7 +104,7 @@ func TestRedisPubSubIntegration(t *testing.T) {
 		},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for message to be received
@@ -119,7 +119,7 @@ func TestRedisPubSubIntegration(t *testing.T) {
 		assert.Equal(t, testChannelPubSub, metadata["channel"])
 
 		// Acknowledge the message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -149,13 +149,13 @@ func TestRedisChannelFromMetadataIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup target with channel from metadata
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		Address:                redisAddress,
 		Channel:                dynamicChannel, // Fallback channel
 		ChannelFromMetadataKey: "target-channel",
 	}
 
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -171,7 +171,7 @@ func TestRedisChannelFromMetadataIntegration(t *testing.T) {
 		},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for message to be received
@@ -185,7 +185,7 @@ func TestRedisChannelFromMetadataIntegration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, dynamicChannel, metadata["channel"])
 
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -220,13 +220,13 @@ func TestRedisStreamIntegration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Setup stream target
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		Address:       redisAddress,
 		Stream:        testStreamName,
 		StreamDataKey: testDataKey,
 	}
 
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -242,7 +242,7 @@ func TestRedisStreamIntegration(t *testing.T) {
 		},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for message to be received
@@ -257,7 +257,7 @@ func TestRedisStreamIntegration(t *testing.T) {
 		assert.Contains(t, metadata, "id") // Stream message should have ID
 
 		// Acknowledge the message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -296,13 +296,13 @@ func TestRedisStreamWithConsumerGroupIntegration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Setup stream target
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		Address:       redisAddress,
 		Stream:        consumerGroupStreamName,
 		StreamDataKey: testDataKey,
 	}
 
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -319,7 +319,7 @@ func TestRedisStreamWithConsumerGroupIntegration(t *testing.T) {
 		},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for message to be received
@@ -334,7 +334,7 @@ func TestRedisStreamWithConsumerGroupIntegration(t *testing.T) {
 		assert.Contains(t, metadata, "id") // Stream message should have ID
 
 		// Acknowledge the message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -369,14 +369,14 @@ func TestRedisStreamDynamicStreamNameIntegration(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Setup target with stream from metadata
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		Address:               redisAddress,
 		Stream:                dynamicStreamName, // Fallback stream
 		StreamFromMetadataKey: "target-stream",
 		StreamDataKey:         testDataKey,
 	}
 
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -392,7 +392,7 @@ func TestRedisStreamDynamicStreamNameIntegration(t *testing.T) {
 		},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for message to be received
@@ -406,7 +406,7 @@ func TestRedisStreamDynamicStreamNameIntegration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, metadata, "id") // Stream message should have ID
 
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -440,7 +440,7 @@ func (m *TestMessage) GetData() ([]byte, error) {
 	return m.data, nil
 }
 
-func (m *TestMessage) Ack() error {
+func (m *TestMessage) Ack(*message.ReplyData) error {
 	return nil
 }
 
@@ -448,6 +448,3 @@ func (m *TestMessage) Nak() error {
 	return nil
 }
 
-func (m *TestMessage) Reply(data *message.ReplyData) error {
-	return nil
-}

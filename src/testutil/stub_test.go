@@ -37,10 +37,9 @@ func TestStubSourceMessageWithError(t *testing.T) {
 	metaErr := errors.New("meta error")
 	ackErr := errors.New("ack error")
 	nakErr := errors.New("nak error")
-	replyErr := errors.New("reply error")
 
 	stub := NewStubSourceMessage(nil, nil).
-		WithError(dataErr, metaErr, ackErr, nakErr, replyErr)
+		WithError(dataErr, metaErr, ackErr, nakErr)
 
 	_, err := stub.GetData()
 	if err != dataErr {
@@ -52,7 +51,7 @@ func TestStubSourceMessageWithError(t *testing.T) {
 		t.Errorf("expected meta error, got %v", err)
 	}
 
-	err = stub.Ack()
+	err = stub.Ack(nil)
 	if err != ackErr {
 		t.Errorf("expected ack error, got %v", err)
 	}
@@ -60,12 +59,6 @@ func TestStubSourceMessageWithError(t *testing.T) {
 	err = stub.Nak()
 	if err != nakErr {
 		t.Errorf("expected nak error, got %v", err)
-	}
-
-	testReply := struct{ data string }{data: "test"}
-	err = stub.Reply(testReply)
-	if err != replyErr {
-		t.Errorf("expected reply error, got %v", err)
 	}
 }
 
@@ -76,10 +69,10 @@ func TestStubSourceMessageCallCounters(t *testing.T) {
 		t.Errorf("expected 0 ack calls, got %d", stub.AckCalls)
 	}
 
-	if err := stub.Ack(); err != nil {
+	if err := stub.Ack(nil); err != nil {
 		t.Logf("ack error (acceptable): %v", err)
 	}
-	if err := stub.Ack(); err != nil {
+	if err := stub.Ack(nil); err != nil {
 		t.Logf("ack error (acceptable): %v", err)
 	}
 	if stub.AckCalls != 2 {
@@ -91,17 +84,6 @@ func TestStubSourceMessageCallCounters(t *testing.T) {
 	}
 	if stub.NakCalls != 1 {
 		t.Errorf("expected 1 nak call, got %d", stub.NakCalls)
-	}
-
-	replyData := "test reply"
-	if err := stub.Reply(replyData); err != nil {
-		t.Logf("reply error (acceptable): %v", err)
-	}
-	if stub.ReplyCalls != 1 {
-		t.Errorf("expected 1 reply call, got %d", stub.ReplyCalls)
-	}
-	if stub.ReplyData == nil {
-		t.Error("expected reply data to be stored")
 	}
 }
 

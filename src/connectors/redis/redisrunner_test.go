@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	errFmtNewTarget    = "NewTarget returned error: %v"
-	errFmtCloseTarget  = "failed to close target: %v"
+	errFmtNewRunner    = "NewRunner returned error: %v"
+	errFmtCloseRunner  = "failed to close target: %v"
 	errFmtConsume      = "Consume returned error: %v"
 	errFmtXRangeFailed = "XRange failed: %v"
 )
@@ -52,31 +52,31 @@ func newRedisClient(t *testing.T, addr string) *redis.Client {
 	return client
 }
 
-func TestRedisStreamTargetConsumeStoresMessage(t *testing.T) {
+func TestRedisStreamRunnerConsumeStoresMessage(t *testing.T) {
 	srv := newMiniredis(t)
-	cfg := &TargetConfig{
+	cfg := &RunnerConfig{
 		Address: srv.Addr(),
 		Stream:  "events",
 	}
 
-	targetAny, err := NewTarget(cfg)
+	targetAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
 
-	target, ok := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamRunner)
 	if !ok {
-		t.Fatalf("expected RedisStreamTarget, got %T", targetAny)
+		t.Fatalf("expected RedisStreamRunner, got %T", targetAny)
 	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
-			t.Fatalf(errFmtCloseTarget, err)
+			t.Fatalf(errFmtCloseRunner, err)
 		}
 	})
 
 	msg := newStubRunnerMessage("hello", nil)
 
-	if err := target.Consume(msg); err != nil {
+	if err := target.Process(msg); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 
@@ -95,31 +95,31 @@ func TestRedisStreamTargetConsumeStoresMessage(t *testing.T) {
 	}
 }
 
-func TestRedisStreamTargetMetadataOverride(t *testing.T) {
+func TestRedisStreamRunnerMetadataOverride(t *testing.T) {
 	srv := newMiniredis(t)
-	cfg := &TargetConfig{
+	cfg := &RunnerConfig{
 		Address:               srv.Addr(),
 		Stream:                "default-stream",
 		StreamFromMetadataKey: "stream",
 	}
 
-	targetAny, err := NewTarget(cfg)
+	targetAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
-	target, ok := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamRunner)
 	if !ok {
-		t.Fatal("failed to cast target to RedisStreamTarget")
+		t.Fatal("failed to cast target to RedisStreamRunner")
 	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
-			t.Fatalf(errFmtCloseTarget, err)
+			t.Fatalf(errFmtCloseRunner, err)
 		}
 	})
 
 	msg := newStubRunnerMessage("hello", map[string]string{"stream": "custom-stream"})
 
-	if err := target.Consume(msg); err != nil {
+	if err := target.Process(msg); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 
@@ -142,31 +142,31 @@ func TestRedisStreamTargetMetadataOverride(t *testing.T) {
 	}
 }
 
-func TestRedisStreamTargetCustomDataKey(t *testing.T) {
+func TestRedisStreamRunnerCustomDataKey(t *testing.T) {
 	srv := newMiniredis(t)
-	cfg := &TargetConfig{
+	cfg := &RunnerConfig{
 		Address:       srv.Addr(),
 		Stream:        "events",
 		StreamDataKey: "payload",
 	}
 
-	targetAny, err := NewTarget(cfg)
+	targetAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
-	target, ok := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamRunner)
 	if !ok {
-		t.Fatal("failed to cast target to RedisStreamTarget")
+		t.Fatal("failed to cast target to RedisStreamRunner")
 	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
-			t.Fatalf(errFmtCloseTarget, err)
+			t.Fatalf(errFmtCloseRunner, err)
 		}
 	})
 
 	msg := newStubRunnerMessage("payload-data", nil)
 
-	if err := target.Consume(msg); err != nil {
+	if err := target.Process(msg); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 
@@ -181,20 +181,20 @@ func TestRedisStreamTargetCustomDataKey(t *testing.T) {
 	}
 }
 
-func TestRedisStreamTargetClose(t *testing.T) {
+func TestRedisStreamRunnerClose(t *testing.T) {
 	srv := newMiniredis(t)
-	cfg := &TargetConfig{
+	cfg := &RunnerConfig{
 		Address: srv.Addr(),
 		Stream:  "events",
 	}
 
-	targetAny, err := NewTarget(cfg)
+	targetAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
-	target, ok := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamRunner)
 	if !ok {
-		t.Fatal("failed to cast target to RedisStreamTarget")
+		t.Fatal("failed to cast target to RedisStreamRunner")
 	}
 
 	if err := target.Close(); err != nil {
@@ -208,23 +208,23 @@ func TestRedisStreamTargetClose(t *testing.T) {
 
 func TestRedisChannelTargetPublishesMessage(t *testing.T) {
 	srv := newMiniredis(t)
-	cfg := &TargetConfig{
+	cfg := &RunnerConfig{
 		Address: "",
 		Channel: "notifications",
 	}
 	cfg.Address = srv.Addr()
 
-	targetAny, err := NewTarget(cfg)
+	targetAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
-	target, ok := targetAny.(*RedisTarget)
+	target, ok := targetAny.(*RedisRunner)
 	if !ok {
-		t.Fatal("failed to cast target to RedisTarget")
+		t.Fatal("failed to cast target to RedisRunner")
 	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
-			t.Fatalf(errFmtCloseTarget, err)
+			t.Fatalf(errFmtCloseRunner, err)
 		}
 	})
 
@@ -241,7 +241,7 @@ func TestRedisChannelTargetPublishesMessage(t *testing.T) {
 
 	msg := newStubRunnerMessage("notify", nil)
 
-	if err := target.Consume(msg); err != nil {
+	if err := target.Process(msg); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 
@@ -260,23 +260,23 @@ func TestRedisChannelTargetPublishesMessage(t *testing.T) {
 
 func TestRedisChannelTargetMetadataOverride(t *testing.T) {
 	srv := newMiniredis(t)
-	cfg := &TargetConfig{
+	cfg := &RunnerConfig{
 		Address:                srv.Addr(),
 		Channel:                "default",
 		ChannelFromMetadataKey: "channel",
 	}
 
-	targetAny, err := NewTarget(cfg)
+	targetAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
-	target, ok := targetAny.(*RedisTarget)
+	target, ok := targetAny.(*RedisRunner)
 	if !ok {
-		t.Fatal("failed to cast target to RedisTarget")
+		t.Fatal("failed to cast target to RedisRunner")
 	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
-			t.Fatalf(errFmtCloseTarget, err)
+			t.Fatalf(errFmtCloseRunner, err)
 		}
 	})
 
@@ -293,7 +293,7 @@ func TestRedisChannelTargetMetadataOverride(t *testing.T) {
 
 	msg := newStubRunnerMessage("notify", map[string]string{"channel": "custom"})
 
-	if err := target.Consume(msg); err != nil {
+	if err := target.Process(msg); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 

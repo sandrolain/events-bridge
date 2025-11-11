@@ -59,49 +59,51 @@ func TestDTLSValidationSource(t *testing.T) {
 	}
 }
 
-func TestDTLSValidationTarget(t *testing.T) {
-	base := TargetConfig{Protocol: CoAPProtocolDTLS, Address: testDTLSAddr, Path: "/x", Method: "GET"}
+func TestDTLSValidationRunner(t *testing.T) {
+	base := CoAPRunnerConfig{Protocol: CoAPProtocolDTLS, Address: testDTLSAddr, Path: "/x", Method: "GET"}
 
-	if err := validateTargetSecurity(&base); err == nil {
-		t.Fatalf("expected error when neither PSK nor cert provided")
+	if err := validateRunnerSecurity(&base); err == nil {
+		t.Fatalf("expected error when neither mode provided")
 	}
 
 	both := base
 	both.PSK = "x"
 	both.PSKIdentity = "id"
 	both.TLSCertFile = testCertFile
-	if err := validateTargetSecurity(&both); err == nil {
-		t.Fatalf("expected error when both PSK and cert fields set")
+	if err := validateRunnerSecurity(&both); err == nil {
+		t.Fatalf("expected error when both modes set")
 	}
 
 	pskMissingID := base
 	pskMissingID.PSK = testPSKSecret
-	if err := validateTargetSecurity(&pskMissingID); err == nil {
+	if err := validateRunnerSecurity(&pskMissingID); err == nil {
 		t.Fatalf("expected error when identity missing")
 	}
 
 	pskOK := base
 	pskOK.PSK = testPSKSecret
 	pskOK.PSKIdentity = "id"
-	if err := validateTargetSecurity(&pskOK); err != nil {
-		t.Fatalf("unexpected error for valid PSK mode: %v", err)
+	if err := validateRunnerSecurity(&pskOK); err != nil {
+		t.Fatalf("unexpected error for valid PSK: %v", err)
 	}
 
 	certMissingKey := base
 	certMissingKey.TLSCertFile = testCertFile
-	if err := validateTargetSecurity(&certMissingKey); err == nil {
+	if err := validateRunnerSecurity(&certMissingKey); err == nil {
 		t.Fatal(errMsgKeyMissing)
 	}
 
 	certOK := base
 	certOK.TLSCertFile = testCertFile
 	certOK.TLSKeyFile = testKeyFile
-	if err := validateTargetSecurity(&certOK); err != nil {
-		t.Fatalf("unexpected error for valid cert mode: %v", err)
+	if err := validateRunnerSecurity(&certOK); err != nil {
+		t.Fatalf("unexpected error for valid cert: %v", err)
 	}
 }
 
-func TestDTLSValidationRunner(t *testing.T) {
+func TestDTLSValidationRunnerAlt(t *testing.T) {
+	// Test the same validation logic used by runner (already tested above as "Runner")
+	// but keeping this separate test for symmetry with source/target pattern
 	base := CoAPRunnerConfig{Protocol: CoAPProtocolDTLS, Address: testDTLSAddr, Path: "/x", Method: "GET"}
 
 	if err := validateRunnerSecurity(&base); err == nil {

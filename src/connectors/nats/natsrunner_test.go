@@ -8,17 +8,17 @@ import (
 	"github.com/sandrolain/events-bridge/src/utils"
 )
 
-func TestNATSTargetNewTargetValidation(t *testing.T) {
-	if err := utils.ParseConfig(map[string]any{"address": "", "subject": "s"}, new(TargetConfig)); err == nil {
+func TestNATSRunnerNewRunnerValidation(t *testing.T) {
+	if err := utils.ParseConfig(map[string]any{"address": "", "subject": "s"}, new(RunnerConfig)); err == nil {
 		t.Fatal("expected error when address is empty")
 	}
-	if err := utils.ParseConfig(map[string]any{"address": "127.0.0.1:4222", "subject": ""}, new(TargetConfig)); err == nil {
+	if err := utils.ParseConfig(map[string]any{"address": "127.0.0.1:4222", "subject": ""}, new(RunnerConfig)); err == nil {
 		t.Fatal("expected error when subject is empty")
 	}
 }
 
-func TestNATSTargetCloseWithoutStart(t *testing.T) {
-	tgt := &NATSTarget{}
+func TestNATSRunnerCloseWithoutStart(t *testing.T) {
+	tgt := &NATSRunner{}
 	if err := tgt.Close(); err != nil {
 		t.Fatalf("unexpected close error: %v", err)
 	}
@@ -35,11 +35,11 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 	}
 	defer sIface.Close() //nolint:errcheck
 
-	tIface := mustNewNATSTarget(t, map[string]any{"address": addr, "subject": "ab.cd"})
+	tIface := mustNewNATSRunner(t, map[string]any{"address": addr, "subject": "ab.cd"})
 	defer tIface.Close() //nolint:errcheck
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: map[string]string{"subject": "ab.cd"}})
-	if err := tIface.Consume(rm); err != nil {
+	if err := tIface.Process(rm); err != nil {
 		t.Fatalf("target consume: %v", err)
 	}
 
@@ -52,7 +52,7 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 		if string(data) != "ping" {
 			t.Fatalf("unexpected payload: %s", string(data))
 		}
-		if err := got.Ack(); err != nil {
+		if err := got.Ack(nil); err != nil {
 			t.Logf("failed to ack: %v", err)
 		}
 	case <-time.After(3 * time.Second):
@@ -60,7 +60,7 @@ func TestNATSEndToEndTargetToSourceIntegration(t *testing.T) {
 	}
 }
 
-func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
+func TestNATSRunnerDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	addr, cleanup := startNATSServer(t)
 	defer cleanup()
 
@@ -71,12 +71,12 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	}
 	defer sIface.Close() //nolint:errcheck
 
-	tIface := mustNewNATSTarget(t, map[string]any{"address": addr, "subject": "unused", "subjectFromMetadataKey": "subject"})
+	tIface := mustNewNATSRunner(t, map[string]any{"address": addr, "subject": "unused", "subjectFromMetadataKey": "subject"})
 	defer tIface.Close() //nolint:errcheck
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
 	rm.AddMetadata("subject", "dyn.x")
-	if err := tIface.Consume(rm); err != nil {
+	if err := tIface.Process(rm); err != nil {
 		t.Fatalf("target consume: %v", err)
 	}
 
@@ -89,7 +89,7 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 		if string(data) != "dyn" {
 			t.Fatalf("unexpected payload: %s", string(data))
 		}
-		if err := got.Ack(); err != nil {
+		if err := got.Ack(nil); err != nil {
 			t.Logf("failed to ack message: %v", err)
 		}
 	case <-time.After(3 * time.Second):
@@ -97,19 +97,19 @@ func TestNATSTargetDynamicSubjectFromMetadataIntegration(t *testing.T) {
 	}
 }
 
-func mustNewNATSTarget(t *testing.T, opts map[string]any) *NATSTarget {
+func mustNewNATSRunner(t *testing.T, opts map[string]any) *NATSRunner {
 	t.Helper()
-	cfg := new(TargetConfig)
+	cfg := new(RunnerConfig)
 	if err := utils.ParseConfig(opts, cfg); err != nil {
 		t.Fatalf("failed to parse target config: %v", err)
 	}
-	tgt, err := NewTarget(cfg)
+	tgt, err := NewRunner(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	natsTgt, ok := tgt.(*NATSTarget)
+	natsTgt, ok := tgt.(*NATSRunner)
 	if !ok {
-		t.Fatalf("expected *NATSTarget, got %T", tgt)
+		t.Fatalf("expected *NATSRunner, got %T", tgt)
 	}
 	return natsTgt
 }

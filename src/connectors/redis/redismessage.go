@@ -23,14 +23,11 @@ func (m *RedisMessage) GetData() ([]byte, error) {
 	return []byte(m.msg.Payload), nil
 }
 
-func (m *RedisMessage) Ack() error {
+func (m *RedisMessage) Ack(data *message.ReplyData) error {
+	// Redis pub/sub doesn't support reply
 	return nil
 }
 
 func (m *RedisMessage) Nak() error {
-	return nil
-}
-
-func (m *RedisMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

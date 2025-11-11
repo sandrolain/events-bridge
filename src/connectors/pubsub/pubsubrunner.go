@@ -13,7 +13,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-type TargetConfig struct {
+type RunnerConfig struct {
 	ProjectID           string        `mapstructure:"projectId" validate:"required"`
 	Topic               string        `mapstructure:"topic" validate:"required"`
 	CredentialsFile     string        `mapstructure:"credentialsFile"`                                           // Path to service account JSON file
@@ -22,13 +22,13 @@ type TargetConfig struct {
 	MaxMessageSize      int64         `mapstructure:"maxMessageSize" default:"10485760" validate:"max=10485760"` // Max message size (10MB default, GCP limit)
 }
 
-func NewTargetConfig() any {
-	return new(TargetConfig)
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
 }
 
-// NewTarget creates a PubSub target from options map.
-func NewTarget(anyCfg any) (connectors.Target, error) {
-	cfg, ok := anyCfg.(*TargetConfig)
+// NewRunner creates a PubSub runner from options map.
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
@@ -59,13 +59,13 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	// Create client with appropriate credentials
 	var opts []option.ClientOption
 	if cfg.CredentialsFile != "" {
-		slog.Info("PubSub target using credentials file", "file", cfg.CredentialsFile)
+		slog.Info("PubSub runner using credentials file", "file", cfg.CredentialsFile)
 		opts = append(opts, option.WithCredentialsFile(cfg.CredentialsFile))
 	} else if cfg.UseWorkloadIdentity {
-		slog.Info("PubSub target using Workload Identity")
+		slog.Info("PubSub runner using Workload Identity")
 		// Workload Identity uses Application Default Credentials
 	} else {
-		slog.Info("PubSub target using Application Default Credentials")
+		slog.Info("PubSub runner using Application Default Credentials")
 	}
 
 	client, err := pubsub.NewClient(ctx, cfg.ProjectID, opts...)
@@ -74,13 +74,13 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	}
 	publisher := client.Publisher(cfg.Topic)
 
-	l := slog.Default().With("context", "PubSub Target")
-	l.Info("PubSub target connected",
+	l := slog.Default().With("context", "PubSub Runner")
+	l.Info("PubSub runner connected",
 		"projectID", cfg.ProjectID,
 		"topic", cfg.Topic,
 		"maxMessageSize", cfg.MaxMessageSize)
 
-	return &PubSubTarget{
+	return &PubSubRunner{
 		cfg:       cfg,
 		slog:      l,
 		client:    client,
@@ -88,15 +88,15 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	}, nil
 }
 
-type PubSubTarget struct {
-	cfg       *TargetConfig
+type PubSubRunner struct {
+	cfg       *RunnerConfig
 	slog      *slog.Logger
 	client    *pubsub.Client
 	publisher *pubsub.Publisher
 	stopCh    chan struct{}
 }
 
-func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
+func (t *PubSubRunner) Process(msg *message.RunnerMessage) error {
 	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
@@ -130,7 +130,7 @@ func (t *PubSubTarget) Consume(msg *message.RunnerMessage) error {
 	return nil
 }
 
-func (t *PubSubTarget) Close() error {
+func (t *PubSubRunner) Close() error {
 	if t.stopCh != nil {
 		close(t.stopCh)
 	}

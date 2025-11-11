@@ -32,6 +32,21 @@ type SourceConfig struct {
 	// Messages are distributed among queue group members.
 	QueueGroup string `mapstructure:"queueGroup"`
 
+	// Mode specifies the source mode: "subscribe" (default), "request", or "kv-watch".
+	// - subscribe: Standard pub/sub or JetStream consumer
+	// - request: Sends request and waits for reply (like HTTP request/response)
+	// - kv-watch: Watches a NATS KV bucket for changes
+	Mode string `mapstructure:"mode" default:"subscribe" validate:"oneof=subscribe request kv-watch"`
+
+	// RequestTimeout is the timeout for request mode (default: 5s).
+	RequestTimeout time.Duration `mapstructure:"requestTimeout" default:"5s"`
+
+	// KVBucket is the name of the KV bucket to watch (required for kv-watch mode).
+	KVBucket string `mapstructure:"kvBucket" validate:"required_if=Mode kv-watch"`
+
+	// KVKeys are the specific keys to watch in the KV bucket (optional, watches all if empty).
+	KVKeys []string `mapstructure:"kvKeys"`
+
 	// Username for NATS authentication.
 	// Leave empty if authentication is not required.
 	Username string `mapstructure:"username"`
@@ -70,12 +85,14 @@ type SourceConfig struct {
 }
 
 type NATSSource struct {
-	cfg  *SourceConfig
-	slog *slog.Logger
-	c    chan *message.RunnerMessage
-	nc   *nats.Conn
-	js   nats.JetStreamContext
-	sub  *nats.Subscription
+	cfg     *SourceConfig
+	slog    *slog.Logger
+	c       chan *message.RunnerMessage
+	nc      *nats.Conn
+	js      nats.JetStreamContext
+	sub     *nats.Subscription
+	kv      nats.KeyValue
+	watcher nats.KeyWatcher
 }
 
 func NewSourceConfig() any {
@@ -99,9 +116,11 @@ func (s *NATSSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 	s.slog.Info("starting NATS source",
 		"address", s.cfg.Address,
 		"subject", s.cfg.Subject,
+		"mode", s.cfg.Mode,
 		"stream", s.cfg.Stream,
 		"consumer", s.cfg.Consumer,
 		"queueGroup", s.cfg.QueueGroup,
+		"kvBucket", s.cfg.KVBucket,
 		"tls", s.cfg.TLS != nil && s.cfg.TLS.Enabled,
 		"auth", s.hasAuthentication())
 
@@ -117,23 +136,35 @@ func (s *NATSSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 	}
 	s.nc = nc
 
-	// If both stream and consumer are specified, use JetStream
-	if s.cfg.Stream != "" && s.cfg.Consumer != "" {
-		js, err := nc.JetStream()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get JetStream context: %w", err)
+	// Route to appropriate consumption mode
+	switch s.cfg.Mode {
+	case "kv-watch":
+		if err := s.consumeKVWatch(); err != nil {
+			return nil, fmt.Errorf("failed to start KV watcher: %w", err)
 		}
-		s.js = js
-		s.slog.Info("using JetStream", "stream", s.cfg.Stream, "consumer", s.cfg.Consumer)
+	case "request":
+		if err := s.consumeRequest(); err != nil {
+			return nil, fmt.Errorf("failed to start request mode: %w", err)
+		}
+	default: // "subscribe"
+		// If both stream and consumer are specified, use JetStream
+		if s.cfg.Stream != "" && s.cfg.Consumer != "" {
+			js, err := nc.JetStream()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get JetStream context: %w", err)
+			}
+			s.js = js
+			s.slog.Info("using JetStream", "stream", s.cfg.Stream, "consumer", s.cfg.Consumer)
 
-		if err := s.consumeJetStream(); err != nil {
-			return nil, fmt.Errorf("failed to start JetStream consumer: %w", err)
-		}
-	} else {
-		// NATS core (o JetStream senza consumer)
-		queue := s.cfg.QueueGroup
-		if err := s.consumeCore(queue); err != nil {
-			return nil, fmt.Errorf("failed to start NATS core consumer: %w", err)
+			if err := s.consumeJetStream(); err != nil {
+				return nil, fmt.Errorf("failed to start JetStream consumer: %w", err)
+			}
+		} else {
+			// NATS core
+			queue := s.cfg.QueueGroup
+			if err := s.consumeCore(queue); err != nil {
+				return nil, fmt.Errorf("failed to start NATS core consumer: %w", err)
+			}
 		}
 	}
 
@@ -222,7 +253,8 @@ func (s *NATSSource) hasAuthentication() bool {
 func (s *NATSSource) consumeCore(queue string) (err error) {
 	handler := func(msg *nats.Msg) {
 		m := &NATSMessage{
-			msg: msg,
+			msg:  msg,
+			conn: s.nc,
 		}
 		s.c <- message.NewRunnerMessage(m)
 	}
@@ -236,6 +268,104 @@ func (s *NATSSource) consumeCore(queue string) (err error) {
 		err = fmt.Errorf("failed to subscribe to subject: %w", e)
 	}
 	return
+}
+
+// consumeRequest subscribes and sends requests, waiting for replies.
+func (s *NATSSource) consumeRequest() error {
+	handler := func(msg *nats.Msg) {
+		// Create a reply inbox
+		replyInbox := nats.NewInbox()
+		replyChan := make(chan *nats.Msg, 1)
+
+		// Subscribe to reply
+		sub, err := s.nc.ChanSubscribe(replyInbox, replyChan)
+		if err != nil {
+			s.slog.Error("failed to subscribe to reply inbox", "error", err)
+			return
+		}
+		defer func() {
+			if err := sub.Unsubscribe(); err != nil {
+				s.slog.Warn("failed to unsubscribe from reply inbox", "error", err)
+			}
+		}()
+
+		// Create NATS message with reply data capability
+		m := &NATSMessage{
+			msg:        msg,
+			conn:       s.nc,
+			replyInbox: replyInbox,
+			replyChan:  replyChan,
+			timeout:    s.cfg.RequestTimeout,
+		}
+		s.c <- message.NewRunnerMessage(m)
+	}
+
+	var err error
+	if s.cfg.QueueGroup != "" {
+		s.sub, err = s.nc.QueueSubscribe(s.cfg.Subject, s.cfg.QueueGroup, handler)
+	} else {
+		s.sub, err = s.nc.Subscribe(s.cfg.Subject, handler)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to subscribe for requests: %w", err)
+	}
+	return nil
+}
+
+// consumeKVWatch watches a NATS KV bucket for changes.
+func (s *NATSSource) consumeKVWatch() error {
+	js, err := s.nc.JetStream()
+	if err != nil {
+		return fmt.Errorf("failed to get JetStream context: %w", err)
+	}
+	s.js = js
+
+	kv, err := js.KeyValue(s.cfg.KVBucket)
+	if err != nil {
+		return fmt.Errorf("failed to get KV bucket: %w", err)
+	}
+	s.kv = kv
+
+	// Watch all keys or specific keys
+	var watcher nats.KeyWatcher
+	if len(s.cfg.KVKeys) > 0 {
+		// Watch specific keys
+		for _, key := range s.cfg.KVKeys {
+			w, err := kv.Watch(key)
+			if err != nil {
+				return fmt.Errorf("failed to watch KV key %s: %w", key, err)
+			}
+			if watcher == nil {
+				watcher = w
+				s.watcher = w
+			}
+			// For multiple keys, we'll use the first watcher
+			// In production, you might want to handle multiple watchers
+		}
+	} else {
+		// Watch all keys
+		w, err := kv.WatchAll()
+		if err != nil {
+			return fmt.Errorf("failed to watch all KV keys: %w", err)
+		}
+		watcher = w
+		s.watcher = w
+	}
+
+	// Process KV updates
+	go func() {
+		for entry := range watcher.Updates() {
+			if entry == nil {
+				continue
+			}
+			m := &NATSKVMessage{
+				entry: entry,
+			}
+			s.c <- message.NewRunnerMessage(m)
+		}
+	}()
+
+	return nil
 }
 
 func (s *NATSSource) consumeJetStream() (err error) {
@@ -261,7 +391,8 @@ func (s *NATSSource) consumeJetStream() (err error) {
 			}
 			for _, msg := range msgs {
 				m := &NATSMessage{
-					msg: msg,
+					msg:  msg,
+					conn: s.nc,
 				}
 				s.c <- message.NewRunnerMessage(m)
 			}
@@ -271,6 +402,14 @@ func (s *NATSSource) consumeJetStream() (err error) {
 }
 
 func (s *NATSSource) Close() error {
+	// Stop KV watcher if active
+	if s.watcher != nil {
+		if err := s.watcher.Stop(); err != nil {
+			s.slog.Warn("failed to stop KV watcher", "error", err)
+		}
+		s.watcher = nil
+	}
+
 	// Unsubscribe/Drain subscription before closing channel to avoid send-on-closed-channel
 	if s.sub != nil {
 		if err := s.sub.Drain(); err != nil {

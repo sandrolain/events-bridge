@@ -6,13 +6,16 @@ import (
 	"log/slog"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-func NewStreamTarget(cfg *TargetConfig) (*RedisStreamTarget, error) {
-	l := slog.Default().With("context", "RedisStream Target")
+var _ connectors.Runner = (*RedisStreamRunner)(nil)
 
-	opts, err := buildRedisTargetOptions(cfg)
+func NewStreamRunner(cfg *RunnerConfig) (connectors.Runner, error) {
+	l := slog.Default().With("context", "RedisStream Runner")
+
+	opts, err := buildRedisRunnerOptions(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build Redis options: %w", err)
 	}
@@ -27,7 +30,7 @@ func NewStreamTarget(cfg *TargetConfig) (*RedisStreamTarget, error) {
 	tlsEnabled := cfg.TLS != nil && cfg.TLS.Enabled
 	hasAuth := cfg.Username != "" || cfg.Password != ""
 
-	l.Info("Redis stream target connected",
+	l.Info("Redis stream runner connected",
 		"address", cfg.Address,
 		"stream", cfg.Stream,
 		"db", cfg.DB,
@@ -36,60 +39,60 @@ func NewStreamTarget(cfg *TargetConfig) (*RedisStreamTarget, error) {
 		"strictValidation", cfg.StrictValidation,
 	)
 
-	return &RedisStreamTarget{
+	return &RedisStreamRunner{
 		cfg:    cfg,
 		slog:   l,
 		client: client,
 	}, nil
 }
 
-type RedisStreamTarget struct {
-	cfg    *TargetConfig
+type RedisStreamRunner struct {
+	cfg    *RunnerConfig
 	slog   *slog.Logger
 	client *redis.Client
 }
 
-func (t *RedisStreamTarget) Consume(msg *message.RunnerMessage) error {
+func (r *RedisStreamRunner) Process(msg *message.RunnerMessage) error {
 	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
-	stream := t.cfg.Stream
-	if t.cfg.StreamFromMetadataKey != "" {
+	stream := r.cfg.Stream
+	if r.cfg.StreamFromMetadataKey != "" {
 		metadata, err := msg.GetMetadata()
 		if err != nil {
-			t.slog.Warn("failed to get metadata for stream resolution", "error", err)
-		} else if v, ok := metadata[t.cfg.StreamFromMetadataKey]; ok && len(v) > 0 {
+			r.slog.Warn("failed to get metadata for stream resolution", "error", err)
+		} else if v, ok := metadata[r.cfg.StreamFromMetadataKey]; ok && len(v) > 0 {
 			stream = v
 		}
 	}
 
 	// Validate stream name if dynamically resolved
-	if t.cfg.StreamFromMetadataKey != "" && stream != t.cfg.Stream {
-		if err := validateRedisKey(stream, t.cfg.StrictValidation); err != nil {
+	if r.cfg.StreamFromMetadataKey != "" && stream != r.cfg.Stream {
+		if err := validateRedisKey(stream, r.cfg.StrictValidation); err != nil {
 			return fmt.Errorf("invalid resolved stream name: %w", err)
 		}
 	}
 
-	dataKey := t.cfg.StreamDataKey
+	dataKey := r.cfg.StreamDataKey
 	if dataKey == "" {
 		dataKey = "data"
 	}
 	fields := map[string]interface{}{dataKey: data}
-	err = t.client.XAdd(context.Background(), &redis.XAddArgs{
+	err = r.client.XAdd(context.Background(), &redis.XAddArgs{
 		Stream: stream,
 		Values: fields,
 	}).Err()
 	if err != nil {
 		return fmt.Errorf("error publishing to Redis stream: %w", err)
 	}
-	t.slog.Debug("Redis stream message published", "stream", stream)
+	r.slog.Debug("Redis stream message published", "stream", stream)
 	return nil
 }
 
-func (t *RedisStreamTarget) Close() error {
-	if t.client != nil {
-		if err := t.client.Close(); err != nil {
+func (r *RedisStreamRunner) Close() error {
+	if r.client != nil {
+		if err := r.client.Close(); err != nil {
 			return fmt.Errorf("error closing Redis client: %w", err)
 		}
 	}

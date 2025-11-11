@@ -34,7 +34,7 @@ func TestNATSMessageBasics(t *testing.T) {
 	}
 
 	// Reply is no-op when Reply is empty
-	if err := m.Reply(nil); err != nil {
+	if err := m.Ack(nil); err != nil {
 		t.Fatalf("reply error: %v", err)
 	}
 }

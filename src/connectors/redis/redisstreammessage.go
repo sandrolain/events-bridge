@@ -42,14 +42,11 @@ func (m *RedisStreamMessage) GetData() ([]byte, error) {
 	return nil, fmt.Errorf("no data field in stream message")
 }
 
-func (m *RedisStreamMessage) Ack() error {
+func (m *RedisStreamMessage) Ack(data *message.ReplyData) error {
+	// Redis streams don't support reply
 	return nil
 }
 
 func (m *RedisStreamMessage) Nak() error {
-	return nil
-}
-
-func (m *RedisStreamMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

@@ -94,9 +94,8 @@ type fakeSourceMessage struct {
 func (f *fakeSourceMessage) GetID() []byte                           { return f.id }
 func (f *fakeSourceMessage) GetMetadata() (map[string]string, error) { return f.metadata, nil }
 func (f *fakeSourceMessage) GetData() ([]byte, error)                { return f.data, nil }
-func (f *fakeSourceMessage) Ack() error                              { return nil }
+func (f *fakeSourceMessage) Ack(d *message.ReplyData) error          { return nil }
 func (f *fakeSourceMessage) Nak() error                              { return nil }
-func (f *fakeSourceMessage) Reply(d *message.ReplyData) error        { return nil }
 
 func TestEvalMessage(t *testing.T) {
 	eval, err := NewExprEvaluator("metadata.kind == 'test' && int(metadata.count) > 1")

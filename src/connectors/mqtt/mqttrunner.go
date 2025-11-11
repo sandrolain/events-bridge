@@ -15,8 +15,8 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// TargetConfig defines the configuration for an MQTT target connector.
-type TargetConfig struct {
+// RunnerConfig defines the configuration for an MQTT runner connector.
+type RunnerConfig struct {
 	// Address is the MQTT broker address (host:port).
 	// Example: "localhost:1883" for plain TCP, "localhost:8883" for TLS.
 	Address string `mapstructure:"address" validate:"required"`
@@ -70,13 +70,13 @@ type TargetConfig struct {
 	CleanSession bool `mapstructure:"cleanSession" default:"true"`
 }
 
-func NewTargetConfig() any {
-	return new(TargetConfig)
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
 }
 
-// NewTarget creates an MQTT target from options map.
-func NewTarget(anyCfg any) (connectors.Target, error) {
-	cfg, ok := anyCfg.(*TargetConfig)
+// NewRunner creates an MQTT runner from options map.
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
@@ -95,7 +95,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	clientID := cfg.ClientID
 	if clientID == "" {
 		var err error
-		clientID, err = generateTargetSecureClientID()
+		clientID, err = generateRunnerSecureClientID()
 		if err != nil {
 			return nil, err
 		}
@@ -134,40 +134,30 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		return nil, fmt.Errorf("failed to connect to MQTT broker: %w", token.Error())
 	}
 
-	l := slog.Default().With("context", "MQTT Target")
-
-	l.Info("MQTT target connected",
-		"address", cfg.Address,
-		"topic", cfg.Topic,
-		"qos", cfg.QoS,
-		"retained", cfg.Retained,
-		"tls", useTLS,
-	)
-
-	return &MQTTTarget{
+	return &MQTTRunner{
 		cfg:    cfg,
-		slog:   l,
+		slog:   slog.Default(),
 		client: client,
 	}, nil
 }
 
-// generateTargetSecureClientID creates a cryptographically secure random client ID for targets.
-func generateTargetSecureClientID() (string, error) {
+// generateRunnerSecureClientID creates a cryptographically secure random client ID for runners.
+func generateRunnerSecureClientID() (string, error) {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", fmt.Errorf("failed to generate random client ID: %w", err)
 	}
-	return "events-bridge-target-" + hex.EncodeToString(bytes), nil
+	return "events-bridge-runner-" + hex.EncodeToString(bytes), nil
 }
 
-type MQTTTarget struct {
-	cfg    *TargetConfig
+type MQTTRunner struct {
+	cfg    *RunnerConfig
 	slog   *slog.Logger
 	client mqtt.Client
 	stopCh chan struct{}
 }
 
-func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
+func (t *MQTTRunner) Process(msg *message.RunnerMessage) error {
 	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
@@ -201,7 +191,7 @@ func (t *MQTTTarget) Consume(msg *message.RunnerMessage) error {
 	return nil
 }
 
-func (t *MQTTTarget) Close() error {
+func (t *MQTTRunner) Close() error {
 	if t.stopCh != nil {
 		close(t.stopCh)
 	}

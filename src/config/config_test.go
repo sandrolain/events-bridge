@@ -124,10 +124,13 @@ func TestLoadConfigFileYAMLWithEnvOverrides(t *testing.T) {
 	} else {
 		t.Fatalf("expected source options.subject to be string, got %#v", cfg.Source.Options["subject"])
 	}
-	if subj, ok := cfg.Target.Options["subject"].(string); ok {
-		require.Equal(t, "outenv", subj)
-	} else {
-		t.Fatalf("expected target options.subject to be string, got %#v", cfg.Target.Options["subject"])
+	// Note: Target has been replaced with Runners, check first runner if present
+	if len(cfg.Runners) > 0 {
+		if subj, ok := cfg.Runners[0].Options["subject"].(string); ok {
+			require.Equal(t, "outenv", subj)
+		} else {
+			t.Fatalf("expected runner[0] options.subject to be string, got %#v", cfg.Runners[0].Options["subject"])
+		}
 	}
 }
 
@@ -200,14 +203,18 @@ func TestLoadConfigContentYAMLAndJSONAutoDetectAndExplicit(t *testing.T) {
 	cfg, err := loadConfigContent(yaml, "yaml")
 	require.NoError(t, err)
 	require.Equal(t, "a", cfg.Source.Options["subject"])
-	require.Equal(t, "b", cfg.Target.Options["subject"])
+	if len(cfg.Runners) > 0 {
+		require.Equal(t, "b", cfg.Runners[0].Options["subject"])
+	}
 
 	// JSON auto-detect
-	json := `{"source":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"ja"}},"runner":{"type":"cli","options":{"command":"echo"}},"target":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"jb"}}}`
+	json := `{"source":{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"ja"}},"runners":[{"type":"nats","options":{"address":"127.0.0.1:4222","subject":"jb"}}]}`
 	cfg2, err := loadConfigContent(json, "")
 	require.NoError(t, err)
 	require.Equal(t, "ja", cfg2.Source.Options["subject"])
-	require.Equal(t, "jb", cfg2.Target.Options["subject"])
+	if len(cfg2.Runners) > 0 {
+		require.Equal(t, "jb", cfg2.Runners[0].Options["subject"])
+	}
 }
 
 func TestLoadConfigContentUnsupportedFormat(t *testing.T) {

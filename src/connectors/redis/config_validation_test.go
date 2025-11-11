@@ -320,17 +320,17 @@ func TestSourceConfigSecurityValidation(t *testing.T) {
 	}
 }
 
-// TestTargetConfigSecurityValidation tests security-related target config validation
-func TestTargetConfigSecurityValidation(t *testing.T) {
+// TestRunnerConfigSecurityValidation tests security-related target config validation
+func TestRunnerConfigSecurityValidation(t *testing.T) {
 	tests := []struct {
 		name          string
-		targetConfig  TargetConfig
+		targetConfig  RunnerConfig
 		expectError   bool
 		errorContains string
 	}{
 		{
 			name: "invalid channel name (command injection)",
-			targetConfig: TargetConfig{
+			targetConfig: RunnerConfig{
 				Address:          "localhost:6379",
 				Channel:          "test\r\nDEL mykey\r\n",
 				StrictValidation: true,
@@ -340,7 +340,7 @@ func TestTargetConfigSecurityValidation(t *testing.T) {
 		},
 		{
 			name: "invalid stream name (special chars)",
-			targetConfig: TargetConfig{
+			targetConfig: RunnerConfig{
 				Address:          "localhost:6379",
 				Stream:           "test<>|&",
 				StrictValidation: true,
@@ -350,7 +350,7 @@ func TestTargetConfigSecurityValidation(t *testing.T) {
 		},
 		{
 			name: "stream with null byte",
-			targetConfig: TargetConfig{
+			targetConfig: RunnerConfig{
 				Address:          "localhost:6379",
 				Stream:           "test\x00stream",
 				StrictValidation: true,
@@ -362,7 +362,7 @@ func TestTargetConfigSecurityValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewTarget(&tt.targetConfig)
+			_, err := NewRunner(&tt.targetConfig)
 
 			// Note: We expect errors for validation issues before connection attempts
 			if tt.expectError {
@@ -420,9 +420,9 @@ func TestSourceConfigInvalidType(t *testing.T) {
 	}
 }
 
-// TestTargetConfigInvalidType tests error handling for invalid config types
-func TestTargetConfigInvalidType(t *testing.T) {
-	_, err := NewTarget("invalid config")
+// TestRunnerConfigInvalidType tests error handling for invalid config types
+func TestRunnerConfigInvalidType(t *testing.T) {
+	_, err := NewRunner("invalid config")
 	if err == nil {
 		t.Fatal("expected error for invalid config type")
 	}

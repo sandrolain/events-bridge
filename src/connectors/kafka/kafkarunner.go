@@ -12,8 +12,8 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// TargetConfig defines the configuration for a Kafka target connector.
-type TargetConfig struct {
+// RunnerConfig defines the configuration for a Kafka runner connector.
+type RunnerConfig struct {
 	// Brokers is the list of Kafka broker addresses.
 	// Example: ["localhost:9092", "localhost:9093"]
 	Brokers []string `mapstructure:"brokers" validate:"required,min=1"`
@@ -62,21 +62,21 @@ type TargetConfig struct {
 	SASL *SASLConfig `mapstructure:"sasl"`
 }
 
-func NewTargetConfig() any {
-	return new(TargetConfig)
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
 }
 
-// NewTarget creates a Kafka target from options map.
-func NewTarget(anyCfg any) (connectors.Target, error) {
-	cfg, ok := anyCfg.(*TargetConfig)
+// NewRunner creates a Kafka runner from options map.
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
-	l := slog.Default().With("context", "Kafka Target")
+	l := slog.Default().With("context", "Kafka Runner")
 
 	// Build dialer with TLS and SASL if configured
-	dialer, err := buildTargetDialer(cfg)
+	dialer, err := buildRunnerDialer(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build dialer: %w", err)
 	}
@@ -104,7 +104,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 
 	writer := kafka.NewWriter(writerConfig)
 
-	l.Info("Kafka target connected",
+	l.Info("Kafka runner connected",
 		"brokers", cfg.Brokers,
 		"topic", cfg.Topic,
 		"tls", useTLS,
@@ -113,15 +113,15 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		"async", cfg.Async,
 	)
 
-	return &KafkaTarget{
+	return &KafkaRunner{
 		cfg:    cfg,
 		slog:   l,
 		writer: writer,
 	}, nil
 }
 
-// buildTargetDialer creates a Kafka dialer with TLS and SASL configuration for targets.
-func buildTargetDialer(cfg *TargetConfig) (*kafka.Dialer, error) {
+// buildRunnerDialer creates a Kafka dialer with TLS and SASL configuration for runners.
+func buildRunnerDialer(cfg *RunnerConfig) (*kafka.Dialer, error) {
 	dialer := &kafka.Dialer{
 		Timeout:   10 * time.Second,
 		DualStack: true,
@@ -148,19 +148,19 @@ func buildTargetDialer(cfg *TargetConfig) (*kafka.Dialer, error) {
 	return dialer, nil
 }
 
-type KafkaTarget struct {
-	cfg    *TargetConfig
+type KafkaRunner struct {
+	cfg    *RunnerConfig
 	slog   *slog.Logger
 	writer *kafka.Writer
 }
 
-func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
+func (r *KafkaRunner) Process(msg *message.RunnerMessage) error {
 	metadata, data, err := msg.GetMetadataAndData()
 	if err != nil {
 		return fmt.Errorf("error getting metadata and data: %w", err)
 	}
 
-	t.slog.Debug("publishing Kafka message", "topic", t.cfg.Topic, "bodysize", len(data))
+	r.slog.Debug("publishing Kafka message", "topic", r.cfg.Topic, "bodysize", len(data))
 
 	kmsg := kafka.Message{
 		Key:   msg.GetID(),
@@ -181,19 +181,19 @@ func (t *KafkaTarget) Consume(msg *message.RunnerMessage) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	err = t.writer.WriteMessages(ctx, kmsg)
+	err = r.writer.WriteMessages(ctx, kmsg)
 	if err != nil {
 		return fmt.Errorf("error publishing to Kafka: %w", err)
 	}
-	t.slog.Debug("Kafka message published", "topic", t.cfg.Topic)
+	r.slog.Debug("Kafka message published", "topic", r.cfg.Topic)
 	return nil
 }
 
-func (t *KafkaTarget) Close() error {
-	if t.writer != nil {
-		t.slog.Info("closing Kafka writer")
-		if err := t.writer.Close(); err != nil {
-			t.slog.Error("error closing Kafka writer", "err", err)
+func (r *KafkaRunner) Close() error {
+	if r.writer != nil {
+		r.slog.Info("closing Kafka writer")
+		if err := r.writer.Close(); err != nil {
+			r.slog.Error("error closing Kafka writer", "err", err)
 		}
 	}
 	return nil

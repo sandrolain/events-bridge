@@ -41,7 +41,7 @@ func TestKafkaMessageGetters(t *testing.T) {
 	if err := km.Nak(); err != nil {
 		t.Fatalf("unexpected Nak error: %v", err)
 	}
-	if err := km.Reply(nil); err != nil {
+	if err := km.Ack(nil); err != nil {
 		t.Fatalf("unexpected Reply error: %v", err)
 	}
 }

@@ -214,7 +214,7 @@ func TestMongoDBInsertIntegration(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// Setup target configuration
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		URI:              mongoURI,
 		Database:         testDatabase,
 		Collection:       testCollection,
@@ -225,7 +225,7 @@ func TestMongoDBInsertIntegration(t *testing.T) {
 	}
 
 	// Create target
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -245,7 +245,7 @@ func TestMongoDBInsertIntegration(t *testing.T) {
 		metadata: map[string]string{"test-type": "insert"},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for change stream event
@@ -277,7 +277,7 @@ func TestMongoDBInsertIntegration(t *testing.T) {
 		assert.Equal(t, testCollection, metadata["collection"])
 
 		// Acknowledge message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -330,7 +330,7 @@ func TestMongoDBUpdateIntegration(t *testing.T) {
 
 	// Setup target configuration for update
 	filterJSON := fmt.Sprintf(`{"_id": {"$oid": "%s"}}`, docID.Hex())
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		URI:              mongoURI,
 		Database:         testDatabase,
 		Collection:       testCollection,
@@ -342,7 +342,7 @@ func TestMongoDBUpdateIntegration(t *testing.T) {
 	}
 
 	// Create target
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -360,7 +360,7 @@ func TestMongoDBUpdateIntegration(t *testing.T) {
 		metadata: map[string]string{"test-type": "update"},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for change stream event
@@ -386,7 +386,7 @@ func TestMongoDBUpdateIntegration(t *testing.T) {
 		assert.Equal(t, "completed", updatedFields["status"])
 
 		// Acknowledge message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -439,7 +439,7 @@ func TestMongoDBReplaceIntegration(t *testing.T) {
 
 	// Setup target configuration for replace
 	filterJSON := fmt.Sprintf(`{"_id": {"$oid": "%s"}}`, docID.Hex())
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		URI:              mongoURI,
 		Database:         testDatabase,
 		Collection:       testCollection,
@@ -451,7 +451,7 @@ func TestMongoDBReplaceIntegration(t *testing.T) {
 	}
 
 	// Create target
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -471,7 +471,7 @@ func TestMongoDBReplaceIntegration(t *testing.T) {
 		metadata: map[string]string{"test-type": "replace"},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for change stream event
@@ -496,7 +496,7 @@ func TestMongoDBReplaceIntegration(t *testing.T) {
 		assert.Equal(t, float64(123), fullDoc["replaceTest"])
 
 		// Acknowledge message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -549,7 +549,7 @@ func TestMongoDBDeleteIntegration(t *testing.T) {
 
 	// Setup target configuration for delete
 	filterJSON := fmt.Sprintf(`{"_id": {"$oid": "%s"}}`, docID.Hex())
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		URI:              mongoURI,
 		Database:         testDatabase,
 		Collection:       testCollection,
@@ -561,7 +561,7 @@ func TestMongoDBDeleteIntegration(t *testing.T) {
 	}
 
 	// Create target
-	target, err := NewTarget(targetCfg)
+	target, err := NewRunner(targetCfg)
 	require.NoError(t, err)
 	defer target.Close()
 
@@ -572,7 +572,7 @@ func TestMongoDBDeleteIntegration(t *testing.T) {
 		metadata: map[string]string{"test-type": "delete"},
 	})
 
-	err = target.Consume(testMsg)
+	err = target.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for change stream event
@@ -597,7 +597,7 @@ func TestMongoDBDeleteIntegration(t *testing.T) {
 		assert.Equal(t, docID.Hex(), metadata["documentId"])
 
 		// Acknowledge message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -662,7 +662,7 @@ func TestMongoDBPipelineFilterIntegration(t *testing.T) {
 		// Should only receive insert
 		assert.Equal(t, "insert", changeEvent["operationType"])
 
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-time.After(10 * time.Second):
@@ -706,7 +706,7 @@ func (m *TestMessage) GetData() ([]byte, error) {
 	return m.data, nil
 }
 
-func (m *TestMessage) Ack() error {
+func (m *TestMessage) Ack(*message.ReplyData) error {
 	return nil
 }
 
@@ -714,6 +714,3 @@ func (m *TestMessage) Nak() error {
 	return nil
 }
 
-func (m *TestMessage) Reply(data *message.ReplyData) error {
-	return nil
-}

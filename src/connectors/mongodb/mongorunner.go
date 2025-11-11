@@ -16,8 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// TargetConfig defines the configuration for MongoDB target connector
-type TargetConfig struct {
+// RunnerConfig defines the configuration for MongoDB runner connector
+type RunnerConfig struct {
 	// MongoDB connection URI
 	// Format: mongodb://username:password@host:port/database
 	// For MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/database
@@ -55,19 +55,19 @@ type TargetConfig struct {
 	StrictValidation bool `mapstructure:"strictValidation" default:"true"`
 }
 
-type MongoTarget struct {
-	cfg        *TargetConfig
+type MongoRunner struct {
+	cfg        *RunnerConfig
 	slog       *slog.Logger
 	client     *mongo.Client
 	collection *mongo.Collection
 }
 
-func NewTargetConfig() any {
-	return new(TargetConfig)
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
 }
 
 // buildClientOptions creates MongoDB client options with TLS and timeout
-func (t *MongoTarget) buildClientOptions() (*options.ClientOptions, error) {
+func (t *MongoRunner) buildClientOptions() (*options.ClientOptions, error) {
 	// Resolve URI in case it contains secrets
 	resolvedURI, err := secrets.Resolve(t.cfg.URI)
 	if err != nil {
@@ -91,9 +91,9 @@ func (t *MongoTarget) buildClientOptions() (*options.ClientOptions, error) {
 	return clientOpts, nil
 }
 
-// NewTarget creates a MongoDB target from configuration
-func NewTarget(anyCfg any) (connectors.Target, error) {
-	cfg, ok := anyCfg.(*TargetConfig)
+// NewRunner creates a MongoDB runner from configuration
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
@@ -106,9 +106,9 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 		return nil, fmt.Errorf("invalid collection name: %w", err)
 	}
 
-	target := &MongoTarget{
+	target := &MongoRunner{
 		cfg:  cfg,
-		slog: slog.Default().With("context", "MongoDB Target"),
+		slog: slog.Default().With("context", "MongoDB Runner"),
 	}
 
 	// Build client options
@@ -140,7 +140,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 
 	tlsEnabled := cfg.TLS != nil && cfg.TLS.Enabled
 
-	target.slog.Info("MongoDB target connected",
+	target.slog.Info("MongoDB runner connected",
 		"database", cfg.Database,
 		"collection", cfg.Collection,
 		"operation", cfg.Operation,
@@ -151,7 +151,7 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	return target, nil
 }
 
-func (t *MongoTarget) Consume(msg *message.RunnerMessage) error {
+func (t *MongoRunner) Process(msg *message.RunnerMessage) error {
 	ctx, cancel := context.WithTimeout(context.Background(), t.cfg.OperationTimeout)
 	defer cancel()
 
@@ -201,7 +201,7 @@ func (t *MongoTarget) Consume(msg *message.RunnerMessage) error {
 	}
 }
 
-func (t *MongoTarget) insert(ctx context.Context, document bson.M) error {
+func (t *MongoRunner) insert(ctx context.Context, document bson.M) error {
 	result, err := t.collection.InsertOne(ctx, document)
 	if err != nil {
 		return fmt.Errorf("failed to insert document: %w", err)
@@ -211,7 +211,7 @@ func (t *MongoTarget) insert(ctx context.Context, document bson.M) error {
 	return nil
 }
 
-func (t *MongoTarget) update(ctx context.Context, document bson.M, msg *message.RunnerMessage) error {
+func (t *MongoRunner) update(ctx context.Context, document bson.M, msg *message.RunnerMessage) error {
 	filter, err := t.buildFilter(msg)
 	if err != nil {
 		return fmt.Errorf("failed to build filter: %w", err)
@@ -233,7 +233,7 @@ func (t *MongoTarget) update(ctx context.Context, document bson.M, msg *message.
 	return nil
 }
 
-func (t *MongoTarget) upsert(ctx context.Context, document bson.M, msg *message.RunnerMessage) error {
+func (t *MongoRunner) upsert(ctx context.Context, document bson.M, msg *message.RunnerMessage) error {
 	filter, err := t.buildFilter(msg)
 	if err != nil {
 		return fmt.Errorf("failed to build filter: %w", err)
@@ -253,7 +253,7 @@ func (t *MongoTarget) upsert(ctx context.Context, document bson.M, msg *message.
 	return nil
 }
 
-func (t *MongoTarget) replace(ctx context.Context, document bson.M, msg *message.RunnerMessage) error {
+func (t *MongoRunner) replace(ctx context.Context, document bson.M, msg *message.RunnerMessage) error {
 	filter, err := t.buildFilter(msg)
 	if err != nil {
 		return fmt.Errorf("failed to build filter: %w", err)
@@ -272,7 +272,7 @@ func (t *MongoTarget) replace(ctx context.Context, document bson.M, msg *message
 	return nil
 }
 
-func (t *MongoTarget) delete(ctx context.Context, msg *message.RunnerMessage) error {
+func (t *MongoRunner) delete(ctx context.Context, msg *message.RunnerMessage) error {
 	filter, err := t.buildFilter(msg)
 	if err != nil {
 		return fmt.Errorf("failed to build filter: %w", err)
@@ -287,7 +287,7 @@ func (t *MongoTarget) delete(ctx context.Context, msg *message.RunnerMessage) er
 	return nil
 }
 
-func (t *MongoTarget) buildFilter(msg *message.RunnerMessage) (bson.M, error) {
+func (t *MongoRunner) buildFilter(msg *message.RunnerMessage) (bson.M, error) {
 	var filter bson.M
 
 	// Try to get filter from metadata first
@@ -319,7 +319,7 @@ func (t *MongoTarget) buildFilter(msg *message.RunnerMessage) (bson.M, error) {
 	return bson.M{}, nil
 }
 
-func (t *MongoTarget) Close() error {
+func (t *MongoRunner) Close() error {
 	if t.client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

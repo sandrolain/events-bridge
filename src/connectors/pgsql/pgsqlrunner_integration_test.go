@@ -15,19 +15,19 @@ import (
 )
 
 const (
-	testTargetTable = "test_target_table"
+	testTargetTable = "test_runner_table"
 )
 
 func TestPostgreSQLTargetIntegration(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup target table
+	// Setup runner table
 	if err := setupTargetTable(ctx); err != nil {
-		t.Fatalf("failed to setup target table: %v", err)
+		t.Fatalf("failed to setup runner table: %v", err)
 	}
 
-	// Create target configuration
-	targetCfg := &TargetConfig{
+	// Create runner configuration
+	runnerCfg := &RunnerConfig{
 		ConnString:  connString,
 		Table:       testTargetTable,
 		OtherColumn: "extra_data",
@@ -35,10 +35,10 @@ func TestPostgreSQLTargetIntegration(t *testing.T) {
 		BatchSize:   10,
 	}
 
-	// Create target
-	target, err := NewTarget(targetCfg)
+	// Create runner
+	runner, err := NewRunner(runnerCfg)
 	require.NoError(t, err)
-	defer target.Close()
+	defer runner.Close()
 
 	// Create test message
 	testData := map[string]interface{}{
@@ -60,7 +60,7 @@ func TestPostgreSQLTargetIntegration(t *testing.T) {
 	runnerMsg := message.NewRunnerMessage(sourceMsg)
 
 	// Consume the message
-	err = target.Consume(runnerMsg)
+	err = runner.Process(runnerMsg)
 	require.NoError(t, err)
 
 	// Verify the record was inserted
@@ -91,13 +91,13 @@ func TestPostgreSQLTargetIntegration(t *testing.T) {
 func TestPostgreSQLTargetBatchIntegration(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup target table
+	// Setup runner table
 	if err := setupTargetTable(ctx); err != nil {
-		t.Fatalf("failed to setup target table: %v", err)
+		t.Fatalf("failed to setup runner table: %v", err)
 	}
 
-	// Create target configuration
-	targetCfg := &TargetConfig{
+	// Create runner configuration
+	runnerCfg := &RunnerConfig{
 		ConnString:  connString,
 		Table:       testTargetTable,
 		OtherColumn: "extra_data",
@@ -105,10 +105,10 @@ func TestPostgreSQLTargetBatchIntegration(t *testing.T) {
 		BatchSize:   10,
 	}
 
-	// Create target
-	target, err := NewTarget(targetCfg)
+	// Create runner
+	runner, err := NewRunner(runnerCfg)
 	require.NoError(t, err)
-	defer target.Close()
+	defer runner.Close()
 
 	// Insert multiple messages
 	numMessages := 5
@@ -129,7 +129,7 @@ func TestPostgreSQLTargetBatchIntegration(t *testing.T) {
 		}
 		runnerMsg := message.NewRunnerMessage(sourceMsg)
 
-		err = target.Consume(runnerMsg)
+		err = runner.Process(runnerMsg)
 		require.NoError(t, err)
 	}
 
@@ -154,13 +154,13 @@ func TestPostgreSQLTargetBatchIntegration(t *testing.T) {
 func TestPostgreSQLTargetOnConflictUpdate(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup target table with unique constraint
+	// Setup runner table with unique constraint
 	if err := setupTargetTableWithConstraint(ctx); err != nil {
-		t.Fatalf("failed to setup target table: %v", err)
+		t.Fatalf("failed to setup runner table: %v", err)
 	}
 
-	// Create target configuration with DO UPDATE on conflict
-	targetCfg := &TargetConfig{
+	// Create runner configuration with DO UPDATE on conflict
+	runnerCfg := &RunnerConfig{
 		ConnString:      connString,
 		Table:           testTargetTable,
 		OtherColumn:     "extra_data",
@@ -169,10 +169,10 @@ func TestPostgreSQLTargetOnConflictUpdate(t *testing.T) {
 		BatchSize:       10,
 	}
 
-	// Create target
-	target, err := NewTarget(targetCfg)
+	// Create runner
+	runner, err := NewRunner(runnerCfg)
 	require.NoError(t, err)
-	defer target.Close()
+	defer runner.Close()
 
 	// Insert first record
 	testData := map[string]interface{}{
@@ -191,7 +191,7 @@ func TestPostgreSQLTargetOnConflictUpdate(t *testing.T) {
 	}
 	runnerMsg := message.NewRunnerMessage(sourceMsg)
 
-	err = target.Consume(runnerMsg)
+	err = runner.Process(runnerMsg)
 	require.NoError(t, err)
 
 	// Try to insert same record with updated values
@@ -208,7 +208,7 @@ func TestPostgreSQLTargetOnConflictUpdate(t *testing.T) {
 	}
 	runnerMsg = message.NewRunnerMessage(sourceMsg)
 
-	err = target.Consume(runnerMsg)
+	err = runner.Process(runnerMsg)
 	require.NoError(t, err)
 
 	// Verify the record was updated
@@ -324,7 +324,7 @@ func (m *testSourceMessage) GetData() ([]byte, error) {
 	return m.data, nil
 }
 
-func (m *testSourceMessage) Ack() error {
+func (m *testSourceMessage) Ack(*message.ReplyData) error {
 	return nil
 }
 
@@ -332,6 +332,3 @@ func (m *testSourceMessage) Nak() error {
 	return nil
 }
 
-func (m *testSourceMessage) Reply(reply *message.ReplyData) error {
-	return nil
-}

@@ -13,8 +13,10 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
-// TargetConfig defines the configuration for Redis target connector
-type TargetConfig struct {
+var _ connectors.Runner = (*RedisRunner)(nil)
+
+// RunnerConfig defines the configuration for Redis runner connector
+type RunnerConfig struct {
 	// Redis server address (host:port)
 	Address string `mapstructure:"address" validate:"required"`
 
@@ -51,12 +53,12 @@ type TargetConfig struct {
 	StrictValidation bool `mapstructure:"strictValidation" default:"true"`
 }
 
-func NewTargetConfig() any {
-	return new(TargetConfig)
+func NewRunnerConfig() any {
+	return new(RunnerConfig)
 }
 
-// buildRedisTargetOptions creates Redis client options with authentication and TLS
-func buildRedisTargetOptions(cfg *TargetConfig) (*redis.Options, error) {
+// buildRedisRunnerOptions creates Redis client options with authentication and TLS
+func buildRedisRunnerOptions(cfg *RunnerConfig) (*redis.Options, error) {
 	opts := &redis.Options{
 		Addr: cfg.Address,
 		DB:   cfg.DB,
@@ -87,9 +89,9 @@ func buildRedisTargetOptions(cfg *TargetConfig) (*redis.Options, error) {
 	return opts, nil
 }
 
-// NewTarget creates a Redis target from options map.
-func NewTarget(anyCfg any) (connectors.Target, error) {
-	cfg, ok := anyCfg.(*TargetConfig)
+// NewRunner creates a Redis runner from options map.
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*RunnerConfig)
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
@@ -107,18 +109,18 @@ func NewTarget(anyCfg any) (connectors.Target, error) {
 	}
 
 	if cfg.Stream != "" {
-		return NewStreamTarget(cfg)
+		return NewStreamRunner(cfg)
 	}
 	if cfg.Channel != "" {
-		return NewChannelTarget(cfg)
+		return NewChannelRunner(cfg)
 	}
-	return nil, fmt.Errorf("invalid config for Redis target")
+	return nil, fmt.Errorf("invalid config for Redis runner")
 }
 
-func NewChannelTarget(cfg *TargetConfig) (connectors.Target, error) {
-	l := slog.Default().With("context", "RedisChannel Target")
+func NewChannelRunner(cfg *RunnerConfig) (connectors.Runner, error) {
+	l := slog.Default().With("context", "RedisChannel Runner")
 
-	opts, err := buildRedisTargetOptions(cfg)
+	opts, err := buildRedisRunnerOptions(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build Redis options: %w", err)
 	}
@@ -133,7 +135,7 @@ func NewChannelTarget(cfg *TargetConfig) (connectors.Target, error) {
 	tlsEnabled := cfg.TLS != nil && cfg.TLS.Enabled
 	hasAuth := cfg.Username != "" || cfg.Password != ""
 
-	l.Info("Redis target connected",
+	l.Info("Redis runner connected",
 		"address", cfg.Address,
 		"channel", cfg.Channel,
 		"db", cfg.DB,
@@ -142,47 +144,47 @@ func NewChannelTarget(cfg *TargetConfig) (connectors.Target, error) {
 		"strictValidation", cfg.StrictValidation,
 	)
 
-	return &RedisTarget{
+	return &RedisRunner{
 		cfg:    cfg,
 		slog:   l,
 		client: client,
 	}, nil
 }
 
-type RedisTarget struct {
-	cfg    *TargetConfig
+type RedisRunner struct {
+	cfg    *RunnerConfig
 	slog   *slog.Logger
 	client *redis.Client
 }
 
-func (t *RedisTarget) Consume(msg *message.RunnerMessage) error {
+func (r *RedisRunner) Process(msg *message.RunnerMessage) error {
 	data, err := msg.GetData()
 	if err != nil {
 		return fmt.Errorf("error getting data: %w", err)
 	}
 
-	channel := message.ResolveFromMetadata(msg, t.cfg.ChannelFromMetadataKey, t.cfg.Channel)
+	channel := message.ResolveFromMetadata(msg, r.cfg.ChannelFromMetadataKey, r.cfg.Channel)
 
 	// Validate channel name if dynamically resolved
-	if t.cfg.ChannelFromMetadataKey != "" {
-		if err := validateRedisKey(channel, t.cfg.StrictValidation); err != nil {
+	if r.cfg.ChannelFromMetadataKey != "" {
+		if err := validateRedisKey(channel, r.cfg.StrictValidation); err != nil {
 			return fmt.Errorf("invalid resolved channel name: %w", err)
 		}
 	}
 
-	t.slog.Debug("publishing Redis message", "channel", channel, "bodysize", len(data))
+	r.slog.Debug("publishing Redis message", "channel", channel, "bodysize", len(data))
 
-	err = t.client.Publish(context.Background(), channel, data).Err()
+	err = r.client.Publish(context.Background(), channel, data).Err()
 	if err != nil {
 		return fmt.Errorf("error publishing to Redis: %w", err)
 	}
-	t.slog.Debug("Redis message published", "channel", channel)
+	r.slog.Debug("Redis message published", "channel", channel)
 	return nil
 }
 
-func (t *RedisTarget) Close() error {
-	if t.client != nil {
-		if err := t.client.Close(); err != nil {
+func (r *RedisRunner) Close() error {
+	if r.client != nil {
+		if err := r.client.Close(); err != nil {
 			return fmt.Errorf("error closing Redis client: %w", err)
 		}
 	}

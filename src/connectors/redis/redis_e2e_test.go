@@ -11,22 +11,22 @@ const testMessageHello = "hello"
 func TestRedisStreamEndToEnd(t *testing.T) {
 	srv := newMiniredis(t)
 
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		Address: srv.Addr(),
 		Stream:  "events",
 	}
 
-	targetAny, err := NewTarget(targetCfg)
+	targetAny, err := NewRunner(targetCfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
-	target, ok := targetAny.(*RedisStreamTarget)
+	target, ok := targetAny.(*RedisStreamRunner)
 	if !ok {
-		t.Fatal("failed to cast target to RedisStreamTarget")
+		t.Fatal("failed to cast target to RedisStreamRunner")
 	}
 	t.Cleanup(func() {
 		if err := target.Close(); err != nil {
-			t.Fatalf(errFmtCloseTarget, err)
+			t.Fatalf(errFmtCloseRunner, err)
 		}
 	})
 
@@ -56,7 +56,7 @@ func TestRedisStreamEndToEnd(t *testing.T) {
 	}
 
 	msg := newStubRunnerMessage("payload", nil)
-	if err := target.Consume(msg); err != nil {
+	if err := target.Process(msg); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 
@@ -80,22 +80,22 @@ func TestRedisStreamEndToEnd(t *testing.T) {
 func TestRedisChannelEndToEnd(t *testing.T) {
 	srv := newMiniredis(t)
 
-	targetCfg := &TargetConfig{
+	targetCfg := &RunnerConfig{
 		Address: srv.Addr(),
 		Channel: "updates",
 	}
 
-	targetAny, err := NewTarget(targetCfg)
+	targetAny, err := NewRunner(targetCfg)
 	if err != nil {
-		t.Fatalf(errFmtNewTarget, err)
+		t.Fatalf(errFmtNewRunner, err)
 	}
-	channelTarget, ok := targetAny.(*RedisTarget)
+	channelTarget, ok := targetAny.(*RedisRunner)
 	if !ok {
-		t.Fatal("failed to cast target to RedisTarget")
+		t.Fatal("failed to cast target to RedisRunner")
 	}
 	t.Cleanup(func() {
 		if err := channelTarget.Close(); err != nil {
-			t.Fatalf(errFmtCloseTarget, err)
+			t.Fatalf(errFmtCloseRunner, err)
 		}
 	})
 
@@ -126,7 +126,7 @@ func TestRedisChannelEndToEnd(t *testing.T) {
 	// Wait for subscription to be ready
 	time.Sleep(50 * time.Millisecond)
 
-	if err := channelTarget.Consume(newStubRunnerMessage(testMessageHello, nil)); err != nil {
+	if err := channelTarget.Process(newStubRunnerMessage(testMessageHello, nil)); err != nil {
 		t.Fatalf(errFmtConsume, err)
 	}
 

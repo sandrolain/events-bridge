@@ -85,7 +85,7 @@ func TestCoAPSourceUDPAckChanged(t *testing.T) {
 	if rm == nil {
 		t.Fatal(errNilRunnerMsg)
 	}
-	if err := rm.Ack(); err != nil {
+	if err := rm.Ack(nil); err != nil {
 		t.Fatalf("failed to ack: %v", err)
 	}
 
@@ -173,7 +173,7 @@ func TestCoAPSourceUDPReplyContentJSON(t *testing.T) {
 	}
 	rm.SetData(expected)
 	rm.AddMetadata("Content-Type", "application/json")
-	if err := rm.ReplySource(); err != nil {
+	if err := rm.AckSource(true); err != nil {
 		t.Fatalf("failed to reply source: %v", err)
 	}
 
@@ -257,7 +257,7 @@ func TestCoAPSourceTCPAckChanged(t *testing.T) {
 	if rm == nil {
 		t.Fatal(errNilRunnerMsg)
 	}
-	if err := rm.Ack(); err != nil {
+	if err := rm.Ack(nil); err != nil {
 		t.Fatalf("failed to ack: %v", err)
 	}
 
@@ -303,7 +303,7 @@ func TestCoAPSourceTCPReplyContentJSON(t *testing.T) {
 	}
 	rm.SetData(expected)
 	rm.AddMetadata("Content-Type", "application/json")
-	if err := rm.ReplySource(); err != nil {
+	if err := rm.AckSource(true); err != nil {
 		t.Logf("failed to reply source: %v", err)
 	}
 

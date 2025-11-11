@@ -49,15 +49,11 @@ func (m *mockSourceMessage) GetData() ([]byte, error) {
 	return m.data, nil
 }
 
-func (m *mockSourceMessage) Ack() error {
+func (m *mockSourceMessage) Ack(*message.ReplyData) error {
 	return nil
 }
 
 func (m *mockSourceMessage) Nak() error {
-	return nil
-}
-
-func (m *mockSourceMessage) Reply(data *message.ReplyData) error {
 	return nil
 }
 

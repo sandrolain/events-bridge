@@ -79,5 +79,8 @@ func (p *PluginRunner) Process(msg *message.RunnerMessage) error {
 }
 
 func (p *PluginRunner) Close() error {
+	if p.plg != nil {
+		p.plg.Stop()
+	}
 	return nil
 }

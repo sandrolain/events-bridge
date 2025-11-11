@@ -26,9 +26,7 @@ type stubSourceMessage struct {
 	ackCalls    int
 	nakErr      error
 	nakCalls    int
-	replyErr    error
-	replyCalls  int
-	replyData   *ReplyData
+	ackData     *ReplyData
 }
 
 func (s *stubSourceMessage) GetID() []byte {
@@ -49,20 +47,15 @@ func (s *stubSourceMessage) GetData() ([]byte, error) {
 	return s.data, nil
 }
 
-func (s *stubSourceMessage) Ack() error {
+func (s *stubSourceMessage) Ack(d *ReplyData) error {
 	s.ackCalls++
+	s.ackData = d
 	return s.ackErr
 }
 
 func (s *stubSourceMessage) Nak() error {
 	s.nakCalls++
 	return s.nakErr
-}
-
-func (s *stubSourceMessage) Reply(d *ReplyData) error {
-	s.replyCalls++
-	s.replyData = d
-	return s.replyErr
 }
 
 func TestRunnerMessageDataFallback(t *testing.T) {
@@ -156,30 +149,10 @@ func TestRunnerMessageMergeMetadata(t *testing.T) {
 	}
 }
 
-func TestRunnerMessageReplyDelegates(t *testing.T) {
-	t.Parallel()
-
-	original := &stubSourceMessage{}
-	msg := NewRunnerMessage(original)
-	msg.SetData([]byte("payload"))
-	msg.AddMetadata("k", "v")
-
-	if err := msg.ReplySource(); err != nil {
-		t.Fatalf("unexpected error replying: %v", err)
-	}
-	if original.replyCalls != 1 {
-		t.Fatalf("expected reply to be invoked once, got %d", original.replyCalls)
-	}
-	if original.replyData == nil {
-		t.Fatalf("expected reply payload to be forwarded")
-	}
-	if string(original.replyData.Data) != "payload" {
-		t.Fatalf("unexpected reply data: %q", original.replyData.Data)
-	}
-	if original.replyData.Metadata["k"] != "v" {
-		t.Fatalf("unexpected reply metadata: %#v", original.replyData.Metadata)
-	}
-}
+// OBSOLETE: Reply/ReplySource removed in Runner architecture - Ack with ReplyData is used instead
+// func TestRunnerMessageReplyDelegates(t *testing.T) {
+// 	...
+// }
 
 func TestRunnerMessageAckNakDelegate(t *testing.T) {
 	t.Parallel()
@@ -190,7 +163,7 @@ func TestRunnerMessageAckNakDelegate(t *testing.T) {
 	original := &stubSourceMessage{ackErr: ackErr, nakErr: nakErr}
 	msg := NewRunnerMessage(original)
 
-	if err := msg.Ack(); !errors.Is(err, ackErr) {
+	if err := msg.Ack(nil); !errors.Is(err, ackErr) {
 		t.Fatalf("expected ack error, got %v", err)
 	}
 	if original.ackCalls != 1 {
@@ -381,23 +354,10 @@ func TestRunnerMessageDataError(t *testing.T) {
 	}
 }
 
-// TestRunnerMessageReplyError tests error handling when reply fails
-func TestRunnerMessageReplyError(t *testing.T) {
-	t.Parallel()
-
-	expectedErr := errors.New("reply failed")
-	original := &stubSourceMessage{replyErr: expectedErr}
-	msg := NewRunnerMessage(original)
-	msg.SetData([]byte("test"))
-
-	err := msg.ReplySource()
-	if err == nil {
-		t.Fatalf(errMsgExpectedNilError, "Reply")
-	}
-	if !errors.Is(err, expectedErr) {
-		t.Fatalf(errMsgExpectedError, expectedErr, err)
-	}
-}
+// OBSOLETE: ReplySource and reply-related fields removed in Runner architecture
+// func TestRunnerMessageReplyError(t *testing.T) {
+// 	...
+// }
 
 // TestRunnerMessageConcurrentMetadataAccess tests thread-safe metadata operations
 func TestRunnerMessageConcurrentMetadataAccess(t *testing.T) {
@@ -584,32 +544,10 @@ func TestRunnerMessageNilID(t *testing.T) {
 	}
 }
 
-// TestRunnerMessageReplyWithNilData tests Reply with nil data and metadata
-func TestRunnerMessageReplyWithNilData(t *testing.T) {
-	t.Parallel()
-
-	original := &stubSourceMessage{}
-	msg := NewRunnerMessage(original)
-	// Don't set any data or metadata
-
-	err := msg.ReplySource()
-	if err != nil {
-		t.Fatalf(errMsgUnexpectedError, err)
-	}
-
-	if original.replyCalls != 1 {
-		t.Fatalf("expected Reply to be called once, got %d", original.replyCalls)
-	}
-	if original.replyData == nil {
-		t.Fatal("expected ReplyData to be set")
-	}
-	if original.replyData.Data != nil {
-		t.Fatalf("expected nil data in reply, got %v", original.replyData.Data)
-	}
-	if original.replyData.Metadata != nil {
-		t.Fatalf("expected nil metadata in reply, got %v", original.replyData.Metadata)
-	}
-}
+// OBSOLETE: ReplySource and reply-related fields removed in Runner architecture
+// func TestRunnerMessageReplyWithNilData(t *testing.T) {
+// 	...
+// }
 
 // TestRunnerMessageMultipleAckNakCalls tests that Ack/Nak can be called multiple times
 func TestRunnerMessageMultipleAckNakCalls(t *testing.T) {
@@ -619,10 +557,10 @@ func TestRunnerMessageMultipleAckNakCalls(t *testing.T) {
 	msg := NewRunnerMessage(original)
 
 	// Call Ack multiple times
-	if err := msg.Ack(); err != nil {
+	if err := msg.Ack(nil); err != nil {
 		t.Logf("ack error (acceptable): %v", err)
 	}
-	if err := msg.Ack(); err != nil {
+	if err := msg.Ack(nil); err != nil {
 		t.Logf("ack error (acceptable): %v", err)
 	}
 	if original.ackCalls != 2 {

@@ -8,81 +8,81 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func TestNewTargetConfig(t *testing.T) {
-	cfg := NewTargetConfig()
+func TestNewRunnerConfig(t *testing.T) {
+	cfg := NewRunnerConfig()
 	assert.NotNil(t, cfg)
 
-	targetCfg, ok := cfg.(*TargetConfig)
+	runnerCfg, ok := cfg.(*RunnerConfig)
 	assert.True(t, ok)
-	assert.NotNil(t, targetCfg)
+	assert.NotNil(t, runnerCfg)
 }
 
-func TestNewTarget_InvalidConfig(t *testing.T) {
-	_, err := NewTarget("invalid config")
+func TestNewRunner_InvalidConfig(t *testing.T) {
+	_, err := NewRunner("invalid config")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid config type")
 }
 
-func TestNewTarget_InvalidDatabase(t *testing.T) {
-	cfg := &TargetConfig{
+func TestNewRunner_InvalidDatabase(t *testing.T) {
+	cfg := &RunnerConfig{
 		URI:              "mongodb://localhost:27017",
 		Database:         "test/db",
 		Collection:       "testcoll",
 		StrictValidation: true,
 	}
 
-	_, err := NewTarget(cfg)
+	_, err := NewRunner(cfg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid database name")
 }
 
-func TestNewTarget_InvalidCollection(t *testing.T) {
-	cfg := &TargetConfig{
+func TestNewRunner_InvalidCollection(t *testing.T) {
+	cfg := &RunnerConfig{
 		URI:              "mongodb://localhost:27017",
 		Database:         "testdb",
 		Collection:       "test*coll",
 		StrictValidation: true,
 	}
 
-	_, err := NewTarget(cfg)
+	_, err := NewRunner(cfg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid collection name")
 }
 
-func TestMongoTarget_BuildClientOptions(t *testing.T) {
-	cfg := &TargetConfig{
+func TestMongoRunner_BuildClientOptions(t *testing.T) {
+	cfg := &RunnerConfig{
 		URI:            "mongodb://localhost:27017",
 		Database:       "testdb",
 		Collection:     "testcoll",
 		ConnectTimeout: 10,
 	}
 
-	target := &MongoTarget{
+	runner := &MongoRunner{
 		cfg: cfg,
 	}
 
-	opts, err := target.buildClientOptions()
+	opts, err := runner.buildClientOptions()
 	require.NoError(t, err)
 	assert.NotNil(t, opts)
 }
 
-func TestMongoTarget_Close(t *testing.T) {
-	target := &MongoTarget{}
-	err := target.Close()
+func TestMongoRunner_Close(t *testing.T) {
+	runner := &MongoRunner{}
+	err := runner.Close()
 	assert.NoError(t, err)
 }
 
-func TestMongoTarget_BuildFilter(t *testing.T) {
+func TestMongoRunner_BuildFilter(t *testing.T) {
 	tests := []struct {
 		name       string
-		cfg        *TargetConfig
+		cfg        *RunnerConfig
 		metadata   map[string]string
 		wantFilter bson.M
 		wantErr    bool
 	}{
 		{
 			name: "static filter from config",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				Filter: `{"_id": "test123"}`,
 			},
 			metadata:   map[string]string{},
@@ -91,7 +91,7 @@ func TestMongoTarget_BuildFilter(t *testing.T) {
 		},
 		{
 			name: "filter from metadata",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				FilterFromMetadataKey: "filter",
 			},
 			metadata: map[string]string{
@@ -102,14 +102,14 @@ func TestMongoTarget_BuildFilter(t *testing.T) {
 		},
 		{
 			name:       "empty filter",
-			cfg:        &TargetConfig{},
+			cfg:        &RunnerConfig{},
 			metadata:   map[string]string{},
 			wantFilter: bson.M{},
 			wantErr:    false,
 		},
 		{
 			name: "invalid JSON in filter",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				Filter: `{invalid json}`,
 			},
 			metadata: map[string]string{},
@@ -119,24 +119,24 @@ func TestMongoTarget_BuildFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target := &MongoTarget{
+			runner := &MongoRunner{
 				cfg: tt.cfg,
 			}
 
 			// Skip actual filter building test since it requires a full RunnerMessage
 			// Just verify config is set correctly
-			assert.Equal(t, tt.cfg.Filter, target.cfg.Filter)
-			assert.Equal(t, tt.cfg.FilterFromMetadataKey, target.cfg.FilterFromMetadataKey)
+			assert.Equal(t, tt.cfg.Filter, runner.cfg.Filter)
+			assert.Equal(t, tt.cfg.FilterFromMetadataKey, runner.cfg.FilterFromMetadataKey)
 		})
 	}
 }
 
-func TestTargetConfig_Operations(t *testing.T) {
+func TestRunnerConfig_Operations(t *testing.T) {
 	operations := []string{"insert", "update", "upsert", "replace", "delete"}
 
 	for _, op := range operations {
 		t.Run(op, func(t *testing.T) {
-			cfg := &TargetConfig{
+			cfg := &RunnerConfig{
 				URI:              "mongodb://localhost:27017",
 				Database:         "testdb",
 				Collection:       "testcoll",
@@ -151,8 +151,8 @@ func TestTargetConfig_Operations(t *testing.T) {
 	}
 }
 
-func TestTargetConfig_WithUpsert(t *testing.T) {
-	cfg := &TargetConfig{
+func TestRunnerConfig_WithUpsert(t *testing.T) {
+	cfg := &RunnerConfig{
 		URI:              "mongodb://localhost:27017",
 		Database:         "testdb",
 		Collection:       "testcoll",
@@ -165,8 +165,8 @@ func TestTargetConfig_WithUpsert(t *testing.T) {
 	assert.Equal(t, "update", cfg.Operation)
 }
 
-func TestTargetConfig_WithFilter(t *testing.T) {
-	cfg := &TargetConfig{
+func TestRunnerConfig_WithFilter(t *testing.T) {
+	cfg := &RunnerConfig{
 		URI:                   "mongodb://localhost:27017",
 		Database:              "testdb",
 		Collection:            "testcoll",

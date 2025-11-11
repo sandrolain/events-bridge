@@ -46,7 +46,7 @@ func (s *stubSecuritySourceMessage) GetData() ([]byte, error) {
 	return s.data, nil
 }
 
-func (s *stubSecuritySourceMessage) Ack() error { return nil }
+func (s *stubSecuritySourceMessage) Ack(*message.ReplyData) error { return nil }
 
 func (s *stubSecuritySourceMessage) Nak() error { return nil }
 

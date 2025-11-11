@@ -252,15 +252,15 @@ func TestNewSourceConfigValidation(t *testing.T) {
 	}
 }
 
-func TestNewTargetConfigValidation(t *testing.T) {
+func TestNewRunnerConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		cfg     *TargetConfig
+		cfg     *RunnerConfig
 		wantErr bool
 	}{
 		{
 			name: "invalid project ID",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ProjectID: "INVALID_PROJECT",
 				Topic:     "myTopic",
 			},
@@ -268,7 +268,7 @@ func TestNewTargetConfigValidation(t *testing.T) {
 		},
 		{
 			name: "invalid topic name",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ProjectID: "my-project-123",
 				Topic:     "123invalid",
 			},
@@ -276,7 +276,7 @@ func TestNewTargetConfigValidation(t *testing.T) {
 		},
 		{
 			name: "maxMessageSize too large",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ProjectID:      "my-project-123",
 				Topic:          "myTopic",
 				MaxMessageSize: 20000000,
@@ -287,9 +287,9 @@ func TestNewTargetConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewTarget(tt.cfg)
+			_, err := NewRunner(tt.cfg)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NewTarget() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewRunner() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

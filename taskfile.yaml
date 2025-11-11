@@ -73,14 +73,14 @@ tasks:
       - echo "Cleaning WASM test assets..."
       - rm -f *.wasm
 
-  build-plugin-test-asset:
+  build-plugin-connector-test-asset:
     desc: Build test plugin asset for plugin connector unit tests
     dir: ./src/connectors/plugin/testassets
     cmds:
       - echo "Building test plugin asset for connector tests..."
       - go build -o test-plugin-connector testplugin.go && du -h test-plugin-connector
 
-  build-goplugin-test-asset:
+  build-plugin-utils-test-asset:
     desc: Build test plugin asset for plugin connector unit tests using Go plugin mode
     dir: ./src/utils/testdata/testplugin
     cmds:
@@ -98,7 +98,8 @@ tasks:
     desc: Run tests with race detector and coverage (suppress linker warnings)
     deps:
       - build-wasm-test-assets
-      - build-plugin-test-asset
+      - build-plugin-utils-test-asset
+      - build-plugin-connector-test-asset
     cmds:
       - echo "Running tests with coverage (clean output)..."
       - |
@@ -113,7 +114,7 @@ tasks:
     desc: Run tests with race detector and coverage (show all output including warnings)
     deps:
       - build-wasm-test-assets
-      - build-plugin-test-asset
+      - build-plugin-connector-test-asset
     cmds:
       - echo "Running tests with coverage (verbose mode)..."
       - go test -race -coverprofile=coverage.out -covermode=atomic ./src/...

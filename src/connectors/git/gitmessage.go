@@ -32,14 +32,11 @@ func (m *GitMessage) GetData() ([]byte, error) {
 	return b, nil
 }
 
-func (m *GitMessage) Ack() error {
+func (m *GitMessage) Ack(data *message.ReplyData) error {
+	// Git source doesn't support reply
 	return nil
 }
 
 func (m *GitMessage) Nak() error {
-	return nil
-}
-
-func (m *GitMessage) Reply(data *message.ReplyData) error {
 	return nil
 }

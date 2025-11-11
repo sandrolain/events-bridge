@@ -28,14 +28,10 @@ func (m *EncDecMessage) GetData() ([]byte, error) {
 	return m.data, nil
 }
 
-func (m *EncDecMessage) Ack() error {
+func (m *EncDecMessage) Ack(data *message.ReplyData) error {
 	return nil
 }
 
 func (m *EncDecMessage) Nak() error {
-	return nil
-}
-
-func (m *EncDecMessage) Reply(*message.ReplyData) error {
 	return nil
 }

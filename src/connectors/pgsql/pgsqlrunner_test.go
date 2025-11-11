@@ -9,26 +9,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewTargetConfig(t *testing.T) {
-	cfg := NewTargetConfig()
+func TestNewRunnerConfig(t *testing.T) {
+	cfg := NewRunnerConfig()
 	require.NotNil(t, cfg)
 
-	_, ok := cfg.(*TargetConfig)
-	assert.True(t, ok, "NewTargetConfig should return *TargetConfig")
+	_, ok := cfg.(*RunnerConfig)
+	assert.True(t, ok, "NewRunnerConfig should return *RunnerConfig")
 }
 
 const validConnString = "postgres://user:pass@localhost/db"
 
-// TestTargetConfigInvalidIdentifiers tests SQL injection prevention
-func TestTargetConfigInvalidIdentifiers(t *testing.T) {
+// TestRunnerConfigInvalidIdentifiers tests SQL injection prevention
+func TestRunnerConfigInvalidIdentifiers(t *testing.T) {
 	tests := []struct {
 		name        string
-		cfg         *TargetConfig
+		cfg         *RunnerConfig
 		errContains string
 	}{
 		{
 			name: "invalid table name - SQL injection attempt",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ConnString:       validConnString,
 				Table:            "test'; DROP TABLE users; --",
 				BatchSize:        100,
@@ -38,7 +38,7 @@ func TestTargetConfigInvalidIdentifiers(t *testing.T) {
 		},
 		{
 			name: "invalid other column - SQL injection attempt",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ConnString:       validConnString,
 				Table:            "test_table",
 				OtherColumn:      "col'; DROP TABLE users; --",
@@ -51,38 +51,38 @@ func TestTargetConfigInvalidIdentifiers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target, err := NewTarget(tt.cfg)
+			runner, err := NewRunner(tt.cfg)
 
 			require.Error(t, err, "should reject invalid identifier")
 			assert.Contains(t, err.Error(), tt.errContains)
-			assert.Nil(t, target)
+			assert.Nil(t, runner)
 		})
 	}
 }
 
-// TestTargetConfigMissingFields tests validation of required fields
-func TestTargetConfigMissingFields(t *testing.T) {
+// TestRunnerConfigMissingFields tests validation of required fields
+func TestRunnerConfigMissingFields(t *testing.T) {
 	tests := []struct {
 		name string
-		cfg  *TargetConfig
+		cfg  *RunnerConfig
 	}{
 		{
 			name: "missing connection string",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				Table:     "test_table",
 				BatchSize: 100,
 			},
 		},
 		{
 			name: "missing table",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ConnString: validConnString,
 				BatchSize:  100,
 			},
 		},
 		{
 			name: "invalid connection string format",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ConnString: "not-a-valid-conn-string",
 				Table:      "test_table",
 				BatchSize:  100,
@@ -92,24 +92,24 @@ func TestTargetConfigMissingFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			target, err := NewTarget(tt.cfg)
+			runner, err := NewRunner(tt.cfg)
 
 			// Should fail (validation or connection error)
 			require.Error(t, err, "should fail with invalid config")
-			assert.Nil(t, target)
+			assert.Nil(t, runner)
 		})
 	}
 }
 
-func TestTargetConfigValidation(t *testing.T) {
+func TestRunnerConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		cfg     *TargetConfig
+		cfg     *RunnerConfig
 		wantErr bool
 	}{
 		{
 			name: "valid config structure",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ConnString: validConnString,
 				Table:      "test_table",
 				BatchSize:  100,
@@ -118,7 +118,7 @@ func TestTargetConfigValidation(t *testing.T) {
 		},
 		{
 			name: "with valid other column",
-			cfg: &TargetConfig{
+			cfg: &RunnerConfig{
 				ConnString:  validConnString,
 				Table:       "test_table",
 				OtherColumn: "extra_data",
@@ -132,16 +132,16 @@ func TestTargetConfigValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.NotNil(t, tt.cfg)
 
-			target, err := NewTarget(tt.cfg)
+			runner, err := NewRunner(tt.cfg)
 
 			if err != nil {
 				// Config valid but connection may fail in unit tests
 				t.Logf("Config valid but connection failed (expected): %v", err)
-			} else if target != nil {
+			} else if runner != nil {
 				defer func() {
-					if closer, ok := target.(interface{ Close() error }); ok {
+					if closer, ok := runner.(interface{ Close() error }); ok {
 						if err := closer.Close(); err != nil {
-							t.Logf("failed to close target: %v", err)
+							t.Logf("failed to close runner: %v", err)
 						}
 					}
 				}()
@@ -156,9 +156,9 @@ func TestPGSQLTargetCreationWithInvalidConfig(t *testing.T) {
 		"connString": "test",
 	}
 
-	target, err := NewTarget(wrongCfg)
+	runner, err := NewRunner(wrongCfg)
 	assert.Error(t, err)
-	assert.Nil(t, target)
+	assert.Nil(t, runner)
 	assert.Contains(t, err.Error(), "invalid config type")
 }
 
@@ -181,15 +181,11 @@ func (m *mockSourceMessage) GetData() ([]byte, error) {
 	return m.data, nil
 }
 
-func (m *mockSourceMessage) Ack() error {
+func (m *mockSourceMessage) Ack(*message.ReplyData) error {
 	return nil
 }
 
 func (m *mockSourceMessage) Nak() error {
-	return nil
-}
-
-func (m *mockSourceMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }
 

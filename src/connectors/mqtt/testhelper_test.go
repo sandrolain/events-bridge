@@ -60,6 +60,5 @@ type testSrcMsg struct {
 func (t *testSrcMsg) GetID() []byte                           { return []byte{0, 1} }
 func (t *testSrcMsg) GetMetadata() (map[string]string, error) { return t.meta, nil }
 func (t *testSrcMsg) GetData() ([]byte, error)                { return t.data, nil }
-func (t *testSrcMsg) Ack() error                              { return nil }
+func (t *testSrcMsg) Ack(data *message.ReplyData) error       { return nil }
 func (t *testSrcMsg) Nak() error                              { return nil }
-func (t *testSrcMsg) Reply(_ *message.ReplyData) error        { return nil }

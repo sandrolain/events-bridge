@@ -24,15 +24,11 @@ func (m *mockSourceMessage) GetData() ([]byte, error) {
 	return nil, nil
 }
 
-func (m *mockSourceMessage) Ack() error {
+func (m *mockSourceMessage) Ack(data *ReplyData) error {
 	return nil
 }
 
 func (m *mockSourceMessage) Nak() error {
-	return nil
-}
-
-func (m *mockSourceMessage) Reply(data *ReplyData) error {
 	return nil
 }
 
@@ -52,15 +48,11 @@ func (m *mockSourceMessageError) GetData() ([]byte, error) {
 	return nil, nil
 }
 
-func (m *mockSourceMessageError) Ack() error {
+func (m *mockSourceMessageError) Ack(data *ReplyData) error {
 	return nil
 }
 
 func (m *mockSourceMessageError) Nak() error {
-	return nil
-}
-
-func (m *mockSourceMessageError) Reply(data *ReplyData) error {
 	return nil
 }
 

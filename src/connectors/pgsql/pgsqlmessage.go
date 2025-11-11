@@ -26,14 +26,11 @@ func (m *PGSQLMessage) GetData() ([]byte, error) {
 	return []byte(m.notification.Payload), nil
 }
 
-func (m *PGSQLMessage) Ack() error {
+func (m *PGSQLMessage) Ack(data *message.ReplyData) error {
+	// PostgreSQL LISTEN/NOTIFY doesn't support reply
 	return nil
 }
 
 func (m *PGSQLMessage) Nak() error {
-	return nil
-}
-
-func (m *PGSQLMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

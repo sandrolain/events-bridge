@@ -157,26 +157,33 @@ func TestPluginRunner(t *testing.T) {
 	}
 }
 
-func TestPluginTarget(t *testing.T) {
+func TestPluginRunnerConsume(t *testing.T) {
+	// Test runner in consume-like mode (similar to old target behavior)
 	execPath := locateTestPlugin(t)
-	name := "tp-tgt-" + sanitizeName(t.Name())
-	cfg := &TargetConfig{Plugin: newPluginConfig(execPath, name), Timeout: 2 * time.Second}
-	tAny, err := NewTarget(cfg)
+	name := "tp-run-consume-" + sanitizeName(t.Name())
+	cfg := &RunnerConfig{Plugin: newPluginConfig(execPath, name), Timeout: 2 * time.Second}
+	rAny, err := NewRunner(cfg)
 	if err != nil {
-		t.Fatalf("NewTarget error: %v", err)
+		t.Fatalf("NewRunner error: %v", err)
 	}
-	tgt, ok := tAny.(*PluginTarget)
+	r, ok := rAny.(*PluginRunner)
 	if !ok {
-		t.Fatal("failed to cast target to PluginTarget")
+		t.Fatal("failed to cast runner to PluginRunner")
 	}
 
-	sm := &stubSourceMessage{meta: map[string]string{"k": "v"}, data: []byte("data"), id: []byte("id2")}
-	msg := message.NewRunnerMessage(sm)
-	if err := tgt.Consume(msg); err != nil {
-		t.Fatalf("Consume error: %v", err)
+	// Use JSON data like the main runner test (runner always processes through Runner interface)
+	payload := map[string]any{"test": "consume"}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
 	}
-	if err := tgt.Close(); err != nil {
-		t.Fatalf("Target Close error: %v", err)
+	sm := &stubSourceMessage{meta: map[string]string{"k": "v"}, data: data, id: []byte("id2")}
+	msg := message.NewRunnerMessage(sm)
+	if err := r.Process(msg); err != nil {
+		t.Fatalf("Process error: %v", err)
+	}
+	if err := r.Close(); err != nil {
+		t.Fatalf("Runner Close error: %v", err)
 	}
 }
 
@@ -190,9 +197,8 @@ type stubSourceMessage struct {
 func (s *stubSourceMessage) GetID() []byte                           { return s.id }
 func (s *stubSourceMessage) GetMetadata() (map[string]string, error) { return s.meta, nil }
 func (s *stubSourceMessage) GetData() ([]byte, error)                { return s.data, nil }
-func (s *stubSourceMessage) Ack() error                              { return nil }
+func (s *stubSourceMessage) Ack(data *message.ReplyData) error       { return nil }
 func (s *stubSourceMessage) Nak() error                              { return errors.New("nak not implemented in stub") }
-func (s *stubSourceMessage) Reply(d *message.ReplyData) error        { return nil }
 
 // sanitizeName replaces problematic characters in test names
 func sanitizeName(s string) string {

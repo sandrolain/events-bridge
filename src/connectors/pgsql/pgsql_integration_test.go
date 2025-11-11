@@ -164,7 +164,7 @@ func TestPostgreSQLSourceIntegration(t *testing.T) {
 		assert.Equal(t, testChannelName, metadata["channel"])
 
 		// Acknowledge the message
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -247,7 +247,7 @@ func TestPostgreSQLSourceUpdateIntegration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testChannelName, metadata["channel"])
 
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -327,7 +327,7 @@ func TestPostgreSQLSourceDeleteIntegration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testChannelName, metadata["channel"])
 
-		err = receivedMsg.Ack()
+		err = receivedMsg.Ack(nil)
 		assert.NoError(t, err)
 
 	case <-ctx.Done():
@@ -408,7 +408,7 @@ func TestPostgreSQLSourceMultipleOperationsIntegration(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, testChannelName, metadata["channel"])
 
-			err = receivedMsg.Ack()
+			err = receivedMsg.Ack(nil)
 			assert.NoError(t, err)
 
 			receivedCount++

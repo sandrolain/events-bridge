@@ -25,16 +25,13 @@ func (m *PubSubMessage) GetData() ([]byte, error) {
 	return m.msg.Data, nil
 }
 
-func (m *PubSubMessage) Ack() error {
+func (m *PubSubMessage) Ack(data *message.ReplyData) error {
+	// Google Pub/Sub doesn't support reply
 	m.msg.Ack()
 	return nil
 }
 
 func (m *PubSubMessage) Nak() error {
 	m.msg.Nack()
-	return nil
-}
-
-func (m *PubSubMessage) Reply(reply *message.ReplyData) error {
 	return nil
 }

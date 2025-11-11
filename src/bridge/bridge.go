@@ -32,7 +32,6 @@ type EventsBridge struct {
 	logger  *slog.Logger
 	source  connectors.Source
 	runners []RunnerItem
-	target  connectors.Target
 }
 
 // HandleSuccess acknowledges a message successfully and logs at info level
@@ -42,7 +41,7 @@ func (b *EventsBridge) HandleSuccess(msg *message.RunnerMessage, operation strin
 		b.logger.Warn("cannot ack nil message in " + operation)
 		return
 	}
-	if ackErr := msg.Ack(); ackErr != nil {
+	if ackErr := msg.Ack(nil); ackErr != nil {
 		b.logger.Error("failed to ack message after "+operation, "error", ackErr)
 	}
 }
@@ -87,10 +86,6 @@ func NewEventsBridge(cfg *config.Config, logger *slog.Logger) (*EventsBridge, er
 
 	if err := bridge.initializeRunners(); err != nil {
 		return nil, fmt.Errorf("runners init: %w", err)
-	}
-
-	if err := bridge.initializeTarget(); err != nil {
-		return nil, fmt.Errorf("target init: %w", err)
 	}
 
 	return bridge, nil
@@ -150,30 +145,6 @@ func (b *EventsBridge) initializeRunners() error {
 	return nil
 }
 
-// initializeTarget creates and configures the target connector
-func (b *EventsBridge) initializeTarget() error {
-	if b.cfg.Target.Type == "" || b.cfg.Target.Type == "none" {
-		b.logger.Info("no target configured, messages will be replied back to source if supported")
-		return nil
-	}
-
-	b.logger.Info("creating target", "type", b.cfg.Target.Type)
-
-	target, err := utils.LoadPluginAndConfig[connectors.Target](
-		connectorPath(b.cfg.Target.Type),
-		connectors.NewTargetMethodName,
-		connectors.NewTargetConfigName,
-		b.cfg.Target.Options,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create target: %w", err)
-	}
-
-	b.target = target
-	b.logger.Info("target created")
-	return nil
-}
-
 // Run starts the event bridge and processes messages until context is cancelled
 func (b *EventsBridge) Run(ctx context.Context) error {
 	// Start message production from source
@@ -193,11 +164,7 @@ func (b *EventsBridge) Run(ctx context.Context) error {
 		b.logger.Info("no runner configured, passing messages through without processing")
 	}
 
-	// Consume messages with target or reply to source
-	if b.target != nil {
-		return b.consumeWithTarget(out)
-	}
-	return b.replyToSource(out)
+	return b.ackSource(out)
 }
 
 // processRunnerMessage processes a single message with the given runner and evaluators
@@ -271,26 +238,11 @@ func (b *EventsBridge) applyRunners(stream rill.Stream[*message.RunnerMessage]) 
 	return out
 }
 
-// consumeWithTarget consumes messages using the configured target
-func (b *EventsBridge) consumeWithTarget(stream rill.Stream[*message.RunnerMessage]) error {
-	routines := min(b.cfg.Target.Routines, 1)
-	b.logger.Info("target starting to consume messages", "routines", routines)
-
-	return rill.ForEach(stream, routines, func(msg *message.RunnerMessage) error {
-		if err := b.target.Consume(msg); err != nil {
-			b.HandleError(msg, err, "failed to consume message with target")
-			return nil
-		}
-		b.HandleSuccess(msg, "message consumed by target")
-		return nil
-	})
-}
-
-// replyToSource replies messages back to the source
-func (b *EventsBridge) replyToSource(stream rill.Stream[*message.RunnerMessage]) error {
+// ackSource acknowledges messages back to the source
+func (b *EventsBridge) ackSource(stream rill.Stream[*message.RunnerMessage]) error {
 	return rill.ForEach(stream, 1, func(msg *message.RunnerMessage) error {
-		if err := msg.ReplySource(); err != nil {
-			b.HandleError(msg, err, "failed to reply message back to source")
+		if err := msg.AckSource(b.cfg.Source.Reply); err != nil {
+			b.HandleError(msg, err, "failed to ack message", "reply", b.cfg.Source.Reply)
 		}
 		return nil
 	})
@@ -313,13 +265,6 @@ func (b *EventsBridge) Close() error {
 			if err := closeWithRetry(runnerItem.Runner.Close, 3, time.Second); err != nil {
 				closeErrors = append(closeErrors, fmt.Errorf("failed to close runner %d: %w", i, err))
 			}
-		}
-	}
-
-	// Close target
-	if b.target != nil {
-		if err := closeWithRetry(b.target.Close, 3, time.Second); err != nil {
-			closeErrors = append(closeErrors, fmt.Errorf("failed to close target: %w", err))
 		}
 	}
 

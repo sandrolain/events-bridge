@@ -15,6 +15,7 @@ type Source interface {
 type SourceConfig struct {
 	Type   string `yaml:"type" json:"type" validate:"required"`
 	Buffer int    `yaml:"buffer" json:"buffer"`
+	Reply  bool   `yaml:"reply" json:"reply"`
 	// Generic options passed to connector plugins. Preferred over typed fields below.
 	Options map[string]any `yaml:"options" json:"options"`
 }

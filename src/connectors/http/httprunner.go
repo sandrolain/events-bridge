@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
@@ -17,9 +18,11 @@ var _ connectors.Runner = (*HTTPRunner)(nil)
 // HTTPRunnerConfig holds configuration for the HTTP runner.
 // It mirrors the style of the HTTP source/target configs.
 type HTTPRunnerConfig struct {
-	Method  string        `mapstructure:"method" default:"POST" validate:"required,oneof=GET POST PUT DELETE PATCH HEAD OPTIONS"`
-	URL     string        `mapstructure:"url" validate:"required,url"`
-	Timeout time.Duration `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	Method  string            `mapstructure:"method" default:"POST" validate:"required,oneof=GET POST PUT DELETE PATCH HEAD OPTIONS"`
+	URL     string            `mapstructure:"url" validate:"required,url"`
+	Headers map[string]string `mapstructure:"headers"`
+	Timeout time.Duration     `mapstructure:"timeout" default:"5s" validate:"gt=0"`
+	TLS     tlsconfig.Config  `mapstructure:"tls"`
 }
 
 // NewRunnerConfig returns a new HTTPRunnerConfig instance (exported for plugin loading conventions).
@@ -38,13 +41,21 @@ func NewRunner(anyCfg any) (connectors.Runner, error) { //nolint:revive
 		cfg.Method = "POST"
 	}
 
+	// Build TLS config if enabled
+	tlsConfig, err := tlsconfig.BuildClientConfigIfEnabled(&cfg.TLS)
+	if err != nil {
+		return nil, err
+	}
+
 	client := &fasthttp.Client{
 		ReadTimeout:                   cfg.Timeout,
 		WriteTimeout:                  cfg.Timeout,
 		NoDefaultUserAgentHeader:      true,
 		DisableHeaderNamesNormalizing: true,
 		DisablePathNormalizing:        true,
-		Dial: (&fasthttp.TCPDialer{ // replicate target dialer tuning
+		TLSConfig:                     tlsConfig,
+		MaxConnsPerHost:               100,
+		Dial: (&fasthttp.TCPDialer{
 			Concurrency: 4096,
 		}).Dial,
 	}
@@ -84,6 +95,11 @@ func (r *HTTPRunner) Process(msg *message.RunnerMessage) error {
 
 	req.Header.SetMethod(method)
 	req.SetRequestURI(url)
+
+	// Add custom headers from config first
+	for k, v := range r.cfg.Headers {
+		req.Header.Set(k, v)
+	}
 
 	// Forward message metadata as headers (like target implementation)
 	for k, v := range metadata {

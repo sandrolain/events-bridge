@@ -12,8 +12,8 @@ const (
 	errExpectedNATSSource      = "expected *NATSSource, got %T"
 	errExpectedAuthTrue        = "expected hasAuthentication to return true"
 	errExpectedAuthFalse       = "expected hasAuthentication to return false"
-	errExpectedTargetAuthTrue  = "expected hasTargetAuthentication to return true"
-	errExpectedTargetAuthFalse = "expected hasTargetAuthentication to return false"
+	errExpectedTargetAuthTrue  = "expected hasRunnerAuthentication to return true"
+	errExpectedTargetAuthFalse = "expected hasRunnerAuthentication to return false"
 	errUnexpectedError         = "unexpected error: %v"
 )
 
@@ -179,32 +179,32 @@ func TestSourceConfigReconnection(t *testing.T) {
 	}
 }
 
-func TestTargetConfigWithAuthentication(t *testing.T) {
-	cfg := &TargetConfig{
+func TestRunnerConfigWithAuthentication(t *testing.T) {
+	cfg := &RunnerConfig{
 		Address:  testAddress,
 		Subject:  testSubject,
 		Username: "testuser",
 		Password: "testpass",
 	}
 
-	if !hasTargetAuthentication(cfg) {
+	if hasRunnerAuthentication(cfg) == "" {
 		t.Error(errExpectedTargetAuthTrue)
 	}
 }
 
-func TestTargetConfigNoAuthentication(t *testing.T) {
-	cfg := &TargetConfig{
+func TestRunnerConfigNoAuthentication(t *testing.T) {
+	cfg := &RunnerConfig{
 		Address: testAddress,
 		Subject: testSubject,
 	}
 
-	if hasTargetAuthentication(cfg) {
+	if hasRunnerAuthentication(cfg) != "none" {
 		t.Error(errExpectedTargetAuthFalse)
 	}
 }
 
-func TestTargetConfigWithTLS(t *testing.T) {
-	cfg := &TargetConfig{
+func TestRunnerConfigWithTLS(t *testing.T) {
+	cfg := &RunnerConfig{
 		Address: "tls://localhost:4222",
 		Subject: testSubject,
 		TLS: &tlsconfig.Config{
@@ -229,8 +229,8 @@ func TestNewSourceConfigInvalidType(t *testing.T) {
 	}
 }
 
-func TestNewTargetConfigInvalidType(t *testing.T) {
-	_, err := NewTarget("invalid config")
+func TestNewRunnerConfigInvalidType(t *testing.T) {
+	_, err := NewRunner("invalid config")
 	if err == nil {
 		t.Fatal("expected error for invalid config type")
 	}

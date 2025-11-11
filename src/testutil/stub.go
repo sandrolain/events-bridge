@@ -14,13 +14,11 @@ type StubSourceMessage struct {
 	MetaErr  error
 	AckErr   error
 	NakErr   error
-	ReplyErr error
 
 	// Call counters for verification in tests
-	AckCalls   int
-	NakCalls   int
-	ReplyCalls int
-	ReplyData  any // Stores any reply data passed
+	AckCalls int
+	NakCalls int
+	AckData  any // Stores any ack data passed
 }
 
 // NewStubSourceMessage creates a stub with sensible defaults.
@@ -35,12 +33,11 @@ func NewStubSourceMessage(data []byte, metadata map[string]string) *StubSourceMe
 
 // WithError configures the stub to return errors for various operations.
 // This is useful for testing error handling paths.
-func (s *StubSourceMessage) WithError(dataErr, metaErr, ackErr, nakErr, replyErr error) *StubSourceMessage {
+func (s *StubSourceMessage) WithError(dataErr, metaErr, ackErr, nakErr error) *StubSourceMessage {
 	s.DataErr = dataErr
 	s.MetaErr = metaErr
 	s.AckErr = ackErr
 	s.NakErr = nakErr
-	s.ReplyErr = replyErr
 	return s
 }
 
@@ -60,8 +57,9 @@ func (s *StubSourceMessage) GetData() ([]byte, error) {
 }
 
 // Ack acknowledges the message and increments the counter.
-func (s *StubSourceMessage) Ack() error {
+func (s *StubSourceMessage) Ack(d any) error {
 	s.AckCalls++
+	s.AckData = d
 	return s.AckErr
 }
 
@@ -69,12 +67,4 @@ func (s *StubSourceMessage) Ack() error {
 func (s *StubSourceMessage) Nak() error {
 	s.NakCalls++
 	return s.NakErr
-}
-
-// Reply sends a reply for the message, stores it, and increments the counter.
-// Accepts any type to avoid import cycles.
-func (s *StubSourceMessage) Reply(d any) error {
-	s.ReplyCalls++
-	s.ReplyData = d
-	return s.ReplyErr
 }
