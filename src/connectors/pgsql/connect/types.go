@@ -2,6 +2,13 @@ package dbstore
 
 import "time"
 
+// ColumnDefinition represents a column definition for table creation/migration
+type ColumnDefinition struct {
+	Name     string // Column name
+	Type     string // PostgreSQL data type (e.g., "SERIAL PRIMARY KEY", "VARCHAR(100)", "JSONB NOT NULL")
+	Nullable bool   // True if the column is nullable (optional, overridden by type constraints)
+}
+
 // Column represents a column of a PostgreSQL table.
 type Column struct {
 	Name     string // Column name

@@ -27,6 +27,15 @@ type RunnerConfig struct {
 	// Additional column name for metadata or other data
 	OtherColumn string `mapstructure:"otherColumn"`
 
+	// Table schema definition (columns)
+	// Used for table creation and automigrate
+	// Example: [{"name": "id", "type": "SERIAL PRIMARY KEY"}, {"name": "data", "type": "JSONB"}]
+	Columns []dbstore.ColumnDefinition `mapstructure:"columns"`
+
+	// Enable automatic table migration
+	// If true, creates table if missing and adds/modifies columns to match Columns definition
+	AutoMigrate bool `mapstructure:"autoMigrate" default:"false"`
+
 	// Conflict resolution strategy: DO NOTHING, DO UPDATE
 	OnConflict dbstore.InsertRecordOnConflict `mapstructure:"onConflict" default:"DO NOTHING"`
 
@@ -129,6 +138,24 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}
 
 	target.pool = pool
+
+	// Ensure table exists and apply migrations if needed
+	if len(cfg.Columns) > 0 {
+		ensureArgs := dbstore.EnsureTableArgs{
+			TableName:   cfg.Table,
+			Columns:     cfg.Columns,
+			AutoMigrate: cfg.AutoMigrate,
+		}
+		if err := dbstore.EnsureTable(ctx, pool, ensureArgs); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("failed to ensure table: %w", err)
+		}
+		target.slog.Info("table ensured",
+			"table", cfg.Table,
+			"autoMigrate", cfg.AutoMigrate,
+			"columns", len(cfg.Columns),
+		)
+	}
 
 	tlsEnabled := cfg.TLS != nil && cfg.TLS.Enabled
 	target.slog.Info("PGSQL target connected",

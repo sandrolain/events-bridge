@@ -17,9 +17,16 @@ commands:
             options:
               connString: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
               table: "events"
+              columns:
+                - name: "id"
+                  type: "SERIAL PRIMARY KEY"
+                - name: "sentiment"
+                  type: "VARCHAR(100) NOT NULL"
+                - name: "extra_data"
+                  type: "JSONB"
               otherColumn: "extra_data"
               onConflict: "DO UPDATE"
-              conflictColumns: "event_id"
+              conflictColumns: "id"
               batchSize: 100
     args: []
     restartTries: 0

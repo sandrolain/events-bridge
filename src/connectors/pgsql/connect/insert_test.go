@@ -1,4 +1,4 @@
-package dbstore_test
+package dbstore
 
 import (
 	"context"
@@ -11,8 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
-
-	connectpkg "github.com/sandrolain/events-bridge/src/connectors/pgsql/connect"
 )
 
 var (
@@ -106,20 +104,20 @@ func createTestTable(t *testing.T, db *pgxpool.Pool) {
 func TestInsertRecordSingleAndBatch(t *testing.T) {
 	createTestTable(t, testDB)
 
-	args := connectpkg.InsertRecordArgs{
+	args := InsertRecordArgs{
 		TableName:    "test_records",
-		BatchRecords: []connectpkg.Record{{"name": "Alice", "age": 30, "active": true}},
+		BatchRecords: []Record{{"name": "Alice", "age": 30, "active": true}},
 	}
-	err := connectpkg.InsertRecord(context.Background(), testDB, args)
+	err := InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	// Batch insert
-	batch := []connectpkg.Record{
+	batch := []Record{
 		{"name": "Bob", "age": 25, "active": false},
 		{"name": "Carol", "age": 40, "active": true},
 	}
 	args.BatchRecords = batch
-	err = connectpkg.InsertRecord(context.Background(), testDB, args)
+	err = InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	// Check all records
@@ -140,19 +138,19 @@ func TestInsertRecordSingleAndBatch(t *testing.T) {
 func TestInsertRecordOtherColumnJSONB(t *testing.T) {
 	createTestTable(t, testDB)
 
-	record := connectpkg.Record{
+	record := Record{
 		"name":   "Dario",
 		"age":    22,
 		"active": true,
 		"extra1": "foo",
 		"extra2": 123,
 	}
-	args := connectpkg.InsertRecordArgs{
+	args := InsertRecordArgs{
 		TableName:    "test_records",
 		OtherColumn:  "meta",
-		BatchRecords: []connectpkg.Record{record},
+		BatchRecords: []Record{record},
 	}
-	err := connectpkg.InsertRecord(context.Background(), testDB, args)
+	err := InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	// Check meta column
@@ -169,21 +167,21 @@ func TestInsertRecordOnConflictAndBatch(t *testing.T) {
 	createTestTable(t, testDB)
 
 	// Insert initial record
-	args := connectpkg.InsertRecordArgs{
+	args := InsertRecordArgs{
 		TableName:    "test_records",
-		BatchRecords: []connectpkg.Record{{"name": "Eve", "age": 50, "active": true}},
+		BatchRecords: []Record{{"name": "Eve", "age": 50, "active": true}},
 	}
-	err := connectpkg.InsertRecord(context.Background(), testDB, args)
+	err := InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	// Insert with conflict (same name, but name is not unique, so add constraint)
 	_, err = testDB.Exec(context.Background(), "CREATE UNIQUE INDEX unique_name ON test_records(name)")
 	require.NoError(t, err)
 
-	args.BatchRecords = []connectpkg.Record{{"name": "Eve", "age": 51, "active": false}}
-	args.OnConflict = connectpkg.DoNothing
+	args.BatchRecords = []Record{{"name": "Eve", "age": 51, "active": false}}
+	args.OnConflict = DoNothing
 	args.ConflictColumns = "name"
-	err = connectpkg.InsertRecord(context.Background(), testDB, args)
+	err = InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	// Should not update
@@ -195,10 +193,10 @@ func TestInsertRecordOnConflictAndBatch(t *testing.T) {
 	require.Equal(t, true, active)
 
 	// Now test DO UPDATE
-	args.OnConflict = connectpkg.DoUpdate
+	args.OnConflict = DoUpdate
 	args.ConflictColumns = "name"
-	args.BatchRecords = []connectpkg.Record{{"name": "Eve", "age": 60, "active": false}}
-	err = connectpkg.InsertRecord(context.Background(), testDB, args)
+	args.BatchRecords = []Record{{"name": "Eve", "age": 60, "active": false}}
+	err = InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	row = testDB.QueryRow(context.Background(), "SELECT age, active FROM test_records WHERE name = 'Eve'")
@@ -209,20 +207,20 @@ func TestInsertRecordOnConflictAndBatch(t *testing.T) {
 
 func TestInsertRecordBatchSize(t *testing.T) {
 	createTestTable(t, testDB)
-	batch := make([]connectpkg.Record, 0, 150)
+	batch := make([]Record, 0, 150)
 	for i := 0; i < 150; i++ {
-		batch = append(batch, connectpkg.Record{
+		batch = append(batch, Record{
 			"name":   fmt.Sprintf("User%d", i),
 			"age":    20 + i%10,
 			"active": i%2 == 0,
 		})
 	}
-	args := connectpkg.InsertRecordArgs{
+	args := InsertRecordArgs{
 		TableName:    "test_records",
 		BatchRecords: batch,
 		BatchSize:    50,
 	}
-	err := connectpkg.InsertRecord(context.Background(), testDB, args)
+	err := InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	var count int
@@ -233,16 +231,16 @@ func TestInsertRecordBatchSize(t *testing.T) {
 
 func TestInsertRecordNullAndTypes(t *testing.T) {
 	createTestTable(t, testDB)
-	record := connectpkg.Record{
+	record := Record{
 		"name":   "NullTest",
 		"age":    nil,
 		"active": false,
 	}
-	args := connectpkg.InsertRecordArgs{
+	args := InsertRecordArgs{
 		TableName:    "test_records",
-		BatchRecords: []connectpkg.Record{record},
+		BatchRecords: []Record{record},
 	}
-	err := connectpkg.InsertRecord(context.Background(), testDB, args)
+	err := InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 
 	row := testDB.QueryRow(context.Background(), "SELECT age FROM test_records WHERE name = 'NullTest'")
@@ -254,18 +252,18 @@ func TestInsertRecordNullAndTypes(t *testing.T) {
 
 func TestInsertRecordErrorCases(t *testing.T) {
 	// Non-existent table
-	args := connectpkg.InsertRecordArgs{
+	args := InsertRecordArgs{
 		TableName:    "not_exists",
-		BatchRecords: []connectpkg.Record{{"foo": 1}},
+		BatchRecords: []Record{{"foo": 1}},
 	}
-	err := connectpkg.InsertRecord(context.Background(), testDB, args)
+	err := InsertRecord(context.Background(), testDB, args)
 	require.Error(t, err)
 
 	// Empty batch
-	args = connectpkg.InsertRecordArgs{
+	args = InsertRecordArgs{
 		TableName:    "test_records",
 		BatchRecords: nil,
 	}
-	err = connectpkg.InsertRecord(context.Background(), testDB, args)
+	err = InsertRecord(context.Background(), testDB, args)
 	require.NoError(t, err)
 }

@@ -1,0 +1,51 @@
+# PostgreSQL Runner AutoMigrate Configuration Example
+
+connString: "postgres://user:password@localhost:5432/mydb?sslmode=disable"
+table: "events"
+
+# Define table columns for automatic table creation and migration
+columns:
+  - name: "id"
+    type: "SERIAL PRIMARY KEY"
+  - name: "event_type"
+    type: "VARCHAR(100) NOT NULL"
+  - name: "payload"
+    type: "JSONB"
+  - name: "metadata"
+    type: "JSONB"
+  - name: "created_at"
+    type: "TIMESTAMP DEFAULT NOW()"
+  - name: "processed"
+    type: "BOOLEAN DEFAULT FALSE"
+
+# Enable automatic table migration
+# If true, the runner will:
+# - Create the table if it doesn't exist
+# - Add missing columns to match the definition above
+# - Attempt to modify existing columns in a non-destructive way
+autoMigrate: true
+
+# Conflict resolution strategy
+onConflict: "DO NOTHING"
+
+# Optional: Specify conflict columns for upsert behavior
+# conflictColumns: "event_type,created_at"
+
+# Optional: Use a specific constraint for conflict resolution
+# conflictConstraint: "events_unique_idx"
+
+# Batch size for bulk inserts
+batchSize: 100
+
+# Connection pool settings
+maxConns: 10
+minConns: 2
+
+# Enable strict identifier validation (recommended)
+strictValidation: true
+# Optional: TLS configuration
+# tls:
+#   enabled: true
+#   certFile: "/path/to/cert.pem"
+#   keyFile: "/path/to/key.pem"
+#   caFile: "/path/to/ca.pem"
