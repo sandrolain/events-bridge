@@ -20,7 +20,7 @@ func TestMQTTRunnerNewRunnerValidation(t *testing.T) {
 }
 
 func TestMQTTRunnerCloseWithoutStart(t *testing.T) {
-	// Construct target with minimal config but don't connect a real broker
+	// Construct runner with minimal config but don't connect a real broker
 	tgt := &MQTTRunner{}
 	if err := tgt.Close(); err != nil {
 		t.Fatalf("unexpected close error: %v", err)
@@ -39,13 +39,13 @@ func TestMQTTEndToEndTargetToSourceIntegration(t *testing.T) {
 	}
 	defer sIface.Close() //nolint:errcheck
 
-	// Target publishes to topic
+	// Runner publishes to topic
 	tIface := mustNewMQTTRunner(t, map[string]any{"address": addr, "topic": "ab/cd", "clientId": "tgt1", "topicFromMetadataKey": "topic", "qos": 1})
 	defer tIface.Close() //nolint:errcheck
 
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("ping"), meta: map[string]string{"topic": "ab/cd"}})
 	if err := tIface.Process(rm); err != nil {
-		t.Fatalf("target consume: %v", err)
+		t.Fatalf("runner process: %v", err)
 	}
 
 	select {
@@ -82,7 +82,7 @@ func TestMQTTRunnerDynamicTopicFromMetadataIntegration(t *testing.T) {
 	rm := message.NewRunnerMessage(&testSrcMsg{data: []byte("dyn")})
 	rm.AddMetadata("topic", "dyn/x")
 	if err := tIface.Process(rm); err != nil {
-		t.Fatalf("target consume: %v", err)
+		t.Fatalf("runner process: %v", err)
 	}
 
 	select {
@@ -106,7 +106,7 @@ func mustNewMQTTRunner(t *testing.T, opts map[string]any) *MQTTRunner {
 	t.Helper()
 	cfg := new(RunnerConfig)
 	if err := utils.ParseConfig(opts, cfg); err != nil {
-		t.Fatalf("failed to parse target config: %v", err)
+		t.Fatalf("failed to parse runner config: %v", err)
 	}
 	tgt, err := NewRunner(cfg)
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 var _ connectors.Runner = (*HTTPRunner)(nil)
 
 // HTTPRunnerConfig holds configuration for the HTTP runner.
-// It mirrors the style of the HTTP source/target configs.
+// It mirrors the style of the HTTP source/runner configs.
 type HTTPRunnerConfig struct {
 	Method  string            `mapstructure:"method" default:"POST" validate:"required,oneof=GET POST PUT DELETE PATCH HEAD OPTIONS"`
 	URL     string            `mapstructure:"url" validate:"required,url"`
@@ -101,12 +101,12 @@ func (r *HTTPRunner) Process(msg *message.RunnerMessage) error {
 		req.Header.Set(k, v)
 	}
 
-	// Forward message metadata as headers (like target implementation)
+	// Forward message metadata as headers (like runner implementation)
 	for k, v := range metadata {
 		req.Header.Add(k, v)
 	}
 
-	// Set body (even for GET etc., mirroring target behavior; caller controls method semantics)
+	// Set body (even for GET etc., mirroring runner behavior; caller controls method semantics)
 	if len(data) > 0 {
 		req.SetBody(data)
 	}
@@ -121,7 +121,7 @@ func (r *HTTPRunner) Process(msg *message.RunnerMessage) error {
 	}
 
 	status := res.StatusCode()
-	if status > 299 { // treat non 2xx as failure (similar to target)
+	if status > 299 { // treat non 2xx as failure (similar to runner)
 		return fmt.Errorf("non-2XX status code: %d", status)
 	}
 

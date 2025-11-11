@@ -78,17 +78,17 @@ func TestKafkaSourceIntegration(t *testing.T) {
 	msgChan, err := source.Produce(10)
 	require.NoError(t, err)
 
-	// Setup target to send test messages
-	targetCfg := &RunnerConfig{
+	// Setup runner to send test messages
+	runnerCfg := &RunnerConfig{
 		Brokers:           kafkaBrokers,
 		Topic:             testTopicSource,
 		Partitions:        1,
 		ReplicationFactor: 1,
 	}
 
-	target, err := NewRunner(targetCfg)
+	runner, err := NewRunner(runnerCfg)
 	require.NoError(t, err)
-	defer target.Close()
+	defer runner.Close()
 
 	// Send test message
 	testData := []byte("test message data")
@@ -101,7 +101,7 @@ func TestKafkaSourceIntegration(t *testing.T) {
 		},
 	})
 
-	err = target.Process(testMsg)
+	err = runner.Process(testMsg)
 	require.NoError(t, err)
 
 	// Wait for message to be received
@@ -128,22 +128,22 @@ func TestKafkaSourceIntegration(t *testing.T) {
 	}
 }
 
-func TestKafkaTargetIntegration(t *testing.T) {
+func TestKafkaRunnerIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Setup target configuration
-	targetCfg := &RunnerConfig{
+	// Setup runner configuration
+	runnerCfg := &RunnerConfig{
 		Brokers:           kafkaBrokers,
 		Topic:             testTopicTarget,
 		Partitions:        1,
 		ReplicationFactor: 1,
 	}
 
-	// Create target
-	target, err := NewRunner(targetCfg)
+	// Create runner
+	runner, err := NewRunner(runnerCfg)
 	require.NoError(t, err)
-	defer target.Close()
+	defer runner.Close()
 
 	// Create test message
 	testData := []byte("integration test message")
@@ -160,8 +160,8 @@ func TestKafkaTargetIntegration(t *testing.T) {
 		metadata: testMetadata,
 	})
 
-	// Send message through target
-	err = target.Process(testMsg)
+	// Send message through runner
+	err = runner.Process(testMsg)
 	require.NoError(t, err)
 
 	// Setup source to verify message was sent
@@ -220,17 +220,17 @@ func TestKafkaRoundTripIntegration(t *testing.T) {
 	msgChan, err := source.Produce(10)
 	require.NoError(t, err)
 
-	// Setup target
-	targetCfg := &RunnerConfig{
+	// Setup runner
+	runnerCfg := &RunnerConfig{
 		Brokers:           kafkaBrokers,
 		Topic:             topicName,
 		Partitions:        1,
 		ReplicationFactor: 1,
 	}
 
-	target, err := NewRunner(targetCfg)
+	runner, err := NewRunner(runnerCfg)
 	require.NoError(t, err)
-	defer target.Close()
+	defer runner.Close()
 
 	// Send multiple test messages
 	numMessages := 5
@@ -249,7 +249,7 @@ func TestKafkaRoundTripIntegration(t *testing.T) {
 			},
 		})
 
-		err = target.Process(testMsg)
+		err = runner.Process(testMsg)
 		require.NoError(t, err)
 
 		sentMessages[string(testID)] = testData

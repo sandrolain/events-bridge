@@ -147,7 +147,7 @@ func (r *CoAPRunner) Close() error { //nolint:revive
 	return nil
 }
 
-// validateRunnerSecurity mirrors target/source DTLS validation logic for runner.
+// validateRunnerSecurity mirrors source/runner DTLS validation logic for runner.
 func validateRunnerSecurity(cfg *CoAPRunnerConfig) error {
 	if cfg.Protocol != CoAPProtocolDTLS {
 		return nil

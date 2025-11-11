@@ -69,7 +69,7 @@ func TestRunnerMessageDataFallback(t *testing.T) {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
 	if string(data) != "origin" {
-		t.Fatalf("unexpected target data: %q", data)
+		t.Fatalf("unexpected data: %q", data)
 	}
 }
 
@@ -85,7 +85,7 @@ func TestRunnerMessageDataOverride(t *testing.T) {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
 	if string(data) != "override" {
-		t.Fatalf("unexpected target data: %q", data)
+		t.Fatalf("unexpected data: %q", data)
 	}
 }
 
@@ -312,7 +312,7 @@ func TestRunnerMessageGetSourceDataError(t *testing.T) {
 	}
 }
 
-// TestRunnerMessageMetadataError tests error handling when target metadata fetch fails
+// TestRunnerMessageMetadataError tests error handling when metadata fetch fails
 func TestRunnerMessageMetadataError(t *testing.T) {
 	t.Parallel()
 
@@ -333,7 +333,7 @@ func TestRunnerMessageMetadataError(t *testing.T) {
 	}
 }
 
-// TestRunnerMessageDataError tests error handling when target data fetch fails
+// TestRunnerMessageDataError tests error handling when data fetch fails
 func TestRunnerMessageDataError(t *testing.T) {
 	t.Parallel()
 
@@ -606,15 +606,15 @@ func TestRunnerMessageMetadataIsolation(t *testing.T) {
 		t.Fatal("local metadata leaked into source metadata")
 	}
 
-	// Target metadata should have local changes
-	targetMeta, err := msg.GetMetadata()
+	// Runner metadata should have local changes
+	runnerMeta, err := msg.GetMetadata()
 	if err != nil {
 		t.Fatalf(errMsgUnexpectedError, err)
 	}
-	if targetMeta["source"] != "modified" {
-		t.Fatalf("expected modified source in target metadata, got %#v", targetMeta)
+	if runnerMeta["source"] != "modified" {
+		t.Fatalf("expected modified source in runner metadata, got %#v", runnerMeta)
 	}
-	if targetMeta["local"] != "value" {
-		t.Fatalf("expected local metadata in target, got %#v", targetMeta)
+	if runnerMeta["local"] != "value" {
+		t.Fatalf("expected local metadata in runner, got %#v", runnerMeta)
 	}
 }
