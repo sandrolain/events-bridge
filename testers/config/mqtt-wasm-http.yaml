@@ -15,17 +15,15 @@ commands:
             client_id: "mqtt-to-http-client"
             consumer_group: "mqtt-to-http-group"
 
-        target:
-          type: "http"
-          options:
-            method: "POST"
-            url: "http://localhost:8080/api/data"
-          routines: 8
-
         runners:
           - type: "wasm"
             options:
               path: "./testers/bin/wasmrunner.wasm"
+            routines: 8
+          - type: "http"
+            options:
+              method: "POST"
+              url: "http://localhost:8080/api/data"
             routines: 8
     args: []
     restartTries: 0

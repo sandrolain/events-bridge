@@ -13,12 +13,6 @@ commands:
           options:
             address: "localhost:4222"
             subject: "test.subject.in"
-        target:
-          type: "nats"
-          options:
-            address: "localhost:4222"
-            subject: "test.subject.out"
-          routines: 8
         runners:
           - type: "jsonlogic"
             options:
@@ -30,6 +24,12 @@ commands:
             options:
               command: "php"
               args: ["./testers/runners/phprunner/test.php"]
+              format: "json"
+            routines: 8
+          - type: "nats"
+            options:
+              address: "localhost:4222"
+              subject: "test.subject.out"
             routines: 8
     args: []
     restartTries: 0

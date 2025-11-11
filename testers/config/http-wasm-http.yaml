@@ -13,14 +13,6 @@ commands:
             address: "localhost:8080"
             method: "POST"
             path: "/event"
-
-        target:
-          type: "http"
-          options:
-            method: "POST"
-            url: "http://localhost:9090/api/data"
-          routines: 8
-
         runners:
           - type: "wasm"
             options:
@@ -28,6 +20,11 @@ commands:
               mountPath: "./testers/runners/wasmrunner"
               env:
                 FILE_NAME: "test1.txt"
+            routines: 8
+          - type: "http"
+            options:
+              method: "POST"
+              url: "http://localhost:9090/api/data"
             routines: 8
     args: []
     restartTries: 0

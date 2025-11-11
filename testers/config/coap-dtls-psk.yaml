@@ -13,10 +13,10 @@ connectors:
       psk: "env:COAP_PSK_SECRET" # Load from environment variable
       maxPayloadSize: 1152
 
-  # CoAP Target with DTLS PSK authentication
+  # CoAP output with DTLS PSK authentication
   # PSK secret loaded from file
   - name: coap_dtls_target
-    type: target
+    type: runner
     connector: coap
     config:
       protocol: dtls
@@ -43,4 +43,6 @@ connectors:
 
 routes:
   - source: coap_dtls_source
-    target: coap_dtls_target
+    runners:
+      - coap_dtls_runner
+      - coap_dtls_target

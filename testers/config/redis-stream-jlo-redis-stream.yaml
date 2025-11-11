@@ -29,13 +29,6 @@ commands:
             consumerName: "bridge-consumer-1"
             streamDataKey: "data"
 
-        target:
-          type: "redis"
-          options:
-            address: "localhost:6379"
-            stream: "test.stream.out"
-            streamDataKey: "data"
-
         runners:
           - type: "jsonlogic"
             options:
@@ -50,6 +43,11 @@ commands:
                 }
               preservePayload: true
               timeout: "5s"
+          - type: "redis"
+            options:
+              address: "localhost:6379"
+              stream: "test.stream.out"
+              streamDataKey: "data"
     args: []
     restartTries: 0
   - name: redissource-stream

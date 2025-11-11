@@ -12,9 +12,9 @@ connectors:
       tlsKeyFile: "/etc/certs/coap-server.key"
       maxPayloadSize: 1152
 
-  # CoAP Target with DTLS certificate-based authentication
+  # CoAP output with DTLS certificate-based authentication
   - name: coap_dtls_cert_target
-    type: target
+    type: runner
     connector: coap
     config:
       protocol: dtls
@@ -40,4 +40,6 @@ connectors:
 
 routes:
   - source: coap_dtls_cert_source
-    target: coap_dtls_cert_target
+    runners:
+      - coap_dtls_cert_runner
+      - coap_dtls_cert_target

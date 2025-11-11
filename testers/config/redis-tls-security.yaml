@@ -15,10 +15,10 @@ source:
     minVersion: "1.2"
     caFile: "/path/to/ca.pem"
 
-target:
-  type: http
-  url: "http://localhost:8080/events"
-  method: POST
+runners:
+  - type: http
+    url: "http://localhost:8080/events"
+    method: POST
 
 ---
 # Example 2: Redis Stream with ACL authentication (username + password)
@@ -39,10 +39,10 @@ source:
     certFile: "/path/to/client-cert.pem"
     keyFile: "/path/to/client-key.pem"
 
-target:
-  type: http
-  url: "http://localhost:8080/stream-events"
-  method: POST
+runners:
+  - type: http
+    url: "http://localhost:8080/stream-events"
+    method: POST
 
 ---
 # Example 3: HTTP to Redis Stream with TLS (mutual TLS)
@@ -51,21 +51,21 @@ source:
   address: ":8081"
   path: "/publish"
 
-target:
-  type: redis
-  address: "redis.example.com:6379"
-  stream: "published:events"
-  username: "publisher"
-  password: "publisher-password"
-  db: 2
-  strictValidation: true
-  tls:
-    enabled: true
-    minVersion: "1.3"
-    caFile: "/path/to/ca.pem"
-    certFile: "/path/to/client-cert.pem"
-    keyFile: "/path/to/client-key.pem"
-    verifyConnection: true
+runners:
+  - type: redis
+    address: "redis.example.com:6379"
+    stream: "published:events"
+    username: "publisher"
+    password: "publisher-password"
+    db: 2
+    strictValidation: true
+    tls:
+      enabled: true
+      minVersion: "1.3"
+      caFile: "/path/to/ca.pem"
+      certFile: "/path/to/client-cert.pem"
+      keyFile: "/path/to/client-key.pem"
+      verifyConnection: true
 
 ---
 # Example 4: Redis PubSub to Redis Stream with different authentication
@@ -81,18 +81,18 @@ source:
     minVersion: "1.2"
     caFile: "/path/to/source-ca.pem"
 
-target:
-  type: redis
-  address: "redis-target.example.com:6379"
-  stream: "target:stream"
-  username: "target-user"
-  password: "target-password"
-  db: 1
-  strictValidation: true
-  tls:
-    enabled: true
-    minVersion: "1.2"
-    caFile: "/path/to/target-ca.pem"
+runners:
+  - type: redis
+    address: "redis-target.example.com:6379"
+    stream: "target:stream"
+    username: "target-user"
+    password: "target-password"
+    db: 1
+    strictValidation: true
+    tls:
+      enabled: true
+      minVersion: "1.2"
+      caFile: "/path/to/target-ca.pem"
 
 ---
 # Example 5: Redis with dynamic channel/stream resolution (metadata-based)
@@ -102,17 +102,17 @@ source:
   address: ":8082"
   path: "/forward"
 
-target:
-  type: redis
-  address: "redis.example.com:6379"
-  channel: "default:channel" # Default channel
-  # Channel can be overridden via message metadata with "channel" key
-  username: "forwarder"
-  password: "forwarder-password"
-  strictValidation: true # Validates dynamically resolved channel names
-  tls:
-    enabled: true
-    minVersion: "1.2"
+runners:
+  - type: redis
+    address: "redis.example.com:6379"
+    channel: "default:channel" # Default channel
+    # Channel can be overridden via message metadata with "channel" key
+    username: "forwarder"
+    password: "forwarder-password"
+    strictValidation: true # Validates dynamically resolved channel names
+    tls:
+      enabled: true
+      minVersion: "1.2"
 
 ---
 # Example 6: Redis without TLS (password-only auth, for testing)
@@ -125,7 +125,7 @@ source:
   db: 0
   strictValidation: true
 
-target:
-  type: http
-  url: "http://localhost:8080/test"
-  method: POST
+runners:
+  - type: http
+    url: "http://localhost:8080/test"
+    method: POST

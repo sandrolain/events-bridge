@@ -13,16 +13,14 @@ commands:
             address: "localhost:4222"
             subject: "test.subject"
 
-        target:
-          type: "http"
-          options:
-            method: "POST"
-            url: "http://localhost:8080/api/data"
-
         runners:
           - type: "wasm"
             options:
               path: "./testers/bin/wasmrunner.wasm"
+          - type: "http"
+            options:
+              method: "POST"
+              url: "http://localhost:8080/api/data"
     args: []
     restartTries: 0
   - name: nats-source

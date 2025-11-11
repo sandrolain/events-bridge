@@ -1,19 +1,38 @@
-# HTTP to PostgreSQL example
-# Receives HTTP requests and inserts them into a PostgreSQL table
+commands:
+  - cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        source:
+          type: http
+          options:
+            address: ":8080"
+            method: "POST"
+            path: "/event"
+            buffer: 10
 
-sources:
-  - type: http
-    options:
-      port: 8080
-      path: "/events"
-
-targets:
-  - type: pgsql
-    routines: 3
-    options:
-      connString: "postgres://testuser:testpass@localhost:5432/testdb?sslmode=disable"
-      table: "events"
-      otherColumn: "extra_data"
-      onConflict: "DO UPDATE"
-      conflictColumns: "event_id"
-      batchSize: 100
+        runners:
+          - type: pgsql
+            routines: 3
+            format: "json"
+            options:
+              connString: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+              table: "events"
+              otherColumn: "extra_data"
+              onConflict: "DO UPDATE"
+              conflictColumns: "event_id"
+              batchSize: 100
+    args: []
+    restartTries: 0
+  - cmd: "httptool"
+    args:
+      [
+        "send",
+        "--path",
+        "/event",
+        "--payload",
+        '{"sentiment":"{sentiment}"}',
+        "--interval",
+        "1s",
+      ]
+    restartTries: 0
+killOthers: true

@@ -20,16 +20,15 @@ commands:
               command: "php"
               args:
                 - "./testers/runners/phprunner/test.php"
-        target:
-          type: "plugin"
-          options:
-            plugin:
-              name: "example-plugin"
-              exec: "./testers/bin/plugin"
-              protocol: "tcp"
-              output: true
-              delay: 1000ms
-              retry: 3
+          - type: "plugin"
+            options:
+              plugin:
+                name: "example-plugin"
+                exec: "./testers/bin/plugin"
+                protocol: "tcp"
+                output: true
+                delay: 1000ms
+                retry: 3
     args: []
     restartTries: 0
 killOthers: true

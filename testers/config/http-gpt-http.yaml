@@ -24,13 +24,11 @@ commands:
               timeout: 15s
               api_url: "http://localhost:1234/v1"
               # api_key: "${OPENAI_API_KEY}"
-
-        target:
-          type: http
-          options:
-            url: "http://localhost:8081/processed"
-            method: POST
-            timeout: 5s
+          - type: http
+            options:
+              url: "http://localhost:8081/processed"
+              method: POST
+              timeout: 5s
     args: []
     restartTries: 0
   - cmd: "httptool"

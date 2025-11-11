@@ -14,19 +14,17 @@ commands:
             group_id: "test-group"
             topic: "test.topic.in"
 
-        target:
-          type: "kafka"
-          options:
-            brokers: ["localhost:9092"]
-            group_id: "test-group"
-            topic: "test.topic.out"
-
         runners:
           - type: "jsonlogic"
             options:
               logic: |
                 {"+":[{"var":"a"},{"var":"b"}]}
               preservePayload: true
+          - type: "kafka"
+            options:
+              brokers: ["localhost:9092"]
+              group_id: "test-group"
+              topic: "test.topic.out"
     args: []
     restartTries: 0
   - name: kafka-source

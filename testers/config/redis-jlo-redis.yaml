@@ -14,18 +14,16 @@ commands:
             address: "localhost:6379"
             channel: "test.channel.in"
 
-        target:
-          type: "redis"
-          options:
-            address: "localhost:6379"
-            channel: "test.channel.out"
-
         runners:
           - type: "jsonlogic"
             options:
               logic: |
-                {"+":[{"var":"a"},{"var":"b"}]}
+                {"+":[{"var":"data.a"},{"var":"data.b"}]}
               preservePayload: true
+          - type: "redis"
+            options:
+              address: "localhost:6379"
+              channel: "test.channel.out"
     args: []
     restartTries: 0
   - name: redis-source
@@ -40,7 +38,7 @@ commands:
         "--interval",
         "1s",
         "--payload",
-        '{"a":10, "b":20, "date": "{nowtime}"}',
+        '{"a":10, "b":20, "date": "{nowtime}", "count": {counter}}',
       ]
     restartTries: 0
 killOthers: true

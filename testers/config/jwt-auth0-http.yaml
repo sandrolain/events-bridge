@@ -46,8 +46,7 @@ runners:
           "event": data
         }
 
-target:
-  type: nats
-  options:
-    address: "nats://localhost:4222"
-    subject: "events.validated"
+  - type: nats
+    options:
+      address: "nats://localhost:4222"
+      subject: "events.validated"

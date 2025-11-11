@@ -13,18 +13,16 @@ commands:
             address: "localhost:4222"
             subject: "test.subject"
 
-        target:
-          type: "http"
-          options:
-            method: "POST"
-            url: "http://localhost:8080/api/data"
-
         runners:
           - type: "jsonlogic"
             options:
               logic: |
                 {"+":[{"var":"a"},{"var":"b"}]}
               preservePayload: true
+          - type: "http"
+            options:
+              method: "POST"
+              url: "http://localhost:8080/api/data"
     args: []
     restartTries: 0
   - name: nats-source
