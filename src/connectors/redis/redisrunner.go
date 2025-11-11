@@ -39,7 +39,7 @@ type RunnerConfig struct {
 
 	// Stream mode
 	// Stream name for adding messages
-	Stream string `mapstructure:"stream" validate:"required"`
+	Stream string `mapstructure:"stream"`
 	// Metadata key to extract stream name dynamically
 	StreamFromMetadataKey string `mapstructure:"streamFromMetadataKey"`
 	ConsumerGroup         string `mapstructure:"consumerGroup,omitempty" validate:"required_with=ConsumerName,omitempty"`
