@@ -125,6 +125,12 @@ func (j *JSONLogicRunner) Process(msg *message.RunnerMessage) error {
 	var result interface{}
 	done := make(chan error, 1)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				done <- fmt.Errorf("jsonlogic execution panic: %v", r)
+			}
+		}()
+
 		res, err := jsonlogic.ApplyInterface(j.logic, input)
 		if err == nil {
 			result = res
