@@ -19,6 +19,7 @@ type NATSMessage struct {
 	replyInbox string
 	replyChan  chan *nats.Msg
 	timeout    time.Duration
+	metadata   map[string]string
 }
 
 func (m *NATSMessage) GetID() []byte {
@@ -26,7 +27,8 @@ func (m *NATSMessage) GetID() []byte {
 }
 
 func (m *NATSMessage) GetMetadata() (map[string]string, error) {
-	return map[string]string{"subject": m.msg.Subject}, nil
+	// Return pre-validated metadata (already enriched with JWT claims if configured)
+	return m.metadata, nil
 }
 
 func (m *NATSMessage) GetData() ([]byte, error) {

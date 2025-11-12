@@ -8,6 +8,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/sandrolain/events-bridge/src/common/jwtauth"
 	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
@@ -65,13 +66,17 @@ type SourceConfig struct {
 	// MessageTimeout is the maximum time to wait for message Ack/Nak.
 	// Default: 10 seconds
 	MessageTimeout time.Duration `mapstructure:"messageTimeout" default:"10s"`
+
+	// JWT authentication configuration (optional)
+	JWT *jwtauth.Config `mapstructure:"jwt"`
 }
 
 type MQTTSource struct {
-	cfg    *SourceConfig
-	slog   *slog.Logger
-	c      chan *message.RunnerMessage
-	client mqtt.Client
+	cfg     *SourceConfig
+	slog    *slog.Logger
+	c       chan *message.RunnerMessage
+	client  mqtt.Client
+	jwtAuth *jwtauth.Authenticator
 }
 
 func NewSourceConfig() any {
@@ -85,9 +90,18 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
+	logger := slog.Default().With("context", "MQTT Source")
+
+	// Initialize JWT authenticator if enabled
+	jwtAuth, err := jwtauth.NewAuthenticator(cfg.JWT, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWT authenticator: %w", err)
+	}
+
 	return &MQTTSource{
-		cfg:  cfg,
-		slog: slog.Default().With("context", "MQTT Source"),
+		cfg:     cfg,
+		slog:    logger,
+		jwtAuth: jwtAuth,
 	}, nil
 }
 
@@ -178,10 +192,28 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 
 	// Message handler
 	handler := func(client mqtt.Client, msg mqtt.Message) {
+		// Extract metadata
+		metadata := map[string]string{"topic": msg.Topic()}
+
+		// Validate JWT if configured
+		if s.jwtAuth != nil {
+			authResult := s.jwtAuth.Authenticate(metadata)
+			if !authResult.Verified {
+				s.slog.Warn("JWT validation failed, rejecting message",
+					"topic", msg.Topic(),
+					"error", authResult.Error)
+				// MQTT doesn't have explicit NAK, just don't process the message
+				return
+			}
+			// Use enriched metadata with JWT claims
+			metadata = authResult.Metadata
+		}
+
 		done := make(chan message.ResponseStatus)
 		s.c <- message.NewRunnerMessage(&MQTTMessage{
-			orig: msg,
-			done: done,
+			orig:     msg,
+			done:     done,
+			metadata: metadata,
 		})
 		// Wait for Ack/Nak or timeout
 		select {
@@ -200,6 +232,11 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 }
 
 func (s *MQTTSource) Close() error {
+	if s.jwtAuth != nil {
+		if err := s.jwtAuth.Close(); err != nil {
+			s.slog.Warn("failed to close JWT authenticator", "error", err)
+		}
+	}
 	if s.client != nil && s.client.IsConnected() {
 		s.client.Disconnect(250)
 	}

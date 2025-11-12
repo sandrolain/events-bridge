@@ -1,4 +1,4 @@
-package main
+package jwtauth
 
 import (
 	"context"
@@ -105,9 +105,9 @@ func (c *JWKSClient) refresh() error {
 
 	// Set headers for better compatibility
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "events-bridge-jwt-runner/1.0")
+	req.Header.Set("User-Agent", "events-bridge-jwtauth/1.0")
 
-	resp, err := c.httpClient.Get(c.url)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch JWKS: %w", err)
 	}

@@ -6,21 +6,23 @@ import (
 	"time"
 
 	jwtgo "github.com/golang-jwt/jwt/v5"
+	"github.com/sandrolain/events-bridge/src/common/jwtauth"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/sandrolain/events-bridge/src/testutil"
 )
 
 func BenchmarkJWTRunnerProcess(b *testing.B) {
-	server := setupMockJWKSServer(&testing.T{})
+	server := jwtauth.SetupMockJWKSServer(&testing.T{})
 	defer server.Close()
 
 	cfg := &RunnerConfig{
+		Enabled:             true,
 		TokenMetadataKey:    "authorization",
 		TokenPrefix:         "Bearer ",
 		JWKsURL:             server.URL(),
 		JWKsRefreshInterval: 1 * time.Hour,
-		Issuer:              testIssuer,
-		Audience:            testAudience,
+		Issuer:              "https://test.example.com",
+		Audience:            "test-audience",
 		RequiredClaims:      []string{"sub", "email"},
 		ClaimPrefix:         "jwt_",
 		FailOnError:         true,
@@ -36,8 +38,8 @@ func BenchmarkJWTRunnerProcess(b *testing.B) {
 
 	// Create valid token
 	claims := jwtgo.MapClaims{
-		"iss":   testIssuer,
-		"aud":   testAudience,
+		"iss":   "https://test.example.com",
+		"aud":   "test-audience",
 		"sub":   "user123",
 		"email": "user@example.com",
 		"exp":   time.Now().Add(1 * time.Hour).Unix(),
@@ -69,16 +71,16 @@ func BenchmarkJWTRunnerProcess(b *testing.B) {
 }
 
 func BenchmarkJWKSClientGetKey(b *testing.B) {
-	server := setupMockJWKSServer(&testing.T{})
+	server := jwtauth.SetupMockJWKSServer(&testing.T{})
 	defer server.Close()
 
-	client, err := NewJWKSClient(server.URL(), 1*time.Hour, slog.Default())
+	client, err := jwtauth.NewJWKSClient(server.URL(), 1*time.Hour, slog.Default())
 	if err != nil {
 		b.Fatalf("failed to create client: %v", err)
 	}
 	defer client.Close()
 
-	kid := server.kid
+	kid := server.KID()
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -92,20 +94,21 @@ func BenchmarkJWKSClientGetKey(b *testing.B) {
 }
 
 func BenchmarkValidatorValidateToken(b *testing.B) {
-	server := setupMockJWKSServer(&testing.T{})
+	server := jwtauth.SetupMockJWKSServer(&testing.T{})
 	defer server.Close()
 
-	cfg := &RunnerConfig{
+	cfg := &jwtauth.Config{
+		Enabled:             true,
 		JWKsURL:             server.URL(),
 		JWKsRefreshInterval: 1 * time.Hour,
-		Issuer:              testIssuer,
-		Audience:            testAudience,
+		Issuer:              "https://test.example.com",
+		Audience:            "test-audience",
 		AllowedAlgorithms:   []string{"RS256"},
 		ClockSkew:           60 * time.Second,
 		TokenPrefix:         "Bearer ",
 	}
 
-	validator, err := NewValidator(cfg, slog.Default())
+	validator, err := jwtauth.NewValidator(cfg, slog.Default())
 	if err != nil {
 		b.Fatalf("failed to create validator: %v", err)
 	}
@@ -113,8 +116,8 @@ func BenchmarkValidatorValidateToken(b *testing.B) {
 
 	// Create valid token
 	claims := jwtgo.MapClaims{
-		"iss": testIssuer,
-		"aud": testAudience,
+		"iss": "https://test.example.com",
+		"aud": "test-audience",
 		"sub": "user123",
 		"exp": time.Now().Add(1 * time.Hour).Unix(),
 		"iat": time.Now().Unix(),
@@ -138,28 +141,58 @@ func BenchmarkValidatorValidateToken(b *testing.B) {
 	}
 }
 
-func BenchmarkClaimToString(b *testing.B) {
-	runner := &JWTRunner{
-		cfg: &RunnerConfig{},
+// BenchmarkAuthenticatorAuthenticate tests the performance of the authenticator
+func BenchmarkAuthenticatorAuthenticate(b *testing.B) {
+	server := jwtauth.SetupMockJWKSServer(&testing.T{})
+	defer server.Close()
+
+	cfg := &jwtauth.Config{
+		Enabled:             true,
+		TokenMetadataKey:    "authorization",
+		TokenPrefix:         "Bearer ",
+		JWKsURL:             server.URL(),
+		JWKsRefreshInterval: 1 * time.Hour,
+		Issuer:              "https://test.example.com",
+		Audience:            "test-audience",
+		AllowedAlgorithms:   []string{"RS256"},
+		ClockSkew:           60 * time.Second,
+		ClaimPrefix:         "jwt_",
+		FailOnError:         false,
 	}
 
-	testCases := []struct {
-		name  string
-		value interface{}
-	}{
-		{"string", "test-value"},
-		{"int", 123},
-		{"float", 123.456},
-		{"bool", true},
-		{"array", []interface{}{"admin", "operator", "user"}},
+	auth, err := jwtauth.NewAuthenticator(cfg, slog.Default())
+	if err != nil {
+		b.Fatalf("failed to create authenticator: %v", err)
+	}
+	defer auth.Close()
+
+	// Create valid token
+	claims := jwtgo.MapClaims{
+		"iss":   "https://test.example.com",
+		"aud":   "test-audience",
+		"sub":   "user123",
+		"email": "user@example.com",
+		"exp":   time.Now().Add(1 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
 	}
 
-	for _, tc := range testCases {
-		b.Run(tc.name, func(b *testing.B) {
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				_ = runner.claimToString(tc.value)
-			}
-		})
+	tokenString, err := server.CreateValidToken(claims)
+	if err != nil {
+		b.Fatalf("failed to create token: %v", err)
+	}
+
+	metadata := map[string]string{
+		"authorization": "Bearer " + tokenString,
+		"other":         "value",
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		result := auth.Authenticate(metadata)
+		if !result.Verified {
+			b.Fatalf("unexpected error: %v", result.Error)
+		}
 	}
 }

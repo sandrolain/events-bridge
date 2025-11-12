@@ -9,9 +9,22 @@ import (
 )
 
 func newHTTPMessageWithCtx(ctx *fasthttp.RequestCtx) *HTTPMessage {
+	// Extract metadata from headers
+	metadata := make(map[string]string)
+	for key, value := range ctx.Request.Header.All() {
+		k := string(key)
+		existing := metadata[k]
+		if existing != "" {
+			metadata[k] = existing + ", " + string(value)
+		} else {
+			metadata[k] = string(value)
+		}
+	}
+
 	return &HTTPMessage{
-		httpCtx: ctx,
-		done:    make(chan message.ResponseStatus, 1),
+		httpCtx:  ctx,
+		done:     make(chan message.ResponseStatus, 1),
+		metadata: metadata,
 	}
 }
 

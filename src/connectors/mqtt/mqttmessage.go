@@ -8,8 +8,9 @@ import (
 var _ message.SourceMessage = &MQTTMessage{}
 
 type MQTTMessage struct {
-	orig mqtt.Message
-	done chan message.ResponseStatus
+	orig     mqtt.Message
+	done     chan message.ResponseStatus
+	metadata map[string]string
 }
 
 func (m *MQTTMessage) GetID() []byte {
@@ -18,7 +19,8 @@ func (m *MQTTMessage) GetID() []byte {
 }
 
 func (m *MQTTMessage) GetMetadata() (map[string]string, error) {
-	return map[string]string{"topic": m.orig.Topic()}, nil
+	// Return pre-validated metadata (already enriched with JWT claims if configured)
+	return m.metadata, nil
 }
 
 func (m *MQTTMessage) GetData() ([]byte, error) {

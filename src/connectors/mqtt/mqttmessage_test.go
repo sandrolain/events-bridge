@@ -24,7 +24,13 @@ func (m *mockMQTTMessage) Read(_ []byte) (int, error) { return 0, nil }
 
 func TestMQTTMessageBasics(t *testing.T) {
 	orig := &mockMQTTMessage{id: 0x1234, topic: "test/topic", payload: []byte("hello")}
-	mm := &MQTTMessage{orig: orig, done: make(chan message.ResponseStatus, 3)}
+	mm := &MQTTMessage{
+		orig: orig,
+		done: make(chan message.ResponseStatus, 3),
+		metadata: map[string]string{
+			"topic": "test/topic",
+		},
+	}
 
 	id := mm.GetID()
 	if len(id) != 2 || id[0] != 0x12 || id[1] != 0x34 {

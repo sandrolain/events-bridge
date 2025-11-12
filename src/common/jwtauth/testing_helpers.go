@@ -1,4 +1,4 @@
-package main
+package jwtauth
 
 import (
 	"crypto/rand"
@@ -14,22 +14,22 @@ import (
 )
 
 const (
-	testIssuer        = "https://test.example.com"
-	testAudience      = "test-audience"
-	errUnexpectedErr  = "unexpected error: %v"
-	errExpectedErr    = "expected error but got none"
-	errExpectedNonNil = "expected non-nil value"
+	testIssuer       = "https://test.example.com"
+	testAudience     = "test-audience"
+	errUnexpectedErr = "unexpected error: %v"
+	errExpectedErr   = "expected error but got none"
 )
 
-// Mock JWKS server for testing
-type mockJWKSServer struct {
+// MockJWKSServer provides a mock JWKS server for testing.
+type MockJWKSServer struct {
 	server     *httptest.Server
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
 	kid        string
 }
 
-func setupMockJWKSServer(t *testing.T) *mockJWKSServer {
+// SetupMockJWKSServer creates a new mock JWKS server for testing.
+func SetupMockJWKSServer(t *testing.T) *MockJWKSServer {
 	t.Helper()
 
 	// Generate RSA key pair
@@ -63,7 +63,7 @@ func setupMockJWKSServer(t *testing.T) *mockJWKSServer {
 		}
 	}))
 
-	return &mockJWKSServer{
+	return &MockJWKSServer{
 		server:     server,
 		privateKey: privateKey,
 		publicKey:  &privateKey.PublicKey,
@@ -71,15 +71,23 @@ func setupMockJWKSServer(t *testing.T) *mockJWKSServer {
 	}
 }
 
-func (m *mockJWKSServer) Close() {
+// Close stops the mock JWKS server.
+func (m *MockJWKSServer) Close() {
 	m.server.Close()
 }
 
-func (m *mockJWKSServer) URL() string {
+// URL returns the JWKS endpoint URL.
+func (m *MockJWKSServer) URL() string {
 	return m.server.URL + "/jwks.json"
 }
 
-func (m *mockJWKSServer) CreateValidToken(claims jwtgo.MapClaims) (string, error) {
+// KID returns the key ID used by the mock server.
+func (m *MockJWKSServer) KID() string {
+	return m.kid
+}
+
+// CreateValidToken creates a valid JWT token with the provided claims.
+func (m *MockJWKSServer) CreateValidToken(claims jwtgo.MapClaims) (string, error) {
 	token := jwtgo.NewWithClaims(jwtgo.SigningMethodRS256, claims)
 	token.Header["kid"] = m.kid
 	return token.SignedString(m.privateKey)

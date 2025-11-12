@@ -73,6 +73,32 @@ services:
       - gitea-data:/data
       - gitea-config:/etc/gitea
 
+  dex:
+    image: dexidp/dex:v2.41.1
+    container_name: dex
+    ports:
+      - "5556:5556" # HTTP
+      - "5557:5557" # gRPC
+      - "5558:5558" # Telemetry
+    volumes:
+      - ./dex/config.yaml:/etc/dex/config.yaml:ro
+      - dex-data:/var/dex
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--spider",
+          "-q",
+          "http://localhost:5556/dex/.well-known/openid-configuration",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   gitea-data:
   gitea-config:
+  dex-data:

@@ -1,4 +1,4 @@
-package main
+package jwtauth
 
 import (
 	"errors"
@@ -12,13 +12,21 @@ import (
 
 // Validator handles JWT token validation using JWKS.
 type Validator struct {
-	cfg        *RunnerConfig
+	cfg        *Config
 	slog       *slog.Logger
 	jwksClient *JWKSClient
 }
 
 // NewValidator creates a new JWT validator instance.
-func NewValidator(cfg *RunnerConfig, logger *slog.Logger) (*Validator, error) {
+func NewValidator(cfg *Config, logger *slog.Logger) (*Validator, error) {
+	if cfg == nil {
+		return nil, errors.New("config cannot be nil")
+	}
+
+	if !cfg.Enabled {
+		return nil, errors.New("JWT authentication is not enabled")
+	}
+
 	jwksClient, err := NewJWKSClient(cfg.JWKsURL, cfg.JWKsRefreshInterval, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JWKS client: %w", err)

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/sandrolain/events-bridge/src/common/jwtauth"
 	"github.com/sandrolain/events-bridge/src/common/secrets"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
@@ -82,6 +83,9 @@ type SourceConfig struct {
 
 	// Name is a client name for identification in NATS server logs.
 	Name string `mapstructure:"name"`
+
+	// JWT authentication configuration (optional)
+	JWT *jwtauth.Config `mapstructure:"jwt"`
 }
 
 type NATSSource struct {
@@ -93,6 +97,7 @@ type NATSSource struct {
 	sub     *nats.Subscription
 	kv      nats.KeyValue
 	watcher nats.KeyWatcher
+	jwtAuth *jwtauth.Authenticator
 }
 
 func NewSourceConfig() any {
@@ -104,9 +109,19 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
+
+	logger := slog.Default().With("context", "NATS Source")
+
+	// Initialize JWT authenticator if enabled
+	jwtAuth, err := jwtauth.NewAuthenticator(cfg.JWT, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWT authenticator: %w", err)
+	}
+
 	return &NATSSource{
-		cfg:  cfg,
-		slog: slog.Default().With("context", "NATS Source"),
+		cfg:     cfg,
+		slog:    logger,
+		jwtAuth: jwtAuth,
 	}, nil
 }
 
@@ -242,6 +257,28 @@ func (s *NATSSource) buildConnectionOptions() ([]nats.Option, error) {
 	return opts, nil
 }
 
+// extractMetadata extracts NATS headers and subject as metadata.
+func (s *NATSSource) extractMetadata(msg *nats.Msg) map[string]string {
+	metadata := map[string]string{"subject": msg.Subject}
+
+	// Extract NATS headers if present
+	if msg.Header != nil {
+		for key, values := range msg.Header {
+			if len(values) > 0 {
+				// Join multiple header values with comma
+				metadata[key] = values[0]
+				if len(values) > 1 {
+					for i := 1; i < len(values); i++ {
+						metadata[key] += "," + values[i]
+					}
+				}
+			}
+		}
+	}
+
+	return metadata
+}
+
 // hasAuthentication checks if any authentication method is configured.
 func (s *NATSSource) hasAuthentication() bool {
 	return s.cfg.Username != "" ||
@@ -252,9 +289,29 @@ func (s *NATSSource) hasAuthentication() bool {
 
 func (s *NATSSource) consumeCore(queue string) (err error) {
 	handler := func(msg *nats.Msg) {
+		// Extract metadata
+		metadata := s.extractMetadata(msg)
+
+		// Validate JWT if configured
+		if s.jwtAuth != nil {
+			authResult := s.jwtAuth.Authenticate(metadata)
+			if !authResult.Verified {
+				s.slog.Warn("JWT validation failed, rejecting message",
+					"subject", msg.Subject,
+					"error", authResult.Error)
+				if err := msg.Nak(); err != nil {
+					s.slog.Error("failed to NAK message", "error", err)
+				}
+				return
+			}
+			// Use enriched metadata with JWT claims
+			metadata = authResult.Metadata
+		}
+
 		m := &NATSMessage{
-			msg:  msg,
-			conn: s.nc,
+			msg:      msg,
+			conn:     s.nc,
+			metadata: metadata,
 		}
 		s.c <- message.NewRunnerMessage(m)
 	}
@@ -273,6 +330,25 @@ func (s *NATSSource) consumeCore(queue string) (err error) {
 // consumeRequest subscribes and sends requests, waiting for replies.
 func (s *NATSSource) consumeRequest() error {
 	handler := func(msg *nats.Msg) {
+		// Extract metadata
+		metadata := s.extractMetadata(msg)
+
+		// Validate JWT if configured
+		if s.jwtAuth != nil {
+			authResult := s.jwtAuth.Authenticate(metadata)
+			if !authResult.Verified {
+				s.slog.Warn("JWT validation failed, rejecting message",
+					"subject", msg.Subject,
+					"error", authResult.Error)
+				if err := msg.Nak(); err != nil {
+					s.slog.Error("failed to NAK message", "error", err)
+				}
+				return
+			}
+			// Use enriched metadata with JWT claims
+			metadata = authResult.Metadata
+		}
+
 		// Create a reply inbox
 		replyInbox := nats.NewInbox()
 		replyChan := make(chan *nats.Msg, 1)
@@ -296,6 +372,7 @@ func (s *NATSSource) consumeRequest() error {
 			replyInbox: replyInbox,
 			replyChan:  replyChan,
 			timeout:    s.cfg.RequestTimeout,
+			metadata:   metadata,
 		}
 		s.c <- message.NewRunnerMessage(m)
 	}
@@ -390,9 +467,29 @@ func (s *NATSSource) consumeJetStream() (err error) {
 				break
 			}
 			for _, msg := range msgs {
+				// Extract metadata
+				metadata := s.extractMetadata(msg)
+
+				// Validate JWT if configured
+				if s.jwtAuth != nil {
+					authResult := s.jwtAuth.Authenticate(metadata)
+					if !authResult.Verified {
+						s.slog.Warn("JWT validation failed, rejecting message",
+							"subject", msg.Subject,
+							"error", authResult.Error)
+						if err := msg.Nak(); err != nil {
+							s.slog.Error("failed to NAK message", "error", err)
+						}
+						continue
+					}
+					// Use enriched metadata with JWT claims
+					metadata = authResult.Metadata
+				}
+
 				m := &NATSMessage{
-					msg:  msg,
-					conn: s.nc,
+					msg:      msg,
+					conn:     s.nc,
+					metadata: metadata,
 				}
 				s.c <- message.NewRunnerMessage(m)
 			}
@@ -408,6 +505,13 @@ func (s *NATSSource) Close() error {
 			s.slog.Warn("failed to stop KV watcher", "error", err)
 		}
 		s.watcher = nil
+	}
+
+	// Close JWT authenticator
+	if s.jwtAuth != nil {
+		if err := s.jwtAuth.Close(); err != nil {
+			s.slog.Warn("failed to close JWT authenticator", "error", err)
+		}
 	}
 
 	// Unsubscribe/Drain subscription before closing channel to avoid send-on-closed-channel

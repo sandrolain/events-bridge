@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/jwtauth"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -45,6 +46,9 @@ type SourceConfig struct {
 
 	// RateLimit configuration
 	RateLimit RateLimitConfig `mapstructure:"rateLimit"`
+
+	// JWT authentication configuration (optional)
+	JWT *jwtauth.Config `mapstructure:"jwt"`
 }
 
 // AuthConfig defines authentication settings for the HTTP source.
@@ -96,10 +100,19 @@ func NewSource(anyCfg any) (connectors.Source, error) {
 		limiter = rate.NewLimiter(rate.Limit(cfg.RateLimit.RequestsPerSecond), cfg.RateLimit.Burst)
 	}
 
+	logger := slog.Default().With("context", "HTTP Source")
+
+	// Initialize JWT authenticator if enabled
+	jwtAuth, err := jwtauth.NewAuthenticator(cfg.JWT, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWT authenticator: %w", err)
+	}
+
 	return &HTTPSource{
 		cfg:     cfg,
-		slog:    slog.Default().With("context", "HTTP Source"),
+		slog:    logger,
 		limiter: limiter,
+		jwtAuth: jwtAuth,
 	}, nil
 }
 
@@ -111,6 +124,7 @@ type HTTPSource struct {
 	listener net.Listener
 	limiter  *rate.Limiter
 	authMu   sync.RWMutex
+	jwtAuth  *jwtauth.Authenticator
 }
 
 // Produce starts the HTTP server and returns a channel for incoming messages.
@@ -191,19 +205,56 @@ func (s *HTTPSource) handleRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	// Prepare initial metadata
+	metadata := s.extractMetadata(ctx)
+
+	// Validate JWT if configured
+	if s.jwtAuth != nil {
+		authResult := s.jwtAuth.Authenticate(metadata)
+		if !authResult.Verified {
+			s.slog.Warn("JWT validation failed", "error", authResult.Error)
+			ctx.SetStatusCode(fasthttp.StatusUnauthorized)
+			ctx.Response.Header.Set("WWW-Authenticate", "Bearer realm=\"Events Bridge\"")
+			ctx.SetBodyString("Invalid or expired JWT token")
+			return
+		}
+		// Use enriched metadata with JWT claims
+		metadata = authResult.Metadata
+	}
+
 	done := make(chan message.ResponseStatus, 1)
 	reply := make(chan *message.ReplyData, 1)
 
 	msg := &HTTPMessage{
-		httpCtx: ctx,
-		done:    done,
-		reply:   reply,
+		httpCtx:  ctx,
+		done:     done,
+		reply:    reply,
+		metadata: metadata,
 	}
 
 	s.c <- message.NewRunnerMessage(msg)
 
 	// Wait for Ack/Nak or reply
 	s.processResponse(ctx, done, reply)
+}
+
+// extractMetadata extracts HTTP headers and request info as metadata.
+func (s *HTTPSource) extractMetadata(ctx *fasthttp.RequestCtx) map[string]string {
+	metadata := make(map[string]string)
+	header := &ctx.Request.Header
+	keys := header.PeekKeys()
+	for _, k := range keys {
+		key := string(k)
+		v := header.PeekAll(key)
+		values := make([]string, len(v))
+		for i, val := range v {
+			values[i] = string(val)
+		}
+		metadata[key] = strings.Join(values, ",")
+	}
+	metadata["method"] = string(ctx.Method())
+	metadata["path"] = string(ctx.Path())
+	return metadata
 }
 
 // authenticate checks request authentication based on the configured auth type.
@@ -353,6 +404,11 @@ func (s *HTTPSource) processResponse(ctx *fasthttp.RequestCtx, done chan message
 
 // Close stops the HTTP server and releases resources.
 func (s *HTTPSource) Close() (err error) {
+	if s.jwtAuth != nil {
+		if closeErr := s.jwtAuth.Close(); closeErr != nil {
+			s.slog.Warn("failed to close JWT authenticator", "error", closeErr)
+		}
+	}
 	if s.listener != nil {
 		err = s.listener.Close()
 	}

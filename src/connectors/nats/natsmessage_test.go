@@ -10,7 +10,12 @@ func TestNATSMessageBasics(t *testing.T) {
 	h := nats.Header{}
 	h.Set(NatsMessageIdHeader, "id-123")
 	orig := &nats.Msg{Subject: "test.subject", Data: []byte("hello"), Header: h}
-	m := &NATSMessage{msg: orig}
+	m := &NATSMessage{
+		msg: orig,
+		metadata: map[string]string{
+			"subject": "test.subject",
+		},
+	}
 
 	id := m.GetID()
 	if string(id) != "id-123" {

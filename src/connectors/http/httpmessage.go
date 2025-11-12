@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
@@ -10,31 +8,19 @@ import (
 var _ message.SourceMessage = &HTTPMessage{}
 
 type HTTPMessage struct {
-	httpCtx *fasthttp.RequestCtx
-	done    chan message.ResponseStatus
-	reply   chan *message.ReplyData
+	httpCtx  *fasthttp.RequestCtx
+	done     chan message.ResponseStatus
+	reply    chan *message.ReplyData
+	metadata map[string]string
 }
 
 func (m *HTTPMessage) GetID() []byte {
 	return m.httpCtx.Request.Header.Peek("X-Request-ID")
 }
 
-func (m HTTPMessage) GetMetadata() (res map[string]string, err error) {
-	res = make(map[string]string)
-	header := &m.httpCtx.Request.Header
-	keys := header.PeekKeys()
-	for _, k := range keys {
-		key := string(k)
-		v := header.PeekAll(key)
-		values := make([]string, len(v))
-		for i, val := range v {
-			values[i] = string(val)
-		}
-		res[key] = strings.Join(values, ",")
-	}
-	res["method"] = string(m.httpCtx.Method())
-	res["path"] = string(m.httpCtx.Path())
-	return
+func (m HTTPMessage) GetMetadata() (map[string]string, error) {
+	// Return pre-validated metadata (already enriched with JWT claims if configured)
+	return m.metadata, nil
 }
 
 func (m HTTPMessage) GetData() ([]byte, error) {
