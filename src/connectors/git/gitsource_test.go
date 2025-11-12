@@ -206,9 +206,21 @@ func TestNewSourceInvalidConfig(t *testing.T) {
 }
 
 func TestGitSourceProduceAndClose(t *testing.T) {
-	remoteDir := t.TempDir()
+	// Create temp directories manually to ensure proper cleanup
+	remoteDir, err := os.MkdirTemp("", "git-test-remote-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(remoteDir)
+
 	initBareRepo(t, remoteDir)
-	localParent := t.TempDir()
+
+	localParent, err := os.MkdirTemp("", "git-test-local-parent-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(localParent)
+
 	localDir := filepath.Join(localParent, "gitsource-local")
 	cmd := exec.Command("git", "clone", remoteDir, localDir) // #nosec G204 - test with controlled paths
 	if err := cmd.Run(); err != nil {
@@ -223,7 +235,13 @@ func TestGitSourceProduceAndClose(t *testing.T) {
 	mustRunGit(t, localDir, "commit", "-m", "seed", gitAuthorArg)
 	mustRunGit(t, localDir, "push", "origin", gitBranch)
 
-	clonePath := filepath.Join(t.TempDir(), "gitsource-clone")
+	cloneParent, err := os.MkdirTemp("", "git-test-clone-parent-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(cloneParent)
+
+	clonePath := filepath.Join(cloneParent, "gitsource-clone")
 	cfg := new(SourceConfig)
 	if err := utils.ParseConfig(map[string]any{
 		"remoteUrl": remoteDir,
