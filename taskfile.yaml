@@ -156,7 +156,7 @@ tasks:
   check:
     desc: Run all checks (fmt, lint, test, trivy, licenses)
     cmds:
-      - task: fmt
+      - task: fmt-check
       - task: lint
       - task: trivy
       - task: test
