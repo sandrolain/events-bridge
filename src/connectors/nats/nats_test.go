@@ -279,8 +279,11 @@ func TestRunnerConfigKVSetMode(t *testing.T) {
 }
 
 func TestRunnerConfigPublishMode(t *testing.T) {
+	addr, cleanup := startNATSServer(t)
+	defer cleanup()
+
 	cfg := &RunnerConfig{
-		Address: testAddress,
+		Address: "nats://" + addr,
 		Subject: testSubject,
 		Mode:    "publish",
 		Timeout: 5 * time.Second,
@@ -290,6 +293,11 @@ func TestRunnerConfigPublishMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf(errUnexpectedError, err)
 	}
+	defer func() {
+		if err := runner.Close(); err != nil {
+			t.Logf("failed to close runner: %v", err)
+		}
+	}()
 
 	natsRunner, ok := runner.(*NATSRunner)
 	if !ok {
