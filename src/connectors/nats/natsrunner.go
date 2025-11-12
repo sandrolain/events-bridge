@@ -12,6 +12,13 @@ import (
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
+const (
+	// Mode constants for NATS runner
+	modePublish   = "publish"
+	modeJetStream = "jetstream"
+	modeKVSet     = "kv-set"
+)
+
 // RunnerConfig defines the configuration for a NATS runner connector.
 type RunnerConfig struct {
 	// Address is the NATS server address.
@@ -116,7 +123,7 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}
 
 	// Initialize JetStream if needed
-	if cfg.Mode == "jetstream" {
+	if cfg.Mode == modeJetStream {
 		js, err := conn.JetStream()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get JetStream context: %w", err)
@@ -125,7 +132,7 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}
 
 	// Initialize KV if needed
-	if cfg.Mode == "kv-set" {
+	if cfg.Mode == modeKVSet {
 		js, err := conn.JetStream()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get JetStream context: %w", err)
@@ -248,9 +255,9 @@ func (r *NATSRunner) Process(msg *message.RunnerMessage) error {
 	}
 
 	switch r.cfg.Mode {
-	case "kv-set":
+	case modeKVSet:
 		return r.processKVSet(msg, metadata, data)
-	case "jetstream":
+	case modeJetStream:
 		return r.processJetStream(msg, metadata, data)
 	default: // "publish"
 		return r.processPublish(msg, metadata, data)
