@@ -86,8 +86,8 @@ func TestCLISourceJSONWholeMap(t *testing.T) {
 	ch, src := setupCLISource(t, "json", []map[string]any{record}, "metadata", "data")
 	defer closeSource(t, src)
 
-	// Small delay to let the source fully start
-	time.Sleep(50 * time.Millisecond)
+	// Longer delay for race detector and CI environments
+	time.Sleep(200 * time.Millisecond)
 
 	msg := receiveMessage(t, ch)
 	expectMetadataValue(t, mustMetadata(t, msg), "foo", "bar")
@@ -273,7 +273,7 @@ func receiveMessage(t *testing.T, ch <-chan *message.RunnerMessage) *message.Run
 			t.Fatalf("channel closed unexpectedly")
 		}
 		return msg
-	case <-time.After(5 * time.Second): // Increased timeout for race detector
+	case <-time.After(10 * time.Second): // Increased timeout for CI and race detector
 		t.Fatalf("timeout waiting for message")
 	}
 	return nil

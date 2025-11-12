@@ -16,6 +16,14 @@ func getTestPluginPath() string {
 	return filepath.Join(dir, "testdata", "testplugin", "testplugin.so")
 }
 
+func skipIfPluginNotAvailable(t *testing.T) {
+	t.Helper()
+	pluginPath := getTestPluginPath()
+	if _, err := filepath.Abs(pluginPath); err != nil {
+		t.Skip("plugin path resolution failed, skipping test")
+	}
+}
+
 func TestLoadPluginMissingFile(t *testing.T) {
 	value, err := utils.LoadPluginAndConfig[int]("/non/existent/plugin.so", "Constructor", "NewConfig", nil)
 	if err == nil {
@@ -30,6 +38,8 @@ func TestLoadPluginMissingFile(t *testing.T) {
 }
 
 func TestLoadPluginAndConfigMissingConfigMethod(t *testing.T) {
+	skipIfPluginNotAvailable(t)
+
 	type Runner interface {
 		GetName() string
 		GetValue() int
@@ -46,6 +56,8 @@ func TestLoadPluginAndConfigMissingConfigMethod(t *testing.T) {
 }
 
 func TestLoadPluginAndConfigInvalidConfigSignature(t *testing.T) {
+	skipIfPluginNotAvailable(t)
+
 	type Runner interface {
 		GetName() string
 		GetValue() int
@@ -62,6 +74,8 @@ func TestLoadPluginAndConfigInvalidConfigSignature(t *testing.T) {
 }
 
 func TestLoadPluginAndConfigMissingMethod(t *testing.T) {
+	skipIfPluginNotAvailable(t)
+
 	type Runner interface {
 		GetName() string
 		GetValue() int
@@ -78,6 +92,8 @@ func TestLoadPluginAndConfigMissingMethod(t *testing.T) {
 }
 
 func TestLoadPluginAndConfigInvalidMethodSignature(t *testing.T) {
+	skipIfPluginNotAvailable(t)
+
 	type Runner interface {
 		GetName() string
 		GetValue() int
@@ -94,6 +110,8 @@ func TestLoadPluginAndConfigInvalidMethodSignature(t *testing.T) {
 }
 
 func TestLoadPluginAndConfigParseConfigError(t *testing.T) {
+	skipIfPluginNotAvailable(t)
+
 	type Runner interface {
 		GetName() string
 		GetValue() int

@@ -66,6 +66,13 @@ jobs:
           go build -o test-plugin-connector testplugin.go
           du -h test-plugin-connector
 
+      - name: Build utils plugin test asset
+        working-directory: ./src/utils/testdata/testplugin
+        run: |
+          echo "Building test plugin asset for utils tests..."
+          go build -buildmode=plugin -o testplugin.so plugin.go
+          du -h testplugin.so
+
       - name: Run tests
         shell: bash
         run: go test  $(go list ./... | grep -v '/testers/')
