@@ -43,6 +43,7 @@ For commits use conventional commits format.
 - run the specific tests to ensure the code works as expected and a minium coverage of 80% is reached.
 - assure that inline docs are updated and accurate.
 - run `golangci-lint run ./src/...` to ensure no issues are present.
+- finally execute `task check` to ensure all checks are passing.
 
 ## tests
 
