@@ -447,4 +447,3 @@ func (m *TestMessage) Ack(*message.ReplyData) error {
 func (m *TestMessage) Nak() error {
 	return nil
 }
-

@@ -331,4 +331,3 @@ func (m *testSourceMessage) Ack(*message.ReplyData) error {
 func (m *testSourceMessage) Nak() error {
 	return nil
 }
-
