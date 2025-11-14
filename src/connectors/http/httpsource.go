@@ -250,6 +250,7 @@ func (s *HTTPSource) extractMetadata(ctx *fasthttp.RequestCtx) map[string]string
 		for i, val := range v {
 			values[i] = string(val)
 		}
+		key = strings.ToLower(key)
 		metadata[key] = strings.Join(values, ",")
 	}
 	metadata["method"] = string(ctx.Method())
