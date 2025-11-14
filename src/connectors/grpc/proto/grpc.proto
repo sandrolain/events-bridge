@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+option go_package = "github.com/sandrolain/events-bridge/src/connectors/grpc/proto;proto";
+
+package eventsbridge.grpc.v1;
+
+// EventMessage represents a message flowing through the Events Bridge.
+// It mirrors the PluginMessage structure for consistency.
+message EventMessage {
+  // uuid is the unique identifier for the message
+  bytes uuid = 1;
+  
+  // metadata contains key-value pairs of message metadata
+  map<string, string> metadata = 2;
+  
+  // data contains the message payload
+  bytes data = 3;
+}
+
+// EventResponse is the response for single message submissions.
+message EventResponse {
+  // success indicates whether the message was accepted
+  bool success = 1;
+  
+  // error contains an error message if success is false
+  optional string error = 2;
+}
+
+// EventBridgeService defines the gRPC service for receiving events.
+service EventBridgeService {
+  // SendEvent sends a single event message and waits for acknowledgment
+  rpc SendEvent(EventMessage) returns (EventResponse);
+  
+  // StreamEvents sends multiple event messages via client streaming
+  rpc StreamEvents(stream EventMessage) returns (EventResponse);
+}
