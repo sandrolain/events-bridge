@@ -9,7 +9,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -55,20 +55,29 @@ func processClaimValue(value interface{}) interface{} {
 }
 
 func main() { //nolint:gocyclo
+	cmd := flag.String("cmd", "serve", "Command to run: serve or gen")
 	pkPath := flag.String("pk", "", "Path to private key file (PEM format). If not specified, generates a volatile key in memory.")
-	issuer := flag.String("iss", "jwkstool", "Default issuer for JWT")
+	issuer := flag.String("iss", "jwktool", "Default issuer for JWT")
 	subject := flag.String("sub", "test", "Default subject for JWT")
 	audience := flag.String("aud", "test", "Default audience for JWT")
 	expiry := flag.Duration("exp", 24*time.Hour, "Default expiry duration for JWT")
 	port := flag.String("port", "8080", "Port to run the server on")
+	claimsJSON := flag.String("claims", "{}", "JSON string for additional claims")
+	invalidJSON := flag.String("invalid", "{}", "JSON string for invalid options")
 	flag.Parse()
 
+	// Setup logger
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
+	// Load or generate key
 	if *pkPath != "" {
 		if _, err := os.Stat(*pkPath); os.IsNotExist(err) {
 			// Generate new key
 			key, err := rsa.GenerateKey(rand.Reader, 2048)
 			if err != nil {
-				log.Fatalf("Failed to generate private key: %v", err)
+				slog.Error("Failed to generate private key", "error", err)
+				os.Exit(1)
 			}
 			privateKey = key
 			publicKey = &key.PublicKey
@@ -78,37 +87,98 @@ func main() { //nolint:gocyclo
 				Bytes: x509.MarshalPKCS1PrivateKey(key),
 			})
 			if err := os.WriteFile(*pkPath, pemData, 0600); err != nil {
-				log.Fatalf("Failed to save private key: %v", err)
+				slog.Error("Failed to save private key", "error", err)
+				os.Exit(1)
 			}
-			log.Printf("Generated and saved private key to %s", *pkPath)
+			slog.Info("Generated and saved private key", "path", *pkPath)
 		} else {
 			// Load from file
 			pemData, err := os.ReadFile(*pkPath)
 			if err != nil {
-				log.Fatalf("Failed to read private key file: %v", err)
+				slog.Error("Failed to read private key file", "error", err)
+				os.Exit(1)
 			}
 			block, _ := pem.Decode(pemData)
 			if block == nil || block.Type != "RSA PRIVATE KEY" {
-				log.Fatalf("Invalid PEM block in private key file")
+				slog.Error("Invalid PEM block in private key file")
+				os.Exit(1)
 			}
 			key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 			if err != nil {
-				log.Fatalf("Failed to parse private key: %v", err)
+				slog.Error("Failed to parse private key", "error", err)
+				os.Exit(1)
 			}
 			privateKey = key
 			publicKey = &key.PublicKey
-			log.Printf("Loaded private key from %s", *pkPath)
+			slog.Info("Loaded private key", "path", *pkPath)
 		}
 	} else {
 		// Generate volatile key
 		key, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
-			log.Fatalf("Failed to generate private key: %v", err)
+			slog.Error("Failed to generate private key", "error", err)
+			os.Exit(1)
 		}
 		privateKey = key
 		publicKey = &key.PublicKey
-		log.Println("Generated volatile private key in memory")
+		slog.Info("Generated volatile private key in memory")
 	}
+
+	if *cmd == "gen" {
+		// Generate token
+		var claims map[string]interface{}
+		if err := json.Unmarshal([]byte(*claimsJSON), &claims); err != nil {
+			slog.Error("Invalid claims JSON", "error", err)
+			os.Exit(1)
+		}
+		var invalid map[string]interface{}
+		if err := json.Unmarshal([]byte(*invalidJSON), &invalid); err != nil {
+			slog.Error("Invalid invalid JSON", "error", err)
+			os.Exit(1)
+		}
+		now := time.Now()
+		tokenClaims := jwt.MapClaims{
+			"iss": *issuer,
+			"sub": *subject,
+			"aud": *audience,
+			"exp": now.Add(*expiry).Unix(),
+			"iat": now.Unix(),
+			"nbf": now.Unix(),
+		}
+		for k, v := range claims {
+			tokenClaims[k] = processClaimValue(v)
+		}
+		// Apply invalid options
+		if expired, ok := invalid["expired"].(bool); ok && expired {
+			tokenClaims["exp"] = now.Add(-time.Hour).Unix()
+		}
+		if missingClaim, ok := invalid["missing_claim"].(string); ok {
+			delete(tokenClaims, missingClaim)
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, tokenClaims)
+		var tokenString string
+		var err error
+		if wrongKey, ok := invalid["wrong_key"].(bool); ok && wrongKey {
+			// Use a different key for signing
+			wrongPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+			tokenString, err = token.SignedString(wrongPrivateKey)
+		} else {
+			tokenString, err = token.SignedString(privateKey)
+		}
+		if err != nil {
+			slog.Error("Failed to sign token", "error", err)
+			os.Exit(1)
+		}
+		pkInfo := "volatile"
+		if *pkPath != "" {
+			pkInfo = *pkPath
+		}
+		slog.Info("Generated JWT", "claims", tokenClaims, "pk", pkInfo)
+		fmt.Println(tokenString)
+		return
+	}
+
+	// Serve mode (default)
 
 	http.HandleFunc("/generate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -180,6 +250,11 @@ func main() { //nolint:gocyclo
 			http.Error(w, "Failed to sign token", http.StatusInternalServerError)
 			return
 		}
+		pkInfo := "volatile"
+		if *pkPath != "" {
+			pkInfo = *pkPath
+		}
+		slog.Info("Generated JWT via API", "claims", claims, "pk", pkInfo)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 	})
@@ -260,6 +335,9 @@ func main() { //nolint:gocyclo
 		json.NewEncoder(w).Encode(jwks)
 	})
 
-	log.Printf("Starting server on port %s", *port)
-	log.Fatal(http.ListenAndServe(":"+*port, nil)) //nolint:gosec
+	slog.Info("Starting server", "port", *port)
+	if err := http.ListenAndServe(":"+*port, nil); err != nil { //nolint:gosec
+		slog.Error("Server failed", "error", err)
+		os.Exit(1)
+	}
 }

@@ -232,7 +232,7 @@ tasks:
       - echo "Building test wasm..."
       #- tinygo build -o ./bin/wasmrunner.wasm -target=wasi ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
       - GOOS=wasip1 GOARCH=wasm go build -o ./bin/wasmrunner.wasm ./runners/wasmrunner && du -h ./bin/wasmrunner.wasm
-      - go build -o ./bin/jwkstool ./tools/jwkstool && du -h ./bin/jwkstool
+      - go build -o ./bin/jwktool ./tools/jwktool && du -h ./bin/jwktool
 
   run:*:
     desc: Run a specified task (e.g., run-mqtt-to-http)
