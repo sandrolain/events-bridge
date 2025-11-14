@@ -1,4 +1,28 @@
+setupCommands:
+  - name: setup-jwt
+    cmd: "sh"
+    args:
+      [
+        "-c",
+        './testers/bin/jwktool -cmd gen -silent -pk ./testers/bin/private_key.pem -claims ''{"role":"admin"}'' > ./testers/bin/jwt.txt',
+      ]
+    startAfter: "0ms"
 commands:
+  - name: jwk-tool
+    cmd: "./testers/bin/jwktool"
+    args:
+      [
+        "-port",
+        "9090",
+        "-iss",
+        "jwktool",
+        "-aud",
+        "test",
+        "-sub",
+        "testuser",
+        "-pk",
+        "./testers/bin/private_key.pem",
+      ]
   - name: task
     cmd: "./bin/events-bridge"
     env:
@@ -8,6 +32,22 @@ commands:
           options:
             address: "localhost:8080"
             method: "POST"
+            jwt:
+              enabled: true
+              tokenMetadataKey: "authorization"
+              tokenPrefix: "Bearer "
+              jwksUrl: "http://localhost:9090/.well-known/jwks.json"
+              issuer: "jwktool"
+              audience: "test"
+              requiredClaims:
+                - "sub"
+              claimPrefix: "jwt_"
+              failOnError: true
+              allowedAlgorithms:
+                - "RS256"
+              clockSkew: "60s"
+              jwksRefreshInterval: "1h"
+
         runners:
           - type: "wasm"
             options:
@@ -29,6 +69,7 @@ commands:
             filterExpr: 'string(metadata["x-file"]) matches "test2"'
     args: []
     restartTries: 0
+    startAfter: "500ms"
   - name: http-source-1
     cmd: "httptool"
     args:
@@ -40,6 +81,8 @@ commands:
         "/event",
         "--payload",
         "{counter} - {nowtime}",
+        "--header",
+        "Authorization=Bearer {{file:./testers/bin/jwt.txt}}",
       ]
     startAfter: "1500ms"
   - name: http-source-2
@@ -53,6 +96,8 @@ commands:
         "/hook",
         "--payload",
         "{counter} - {nowtime}",
+        "--header",
+        "Authorization=Bearer {{file:./testers/bin/jwt.txt}}",
       ]
     startAfter: "2000ms"
 killOthers: true

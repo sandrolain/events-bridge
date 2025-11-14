@@ -55,19 +55,27 @@ func processClaimValue(value interface{}) interface{} {
 }
 
 func main() { //nolint:gocyclo
-	cmd := flag.String("cmd", "serve", "Command to run: serve or gen")
-	pkPath := flag.String("pk", "", "Path to private key file (PEM format). If not specified, generates a volatile key in memory.")
-	issuer := flag.String("iss", "jwktool", "Default issuer for JWT")
-	subject := flag.String("sub", "test", "Default subject for JWT")
-	audience := flag.String("aud", "test", "Default audience for JWT")
-	expiry := flag.Duration("exp", 24*time.Hour, "Default expiry duration for JWT")
-	port := flag.String("port", "8080", "Port to run the server on")
-	claimsJSON := flag.String("claims", "{}", "JSON string for additional claims")
-	invalidJSON := flag.String("invalid", "{}", "JSON string for invalid options")
+	cmd := flag.String("cmd", "serve", "Command to run: serve or gen (default: serve)")
+	pkPath := flag.String("pk", "", "Path to private key file (PEM format). If not specified, generates a volatile key in memory (default: empty)")
+	issuer := flag.String("iss", "jwktool", "Default issuer for JWT (default: jwktool)")
+	subject := flag.String("sub", "test", "Default subject for JWT (default: test)")
+	audience := flag.String("aud", "test", "Default audience for JWT (default: test)")
+	expiry := flag.Duration("exp", 24*time.Hour, "Default expiry duration for JWT (default: 24h)")
+	port := flag.String("port", "8080", "Port to run the server on (default: 8080)")
+	claimsJSON := flag.String("claims", "{}", "JSON string for additional claims (default: {})")
+	invalidJSON := flag.String("invalid", "{}", "JSON string for invalid options (default: {})")
+	kid := flag.String("kid", "", "Key ID for JWT header (default: empty)")
+	silent := flag.Bool("silent", false, "Silent mode (no logs) (default: false)")
 	flag.Parse()
 
 	// Setup logger
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	var logger *slog.Logger
+	if *silent {
+		devNull, _ := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		logger = slog.New(slog.NewTextHandler(devNull, &slog.HandlerOptions{Level: slog.LevelError}))
+	} else {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	}
 	slog.SetDefault(logger)
 
 	// Load or generate key
@@ -124,6 +132,11 @@ func main() { //nolint:gocyclo
 		slog.Info("Generated volatile private key in memory")
 	}
 
+	kidValue := *kid
+	if kidValue == "" {
+		kidValue = "1"
+	}
+
 	if *cmd == "gen" {
 		// Generate token
 		var claims map[string]interface{}
@@ -156,6 +169,7 @@ func main() { //nolint:gocyclo
 			delete(tokenClaims, missingClaim)
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodRS256, tokenClaims)
+		token.Header["kid"] = kidValue
 		var tokenString string
 		var err error
 		if wrongKey, ok := invalid["wrong_key"].(bool); ok && wrongKey {
@@ -188,6 +202,7 @@ func main() { //nolint:gocyclo
 		var payload struct {
 			Claims  map[string]interface{} `json:"claims"`
 			Invalid map[string]interface{} `json:"invalid"`
+			Kid     string                 `json:"kid"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && r.Body != http.NoBody {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -195,6 +210,9 @@ func main() { //nolint:gocyclo
 		}
 		if payload.Claims == nil {
 			payload.Claims = make(map[string]interface{})
+		}
+		if payload.Kid == "" {
+			payload.Kid = strconv.FormatInt(time.Now().Unix(), 10)
 		}
 		now := time.Now()
 		claims := jwt.MapClaims{
@@ -206,10 +224,13 @@ func main() { //nolint:gocyclo
 			"nbf": now.Unix(),
 		}
 		// Override from query params
+		kidValue := payload.Kid
 		query := r.URL.Query()
 		for k, v := range query {
 			if len(v) > 0 {
-				if k == "exp" || k == "iat" || k == "nbf" {
+				if k == "kid" {
+					kidValue = v[0]
+				} else if k == "exp" || k == "iat" || k == "nbf" {
 					if ts, err := strconv.ParseInt(v[0], 10, 64); err == nil {
 						claims[k] = ts
 					} else {
@@ -233,6 +254,7 @@ func main() { //nolint:gocyclo
 			}
 		}
 		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		token.Header["kid"] = kidValue
 		var tokenString string
 		var err error
 		if payload.Invalid != nil {
@@ -326,7 +348,7 @@ func main() { //nolint:gocyclo
 		jwk := JWK{
 			Kty: "RSA",
 			Use: "sig",
-			Kid: "1",
+			Kid: kidValue,
 			N:   base64.RawURLEncoding.EncodeToString(nBytes),
 			E:   base64.RawURLEncoding.EncodeToString(eBytes),
 		}
