@@ -38,7 +38,7 @@ commands:
         "--path",
         "/event",
         "--payload",
-        "{sentiment}",
+        "{{sentiment}}",
         "--interval",
         "1s",
       ]

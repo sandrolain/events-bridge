@@ -305,7 +305,9 @@ func (s *NATSSource) consumeCore(queue string) (err error) {
 				return
 			}
 			// Use enriched metadata with JWT claims
-			metadata = authResult.Metadata
+			for k, v := range authResult.Metadata {
+				metadata[k] = v
+			}
 		}
 
 		m := &NATSMessage{
@@ -346,7 +348,9 @@ func (s *NATSSource) consumeRequest() error {
 				return
 			}
 			// Use enriched metadata with JWT claims
-			metadata = authResult.Metadata
+			for k, v := range authResult.Metadata {
+				metadata[k] = v
+			}
 		}
 
 		// Create a reply inbox
@@ -455,47 +459,61 @@ func (s *NATSSource) consumeJetStream() (err error) {
 		return
 	}
 	s.sub = sub
-	go func() {
-		for {
-			msgs, err := s.sub.Fetch(1, nats.MaxWait(5*time.Second))
-			if err != nil {
-				if err == nats.ErrTimeout {
-					s.slog.Warn("JetStream fetch timeout")
-					continue
-				}
-				s.slog.Error("error fetching from JetStream", "err", err)
-				break
-			}
-			for _, msg := range msgs {
-				// Extract metadata
-				metadata := s.extractMetadata(msg)
-
-				// Validate JWT if configured
-				if s.jwtAuth != nil {
-					authResult := s.jwtAuth.Authenticate(metadata)
-					if !authResult.Verified {
-						s.slog.Warn("JWT validation failed, rejecting message",
-							"subject", msg.Subject,
-							"error", authResult.Error)
-						if err := msg.Nak(); err != nil {
-							s.slog.Error("failed to NAK message", "error", err)
-						}
-						continue
-					}
-					// Use enriched metadata with JWT claims
-					metadata = authResult.Metadata
-				}
-
-				m := &NATSMessage{
-					msg:      msg,
-					conn:     s.nc,
-					metadata: metadata,
-				}
-				s.c <- message.NewRunnerMessage(m)
-			}
-		}
-	}()
+	// Start background fetch loop for JetStream messages
+	go s.jetStreamFetchLoop()
 	return
+}
+
+// processBase extracts metadata from a NATS message and enforces JWT validation
+// if an authenticator is configured. Returns the enriched metadata and true when
+// the message should be processed. If JWT validation fails, the message will be
+// NAKed and the function returns false.
+func (s *NATSSource) processBase(msg *nats.Msg) (map[string]string, bool) {
+	metadata := s.extractMetadata(msg)
+	if s.jwtAuth != nil {
+		authResult := s.jwtAuth.Authenticate(metadata)
+		if !authResult.Verified {
+			s.slog.Warn("JWT validation failed, rejecting message",
+				"subject", msg.Subject,
+				"error", authResult.Error)
+			if err := msg.Nak(); err != nil {
+				s.slog.Error("failed to NAK message", "error", err)
+			}
+			return nil, false
+		}
+		for k, v := range authResult.Metadata {
+			metadata[k] = v
+		}
+	}
+	return metadata, true
+}
+
+// jetStreamFetchLoop runs indefinitely fetching messages from the JetStream
+// subscription and dispatching them to the runner channel.
+func (s *NATSSource) jetStreamFetchLoop() {
+	for {
+		msgs, err := s.sub.Fetch(1, nats.MaxWait(5*time.Second))
+		if err != nil {
+			if err == nats.ErrTimeout {
+				s.slog.Warn("JetStream fetch timeout")
+				continue
+			}
+			s.slog.Error("error fetching from JetStream", "err", err)
+			break
+		}
+		for _, msg := range msgs {
+			metadata, ok := s.processBase(msg)
+			if !ok {
+				continue
+			}
+			m := &NATSMessage{
+				msg:      msg,
+				conn:     s.nc,
+				metadata: metadata,
+			}
+			s.c <- message.NewRunnerMessage(m)
+		}
+	}
 }
 
 func (s *NATSSource) Close() error {

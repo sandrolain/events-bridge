@@ -206,7 +206,9 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 				return
 			}
 			// Use enriched metadata with JWT claims
-			metadata = authResult.Metadata
+			for k, v := range authResult.Metadata {
+				metadata[k] = v
+			}
 		}
 
 		done := make(chan message.ResponseStatus)

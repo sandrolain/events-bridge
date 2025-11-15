@@ -62,7 +62,7 @@ commands:
         "--interval",
         "2s",
         "--payload",
-        '{"temperature": 25.5, "humidity": 60, "location": "sensor-001", "timestamp": "{nowtime}"}',
+        '{"temperature": 25.5, "humidity": 60, "location": "sensor-001", "timestamp": "{{nowtime}}"}',
       ]
     restartTries: 0
 killOthers: true

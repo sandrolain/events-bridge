@@ -29,6 +29,7 @@ commands:
     restartTries: 0
   - name: mqtt-source
     cmd: "mqtttool"
-    args: ["send", "--interval", "500us", "--payload", "{counter} - {nowtime}"]
+    args:
+      ["send", "--interval", "500us", "--payload", "{{counter}} - {{nowtime}}"]
     startAfter: "2s"
 killOthers: true

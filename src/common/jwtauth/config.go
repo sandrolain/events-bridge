@@ -42,9 +42,9 @@ type Config struct {
 	RequiredClaims []string `mapstructure:"requiredClaims"`
 
 	// ClaimPrefix is prepended to claim names when adding them to metadata.
-	// Example: with prefix "jwt_", the "sub" claim becomes "jwt_sub" in metadata.
-	// Default: "jwt_"
-	ClaimPrefix string `mapstructure:"claimPrefix" default:"jwt_"`
+	// Example: with prefix "eb-jwt-", the "sub" claim becomes "jwt_sub" in metadata.
+	// Default: "eb-jwt-"
+	ClaimPrefix string `mapstructure:"claimPrefix" default:"eb-jwt-"`
 
 	// FailOnError determines the behavior when token validation fails.
 	// If true, the authenticator returns an error.
@@ -55,7 +55,7 @@ type Config struct {
 	// AllowedAlgorithms is a list of permitted signing algorithms.
 	// Only asymmetric algorithms should be used for security.
 	// Default: ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"]
-	AllowedAlgorithms []string `mapstructure:"allowedAlgorithms" default:"[RS256,RS384,RS512,ES256,ES384,ES512]"`
+	AllowedAlgorithms []string `mapstructure:"allowedAlgorithms" default:"[\"RS256\",\"RS384\",\"RS512\",\"ES256\",\"ES384\",\"ES512\"]"`
 
 	// ClockSkew is the tolerance for time-based claims (exp, nbf, iat).
 	// This accounts for clock drift between systems.

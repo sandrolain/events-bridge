@@ -45,7 +45,7 @@ commands:
         "--interval",
         "100000us",
         "--payload",
-        '{"a":10, "b":20, "date": "{nowtime}", "count": {counter}}',
+        '{"a":10, "b":20, "date": "{{nowtime}}", "count": {{counter}}}',
       ]
     restartTries: 0
     startAfter: "2s"

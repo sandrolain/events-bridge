@@ -110,7 +110,7 @@ runners:
       requiredClaims:
         - "sub"
         - "email"
-      claimPrefix: "jwt_"
+      claimPrefix: "eb-jwt-"
       failOnError: true
       allowedAlgorithms:
         - "RS256"

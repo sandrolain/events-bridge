@@ -118,6 +118,20 @@ func (m *RunnerMessage) GetData() ([]byte, error) {
 	return m.original.GetData()
 }
 
+func (m *RunnerMessage) GetAllMetadata() (map[string]string, error) {
+	origMeta, err := m.original.GetMetadata()
+	if err != nil {
+		return nil, err
+	}
+	meta, err := m.GetMetadata()
+	if err != nil {
+		return nil, err
+	}
+	res := common.CopyMap(origMeta, nil)
+	common.CopyMap(meta, res)
+	return res, nil
+}
+
 func (m *RunnerMessage) Ack(d *ReplyData) error {
 	return m.original.Ack(d)
 }

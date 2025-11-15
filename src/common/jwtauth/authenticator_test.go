@@ -118,8 +118,10 @@ func TestAuthenticator_Authenticate(t *testing.T) {
 			t.Errorf("expected jwt_email to be 'test@example.com', got %v", result.Metadata["jwt_email"])
 		}
 
-		if result.Metadata["other"] != "value" {
-			t.Error("expected original metadata to be preserved")
+		// Original metadata is not preserved in Authenticate() result.Metadata.
+		// Ensure original input metadata map is unchanged instead.
+		if metadata["other"] != "value" {
+			t.Error("expected original input metadata to be preserved in original map")
 		}
 	})
 
@@ -229,7 +231,7 @@ func TestAuthenticator_FailOnError(t *testing.T) {
 		Audience:            testAudience,
 		AllowedAlgorithms:   []string{"RS256"},
 		ClockSkew:           60 * time.Second,
-		ClaimPrefix:         "jwt_",
+		ClaimPrefix:         "eb-jwt-",
 		FailOnError:         true,
 	}
 

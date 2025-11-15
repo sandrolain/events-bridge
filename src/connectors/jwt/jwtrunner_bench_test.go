@@ -24,7 +24,7 @@ func BenchmarkJWTRunnerProcess(b *testing.B) {
 		Issuer:              "https://test.example.com",
 		Audience:            "test-audience",
 		RequiredClaims:      []string{"sub", "email"},
-		ClaimPrefix:         "jwt_",
+		ClaimPrefix:         "eb-jwt-",
 		FailOnError:         true,
 		AllowedAlgorithms:   []string{"RS256"},
 		ClockSkew:           60 * time.Second,
@@ -156,7 +156,7 @@ func BenchmarkAuthenticatorAuthenticate(b *testing.B) {
 		Audience:            "test-audience",
 		AllowedAlgorithms:   []string{"RS256"},
 		ClockSkew:           60 * time.Second,
-		ClaimPrefix:         "jwt_",
+		ClaimPrefix:         "eb-jwt-",
 		FailOnError:         false,
 	}
 

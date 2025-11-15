@@ -219,7 +219,9 @@ func (s *HTTPSource) handleRequest(ctx *fasthttp.RequestCtx) {
 			return
 		}
 		// Use enriched metadata with JWT claims
-		metadata = authResult.Metadata
+		for k, v := range authResult.Metadata {
+			metadata[k] = v
+		}
 	}
 
 	done := make(chan message.ResponseStatus, 1)
@@ -372,7 +374,7 @@ func (s *HTTPSource) processResponse(ctx *fasthttp.RequestCtx, done chan message
 						statusCode = vi
 					}
 				default:
-					s.slog.Warn("skipping metadata key starting with eb- in HTTP response", "key", k)
+					s.slog.Debug("skipping metadata key starting with eb- in HTTP response", "key", k)
 				}
 				continue
 			}

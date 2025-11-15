@@ -33,7 +33,10 @@ commands:
           options:
             address: "localhost:8080"
             method: "POST"
-            jwt:
+
+        runners:
+          - type: "jwt"
+            options:
               enabled: true
               tokenMetadataKey: "authorization"
               tokenPrefix: "Bearer "
@@ -48,8 +51,6 @@ commands:
                 - "RS256"
               clockSkew: "60s"
               jwksRefreshInterval: "1h"
-
-        runners:
           - type: "wasm"
             options:
               path: "./testers/bin/wasmrunner.wasm"

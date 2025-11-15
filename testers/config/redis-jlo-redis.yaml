@@ -38,7 +38,7 @@ commands:
         "--interval",
         "1s",
         "--payload",
-        '{"a":10, "b":20, "date": "{nowtime}", "count": {counter}}',
+        '{"a":10, "b":20, "date": "{{nowtime}}", "count": {{counter}}}',
       ]
     restartTries: 0
 killOthers: true

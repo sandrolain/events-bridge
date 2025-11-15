@@ -33,7 +33,7 @@ commands:
         "--interval",
         "1s",
         "--payload",
-        '{"a":10, "b":20, "date": "{nowtime}"}',
+        '{"a":10, "b":20, "date": "{{nowtime}}"}',
       ]
     restartTries: 0
 killOthers: true

@@ -59,7 +59,7 @@ func (e *ExprEvaluator) Eval(input map[string]any) (bool, error) {
 }
 
 func (e *ExprEvaluator) EvalMessage(msg *message.RunnerMessage) (bool, error) {
-	meta, err := msg.GetMetadata()
+	meta, err := msg.GetAllMetadata()
 	if err != nil {
 		return false, fmt.Errorf("failed to get message metadata: %w", err)
 	}

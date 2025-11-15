@@ -72,11 +72,6 @@ func (a *Authenticator) Authenticate(metadata map[string]string) *AuthResult {
 		Metadata: make(map[string]string),
 	}
 
-	// Copy original metadata
-	for k, v := range metadata {
-		result.Metadata[k] = v
-	}
-
 	// Extract token from metadata
 	tokenString, exists := metadata[a.cfg.TokenMetadataKey]
 	if !exists {
