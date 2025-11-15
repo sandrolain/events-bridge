@@ -228,15 +228,17 @@ func main() { //nolint:gocyclo
 		query := r.URL.Query()
 		for k, v := range query {
 			if len(v) > 0 {
-				if k == "kid" {
+				switch k {
+				case "kid":
 					kidValue = v[0]
-				} else if k == "exp" || k == "iat" || k == "nbf" {
+				case "exp", "iat", "nbf":
+
 					if ts, err := strconv.ParseInt(v[0], 10, 64); err == nil {
 						claims[k] = ts
 					} else {
 						claims[k] = processClaimValue(v[0])
 					}
-				} else {
+				default:
 					claims[k] = processClaimValue(v[0])
 				}
 			}
