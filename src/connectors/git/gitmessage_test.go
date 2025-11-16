@@ -1,9 +1,13 @@
 package main
 
 import (
+	"io"
 	"testing"
 
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/sandrolain/events-bridge/src/message"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGitMessageGetID(t *testing.T) {
@@ -73,3 +77,51 @@ func TestGitMessageAckNak(t *testing.T) {
 
 // Dummy implementation for message.Message interface check
 var _ message.SourceMessage = &GitMessage{}
+
+func TestGitMessage_GetFilesystem(t *testing.T) {
+	t.Run("returns nil when filesystem is not set", func(t *testing.T) {
+		msg := &GitMessage{
+			changes: []map[string]interface{}{
+				{"commit": "abc123"},
+			},
+		}
+
+		fs, err := msg.GetFilesystem()
+		require.NoError(t, err)
+		assert.Nil(t, fs)
+	})
+
+	t.Run("returns read-only filesystem when set", func(t *testing.T) {
+		// Create in-memory billy filesystem
+		billyFS := memfs.New()
+		file, err := billyFS.Create("test.txt")
+		require.NoError(t, err)
+		_, err = file.Write([]byte("test content"))
+		require.NoError(t, err)
+		file.Close()
+
+		msg := &GitMessage{
+			changes: []map[string]interface{}{
+				{"commit": "abc123"},
+			},
+			filesystem: billyFS,
+		}
+
+		fs, err := msg.GetFilesystem()
+		require.NoError(t, err)
+		require.NotNil(t, fs)
+
+		// Should be able to read files
+		f, err := fs.Open("test.txt")
+		require.NoError(t, err)
+		defer f.Close()
+
+		content, err := io.ReadAll(f)
+		require.NoError(t, err)
+		assert.Equal(t, "test content", string(content))
+
+		// Should not be able to create files
+		_, err = fs.Create("newfile.txt")
+		assert.Error(t, err)
+	})
+}

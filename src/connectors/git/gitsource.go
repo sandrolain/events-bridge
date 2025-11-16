@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-git/go-billy/v5"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -349,6 +350,16 @@ func (s *GitSource) collectCommitChanges(repo *git.Repository, oldHash, newHash 
 	return changes, found
 }
 
+// getWorktreeFilesystem returns the billy.Filesystem from the repository worktree
+func (s *GitSource) getWorktreeFilesystem(repo *git.Repository) billy.Filesystem {
+	wt, err := repo.Worktree()
+	if err != nil {
+		s.slog.Warn("failed to get worktree", "error", err)
+		return nil
+	}
+	return wt.Filesystem
+}
+
 func (s *GitSource) checkForChanges() {
 	// Prepare repository path
 	repoPath, err := s.prepareRepoPath()
@@ -391,8 +402,12 @@ func (s *GitSource) checkForChanges() {
 	// Collect changes from commits
 	changes, found := s.collectCommitChanges(repo, oldHash, newHash)
 	if found {
+		// Get worktree filesystem for file access
+		fs := s.getWorktreeFilesystem(repo)
+
 		msg := &GitMessage{
-			changes: changes,
+			changes:    changes,
+			filesystem: fs,
 		}
 		s.c <- message.NewRunnerMessage(msg)
 	}
