@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sandrolain/events-bridge/src/common"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/connectors/plugin/proto"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -30,6 +31,11 @@ func (m *PluginMessage) GetData() ([]byte, error) {
 		return nil, fmt.Errorf("message is nil")
 	}
 	return m.res.Data, nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *PluginMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *PluginMessage) Ack(d *message.ReplyData) error {

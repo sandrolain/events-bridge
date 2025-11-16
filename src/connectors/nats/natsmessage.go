@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -33,6 +34,11 @@ func (m *NATSMessage) GetMetadata() (map[string]string, error) {
 
 func (m *NATSMessage) GetData() ([]byte, error) {
 	return m.msg.Data, nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *NATSMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *NATSMessage) Ack(data *message.ReplyData) error {
@@ -91,6 +97,11 @@ func (m *NATSKVMessage) GetMetadata() (map[string]string, error) {
 
 func (m *NATSKVMessage) GetData() ([]byte, error) {
 	return m.entry.Value(), nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *NATSKVMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *NATSKVMessage) Ack(*message.ReplyData) error {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/pubsub/v2"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -23,6 +24,11 @@ func (m *PubSubMessage) GetMetadata() (map[string]string, error) {
 
 func (m *PubSubMessage) GetData() ([]byte, error) {
 	return m.msg.Data, nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *PubSubMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *PubSubMessage) Ack(data *message.ReplyData) error {

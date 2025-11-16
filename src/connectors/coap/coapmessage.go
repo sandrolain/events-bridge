@@ -6,6 +6,7 @@ import (
 
 	coapmessage "github.com/plgd-dev/go-coap/v3/message"
 	coapmux "github.com/plgd-dev/go-coap/v3/mux"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -56,6 +57,11 @@ func (m *CoAPMessage) GetData() ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *CoAPMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *CoAPMessage) Ack(data *message.ReplyData) error {

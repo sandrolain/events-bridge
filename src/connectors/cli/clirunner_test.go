@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -54,6 +55,10 @@ func (m *mockSourceMessage) GetMetadata() (map[string]string, error) {
 
 func (m *mockSourceMessage) GetData() ([]byte, error) {
 	return m.data, nil
+}
+
+func (m *mockSourceMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *mockSourceMessage) Ack(data *message.ReplyData) error {

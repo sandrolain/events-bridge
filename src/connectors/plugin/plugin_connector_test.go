@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/connectors/plugin/manager"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -194,11 +195,12 @@ type stubSourceMessage struct {
 	data []byte
 }
 
-func (s *stubSourceMessage) GetID() []byte                           { return s.id }
-func (s *stubSourceMessage) GetMetadata() (map[string]string, error) { return s.meta, nil }
-func (s *stubSourceMessage) GetData() ([]byte, error)                { return s.data, nil }
-func (s *stubSourceMessage) Ack(data *message.ReplyData) error       { return nil }
-func (s *stubSourceMessage) Nak() error                              { return errors.New("nak not implemented in stub") }
+func (s *stubSourceMessage) GetID() []byte                             { return s.id }
+func (s *stubSourceMessage) GetMetadata() (map[string]string, error)   { return s.meta, nil }
+func (s *stubSourceMessage) GetData() ([]byte, error)                  { return s.data, nil }
+func (s *stubSourceMessage) GetFilesystem() (fsutil.Filesystem, error) { return nil, nil }
+func (s *stubSourceMessage) Ack(data *message.ReplyData) error         { return nil }
+func (s *stubSourceMessage) Nak() error                                { return errors.New("nak not implemented in stub") }
 
 // sanitizeName replaces problematic characters in test names
 func sanitizeName(s string) string {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -85,6 +86,11 @@ func (m *MongoMessage) GetID() []byte {
 		return []byte(fmt.Sprintf("%v", id))
 	}
 	return []byte("mongodb-event")
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *MongoMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 // Ack acknowledges the message (no-op for MongoDB change streams)

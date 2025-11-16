@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -46,7 +47,13 @@ func (s *stubSecuritySourceMessage) GetData() ([]byte, error) {
 	return s.data, nil
 }
 
-func (s *stubSecuritySourceMessage) Ack(*message.ReplyData) error { return nil }
+func (s *stubSecuritySourceMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
+}
+
+func (s *stubSecuritySourceMessage) Ack(data *message.ReplyData) error {
+	return nil
+}
 
 func (s *stubSecuritySourceMessage) Nak() error { return nil }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/valyala/fasthttp"
 )
@@ -25,6 +26,11 @@ func (m HTTPMessage) GetMetadata() (map[string]string, error) {
 
 func (m HTTPMessage) GetData() ([]byte, error) {
 	return m.httpCtx.Request.Body(), nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *HTTPMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *HTTPMessage) Ack(data *message.ReplyData) error {

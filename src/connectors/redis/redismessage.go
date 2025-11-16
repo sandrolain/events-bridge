@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/redis/go-redis/v9"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -21,6 +22,11 @@ func (m *RedisMessage) GetMetadata() (map[string]string, error) {
 
 func (m *RedisMessage) GetData() ([]byte, error) {
 	return []byte(m.msg.Payload), nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *RedisMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *RedisMessage) Ack(data *message.ReplyData) error {

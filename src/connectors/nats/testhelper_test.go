@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -61,8 +62,9 @@ type testSrcMsg struct {
 	meta map[string]string
 }
 
-func (t *testSrcMsg) GetID() []byte                           { return []byte{0, 1} }
-func (t *testSrcMsg) GetMetadata() (map[string]string, error) { return t.meta, nil }
-func (t *testSrcMsg) GetData() ([]byte, error)                { return t.data, nil }
-func (t *testSrcMsg) Ack(data *message.ReplyData) error       { return nil }
-func (t *testSrcMsg) Nak() error                              { return nil }
+func (t *testSrcMsg) GetID() []byte                             { return []byte{0, 1} }
+func (t *testSrcMsg) GetMetadata() (map[string]string, error)   { return t.meta, nil }
+func (t *testSrcMsg) GetData() ([]byte, error)                  { return t.data, nil }
+func (t *testSrcMsg) GetFilesystem() (fsutil.Filesystem, error) { return nil, nil }
+func (t *testSrcMsg) Ack(data *message.ReplyData) error         { return nil }
+func (t *testSrcMsg) Nak() error                                { return nil }

@@ -3,6 +3,7 @@ package main
 import (
 	"sync"
 
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/connectors/grpc/proto"
 	"github.com/sandrolain/events-bridge/src/message"
 )
@@ -39,6 +40,11 @@ func (m *GRPCMessage) GetMetadata() (map[string]string, error) {
 // GetData returns the message payload data.
 func (m *GRPCMessage) GetData() ([]byte, error) {
 	return m.msg.Data, nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *GRPCMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 // Ack sends an acknowledgment signal with optional reply data.

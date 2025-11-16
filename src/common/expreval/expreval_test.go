@@ -3,6 +3,7 @@ package expreval
 import (
 	"testing"
 
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 )
 
@@ -91,11 +92,12 @@ type fakeSourceMessage struct {
 	data     []byte
 }
 
-func (f *fakeSourceMessage) GetID() []byte                           { return f.id }
-func (f *fakeSourceMessage) GetMetadata() (map[string]string, error) { return f.metadata, nil }
-func (f *fakeSourceMessage) GetData() ([]byte, error)                { return f.data, nil }
-func (f *fakeSourceMessage) Ack(d *message.ReplyData) error          { return nil }
-func (f *fakeSourceMessage) Nak() error                              { return nil }
+func (f *fakeSourceMessage) GetID() []byte                             { return f.id }
+func (f *fakeSourceMessage) GetMetadata() (map[string]string, error)   { return f.metadata, nil }
+func (f *fakeSourceMessage) GetData() ([]byte, error)                  { return f.data, nil }
+func (f *fakeSourceMessage) GetFilesystem() (fsutil.Filesystem, error) { return nil, nil }
+func (f *fakeSourceMessage) Ack(d *message.ReplyData) error            { return nil }
+func (f *fakeSourceMessage) Nak() error                                { return nil }
 
 func TestEvalMessage(t *testing.T) {
 	eval, err := NewExprEvaluator("metadata.kind == 'test' && int(metadata.count) > 1")

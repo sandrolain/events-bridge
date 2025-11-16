@@ -35,11 +35,12 @@ func TestNewStubSourceMessage(t *testing.T) {
 func TestStubSourceMessageWithError(t *testing.T) {
 	dataErr := errors.New("data error")
 	metaErr := errors.New("meta error")
+	fsErr := errors.New("fs error")
 	ackErr := errors.New("ack error")
 	nakErr := errors.New("nak error")
 
 	stub := NewStubSourceMessage(nil, nil).
-		WithError(dataErr, metaErr, ackErr, nakErr)
+		WithError(dataErr, metaErr, fsErr, ackErr, nakErr)
 
 	_, err := stub.GetData()
 	if err != dataErr {

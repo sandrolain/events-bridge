@@ -1,6 +1,9 @@
 package encdec
 
-import "github.com/sandrolain/events-bridge/src/message"
+import (
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
+	"github.com/sandrolain/events-bridge/src/message"
+)
 
 var _ message.SourceMessage = (*EncDecMessage)(nil)
 
@@ -26,6 +29,11 @@ func (m *EncDecMessage) GetMetadata() (map[string]string, error) {
 
 func (m *EncDecMessage) GetData() ([]byte, error) {
 	return m.data, nil
+}
+
+// GetFilesystem returns nil as this message type does not provide filesystem access.
+func (m *EncDecMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
 }
 
 func (m *EncDecMessage) Ack(data *message.ReplyData) error {

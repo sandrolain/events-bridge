@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -181,7 +182,11 @@ func (m *mockSourceMessage) GetData() ([]byte, error) {
 	return m.data, nil
 }
 
-func (m *mockSourceMessage) Ack(*message.ReplyData) error {
+func (m *mockSourceMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	return nil, nil
+}
+
+func (m *mockSourceMessage) Ack(data *message.ReplyData) error {
 	return nil
 }
 
