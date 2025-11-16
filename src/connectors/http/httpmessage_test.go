@@ -22,9 +22,10 @@ func newHTTPMessageWithCtx(ctx *fasthttp.RequestCtx) *HTTPMessage {
 	}
 
 	return &HTTPMessage{
-		httpCtx:  ctx,
-		done:     make(chan message.ResponseStatus, 1),
-		metadata: metadata,
+		httpCtx:    ctx,
+		done:       make(chan message.ResponseStatus, 1),
+		metadata:   metadata,
+		filesystem: nil,
 	}
 }
 

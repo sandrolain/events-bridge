@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/common/jwtauth"
 	"github.com/sandrolain/events-bridge/src/common/tlsconfig"
 	"github.com/sandrolain/events-bridge/src/connectors"
@@ -227,11 +228,25 @@ func (s *HTTPSource) handleRequest(ctx *fasthttp.RequestCtx) {
 	done := make(chan message.ResponseStatus, 1)
 	reply := make(chan *message.ReplyData, 1)
 
+	// Try to parse multipart form data for file uploads
+	var filesystem fsutil.Filesystem
+	if ctx.Request.Header.IsPost() || ctx.Request.Header.IsPut() {
+		mf, err := ctx.MultipartForm()
+		if err == nil && mf != nil && len(mf.File) > 0 {
+			// We have uploaded files - create multipart filesystem
+			fs, fsErr := fsutil.NewMultipartFS(mf)
+			if fsErr == nil {
+				filesystem = fs
+			}
+		}
+	}
+
 	msg := &HTTPMessage{
-		httpCtx:  ctx,
-		done:     done,
-		reply:    reply,
-		metadata: metadata,
+		httpCtx:    ctx,
+		done:       done,
+		reply:      reply,
+		metadata:   metadata,
+		filesystem: filesystem,
 	}
 
 	s.c <- message.NewRunnerMessage(msg)

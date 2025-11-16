@@ -43,9 +43,13 @@ func (m *RedisStreamMessage) GetData() ([]byte, error) {
 	return nil, fmt.Errorf("no data field in stream message")
 }
 
-// GetFilesystem returns nil as this message type does not provide filesystem access.
+// GetFilesystem returns a virtual filesystem with message data accessible at /data.
 func (m *RedisStreamMessage) GetFilesystem() (fsutil.Filesystem, error) {
-	return nil, nil
+	data, err := m.GetData()
+	if err != nil {
+		return nil, err
+	}
+	return fsutil.NewVirtualFS("/data", data), nil
 }
 
 func (m *RedisStreamMessage) Ack(data *message.ReplyData) error {

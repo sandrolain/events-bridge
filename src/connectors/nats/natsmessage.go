@@ -36,9 +36,13 @@ func (m *NATSMessage) GetData() ([]byte, error) {
 	return m.msg.Data, nil
 }
 
-// GetFilesystem returns nil as this message type does not provide filesystem access.
+// GetFilesystem returns a virtual filesystem with message data accessible at /data.
 func (m *NATSMessage) GetFilesystem() (fsutil.Filesystem, error) {
-	return nil, nil
+	data, err := m.GetData()
+	if err != nil {
+		return nil, err
+	}
+	return fsutil.NewVirtualFS("/data", data), nil
 }
 
 func (m *NATSMessage) Ack(data *message.ReplyData) error {
@@ -99,9 +103,13 @@ func (m *NATSKVMessage) GetData() ([]byte, error) {
 	return m.entry.Value(), nil
 }
 
-// GetFilesystem returns nil as this message type does not provide filesystem access.
+// GetFilesystem returns a virtual filesystem with message data accessible at /data.
 func (m *NATSKVMessage) GetFilesystem() (fsutil.Filesystem, error) {
-	return nil, nil
+	data, err := m.GetData()
+	if err != nil {
+		return nil, err
+	}
+	return fsutil.NewVirtualFS("/data", data), nil
 }
 
 func (m *NATSKVMessage) Ack(*message.ReplyData) error {
