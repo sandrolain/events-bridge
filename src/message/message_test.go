@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync"
 	"testing"
+
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 )
 
 const (
@@ -17,16 +19,18 @@ const (
 // Note: this is kept here to avoid import cycles. For tests outside
 // the message package, use github.com/sandrolain/events-bridge/src/testutil.StubSourceMessage
 type stubSourceMessage struct {
-	id          []byte
-	metadata    map[string]string
-	metadataErr error
-	data        []byte
-	dataErr     error
-	ackErr      error
-	ackCalls    int
-	nakErr      error
-	nakCalls    int
-	ackData     *ReplyData
+	id            []byte
+	metadata      map[string]string
+	metadataErr   error
+	data          []byte
+	dataErr       error
+	filesystem    any // fsutil.Filesystem or any compatible type
+	filesystemErr error
+	ackErr        error
+	ackCalls      int
+	nakErr        error
+	nakCalls      int
+	ackData       *ReplyData
 }
 
 func (s *stubSourceMessage) GetID() []byte {
@@ -45,6 +49,20 @@ func (s *stubSourceMessage) GetData() ([]byte, error) {
 		return nil, s.dataErr
 	}
 	return s.data, nil
+}
+
+func (s *stubSourceMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	if s.filesystemErr != nil {
+		return nil, s.filesystemErr
+	}
+	if s.filesystem == nil {
+		return nil, nil
+	}
+	if fs, ok := s.filesystem.(fsutil.Filesystem); ok {
+		return fs, nil
+	}
+	// For test filesystems like fstest.MapFS that don't fully implement fsutil.Filesystem
+	return nil, nil
 }
 
 func (s *stubSourceMessage) Ack(d *ReplyData) error {

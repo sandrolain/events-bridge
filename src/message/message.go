@@ -5,12 +5,14 @@ import (
 	"sync"
 
 	"github.com/sandrolain/events-bridge/src/common"
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 )
 
 type SourceMessage interface {
 	GetID() []byte
 	GetMetadata() (map[string]string, error)
 	GetData() ([]byte, error)
+	GetFilesystem() (fsutil.Filesystem, error)
 	Ack(data *ReplyData) error
 	Nak() error
 }
@@ -24,11 +26,13 @@ func NewRunnerMessage(original SourceMessage) *RunnerMessage {
 var _ SourceMessage = (*RunnerMessage)(nil)
 
 type RunnerMessage struct {
-	original SourceMessage
-	data     []byte
-	metadata map[string]string
-	metaMx   sync.Mutex
-	dataMx   sync.Mutex
+	original   SourceMessage
+	data       []byte
+	metadata   map[string]string
+	filesystem fsutil.Filesystem
+	metaMx     sync.Mutex
+	dataMx     sync.Mutex
+	fsMx       sync.Mutex
 }
 
 func (m *RunnerMessage) GetID() []byte {
@@ -116,6 +120,26 @@ func (m *RunnerMessage) GetData() ([]byte, error) {
 		return m.data, nil
 	}
 	return m.original.GetData()
+}
+
+// GetFilesystem returns the filesystem associated with the message.
+// If a filesystem was set on this RunnerMessage, it returns that.
+// Otherwise, it delegates to the original message.
+func (m *RunnerMessage) GetFilesystem() (fsutil.Filesystem, error) {
+	m.fsMx.Lock()
+	defer m.fsMx.Unlock()
+	if m.filesystem != nil {
+		return m.filesystem, nil
+	}
+	return m.original.GetFilesystem()
+}
+
+// SetFilesystem sets a filesystem for this message.
+// This allows runners to modify or wrap the filesystem before passing to the next runner.
+func (m *RunnerMessage) SetFilesystem(fs fsutil.Filesystem) {
+	m.fsMx.Lock()
+	defer m.fsMx.Unlock()
+	m.filesystem = fs
 }
 
 func (m *RunnerMessage) GetAllMetadata() (map[string]string, error) {

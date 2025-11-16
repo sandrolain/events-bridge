@@ -7,13 +7,15 @@ package testutil
 // It implements the message.SourceMessage interface for testing purposes.
 // Uses interface{} types to avoid import cycles with the message package.
 type StubSourceMessage struct {
-	ID       []byte
-	Data     []byte
-	Metadata map[string]string
-	DataErr  error
-	MetaErr  error
-	AckErr   error
-	NakErr   error
+	ID         []byte
+	Data       []byte
+	Metadata   map[string]string
+	Filesystem any // fsutil.Filesystem
+	DataErr    error
+	MetaErr    error
+	FsErr      error
+	AckErr     error
+	NakErr     error
 
 	// Call counters for verification in tests
 	AckCalls int
@@ -33,9 +35,10 @@ func NewStubSourceMessage(data []byte, metadata map[string]string) *StubSourceMe
 
 // WithError configures the stub to return errors for various operations.
 // This is useful for testing error handling paths.
-func (s *StubSourceMessage) WithError(dataErr, metaErr, ackErr, nakErr error) *StubSourceMessage {
+func (s *StubSourceMessage) WithError(dataErr, metaErr, fsErr, ackErr, nakErr error) *StubSourceMessage {
 	s.DataErr = dataErr
 	s.MetaErr = metaErr
+	s.FsErr = fsErr
 	s.AckErr = ackErr
 	s.NakErr = nakErr
 	return s
@@ -54,6 +57,11 @@ func (s *StubSourceMessage) GetMetadata() (map[string]string, error) {
 // GetData returns the message data or configured error.
 func (s *StubSourceMessage) GetData() ([]byte, error) {
 	return s.Data, s.DataErr
+}
+
+// GetFilesystem returns the message filesystem or configured error.
+func (s *StubSourceMessage) GetFilesystem() (any, error) {
+	return s.Filesystem, s.FsErr
 }
 
 // Ack acknowledges the message and increments the counter.

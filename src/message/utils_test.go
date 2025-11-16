@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/sandrolain/events-bridge/src/common/fsutil"
 )
 
 const testFallbackString = "fallback"
@@ -21,6 +23,10 @@ func (m *mockSourceMessage) GetMetadata() (map[string]string, error) {
 }
 
 func (m *mockSourceMessage) GetData() ([]byte, error) {
+	return nil, nil
+}
+
+func (m *mockSourceMessage) GetFilesystem() (fsutil.Filesystem, error) {
 	return nil, nil
 }
 
@@ -45,6 +51,10 @@ func (m *mockSourceMessageError) GetMetadata() (map[string]string, error) {
 }
 
 func (m *mockSourceMessageError) GetData() ([]byte, error) {
+	return nil, nil
+}
+
+func (m *mockSourceMessageError) GetFilesystem() (fsutil.Filesystem, error) {
 	return nil, nil
 }
 
