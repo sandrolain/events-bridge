@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
@@ -51,44 +50,75 @@ func (s *stubSourceMessage) Nak() error {
 }
 
 func TestNewRunner(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
 	tests := []struct {
 		name        string
-		config      map[string]any
+		config      *DockerRunnerConfig
 		expectError bool
 	}{
 		{
 			name: "valid minimal config",
-			config: map[string]any{
-				"image": "alpine:latest",
+			config: &DockerRunnerConfig{
+				Image:             "alpine:latest",
+				PullPolicy:        "IfNotPresent",
+				WorkingDir:        "/workspace",
+				MountPath:         "/workspace",
+				MountReadOnly:     false,
+				NetworkMode:       "none",
+				CaptureOutput:     true,
+				AggregateOutput:   false,
+				MetadataKeyPrefix: "docker_",
+				FailOnNonZero:     true,
+				Timeout:           "300s",
+				ReadOnlyRootfs:    false,
+				CapDrop:           []string{"ALL"},
 			},
 			expectError: false,
 		},
 		{
 			name: "valid full config",
-			config: map[string]any{
-				"image":         "alpine:latest",
-				"commands":      []string{"echo", "hello"},
-				"workingDir":    "/app",
-				"pullPolicy":    "Always",
-				"memoryLimit":   "256m",
-				"cpuLimit":      "0.5",
-				"timeout":       "60s",
-				"captureOutput": true,
+			config: &DockerRunnerConfig{
+				Image:             "alpine:latest",
+				Commands:          []string{"echo", "hello"},
+				WorkingDir:        "/app",
+				PullPolicy:        "Always",
+				MemoryLimit:       "256m",
+				CPULimit:          "0.5",
+				Timeout:           "60s",
+				CaptureOutput:     true,
+				AggregateOutput:   false,
+				MountPath:         "/workspace",
+				MountReadOnly:     false,
+				NetworkMode:       "none",
+				MetadataKeyPrefix: "docker_",
+				FailOnNonZero:     true,
+				ReadOnlyRootfs:    false,
+				CapDrop:           []string{"ALL"},
 			},
 			expectError: false,
 		},
 		{
-			name:        "missing image",
-			config:      map[string]any{},
+			name: "missing image",
+			config: &DockerRunnerConfig{
+				PullPolicy:        "IfNotPresent",
+				WorkingDir:        "/workspace",
+				MountPath:         "/workspace",
+				MountReadOnly:     false,
+				NetworkMode:       "none",
+				CaptureOutput:     true,
+				AggregateOutput:   false,
+				MetadataKeyPrefix: "docker_",
+				FailOnNonZero:     true,
+				Timeout:           "300s",
+				ReadOnlyRootfs:    false,
+				CapDrop:           []string{"ALL"},
+			},
 			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runner, err := NewRunner(tt.config, logger)
+			runner, err := NewRunner(tt.config)
 			if tt.expectError {
 				assert.Error(t, err)
 				assert.Nil(t, runner)
@@ -255,7 +285,7 @@ func TestDockerRunner_Process(t *testing.T) {
 				WorkingDir:        "/workspace",
 				MountPath:         "/workspace",
 				CaptureOutput:     true,
-				OutputToMetadata:  true,
+				AggregateOutput:   false,
 				MetadataKeyPrefix: "docker_",
 				FailOnNonZero:     true,
 				Timeout:           "60s",
@@ -271,10 +301,10 @@ func TestDockerRunner_Process(t *testing.T) {
 			validate: func(t *testing.T, msg *message.RunnerMessage) {
 				meta, err := msg.GetMetadata()
 				require.NoError(t, err)
-				assert.Equal(t, "0", meta["docker_exit_code"])
-				stdout, ok := meta["docker_stdout"]
-				assert.True(t, ok)
-				assert.Contains(t, stdout, "hello world")
+				assert.Equal(t, "0", meta["docker_exit-code"])
+				data, err := msg.GetData()
+				require.NoError(t, err)
+				assert.Contains(t, string(data), "hello world")
 			},
 		},
 		{
@@ -286,7 +316,7 @@ func TestDockerRunner_Process(t *testing.T) {
 				WorkingDir:        "/workspace",
 				MountPath:         "/workspace",
 				CaptureOutput:     true,
-				OutputToMetadata:  true,
+				AggregateOutput:   false,
 				MetadataKeyPrefix: "docker_",
 				FailOnNonZero:     true,
 				Timeout:           "60s",
@@ -302,10 +332,10 @@ func TestDockerRunner_Process(t *testing.T) {
 			validate: func(t *testing.T, msg *message.RunnerMessage) {
 				meta, err := msg.GetMetadata()
 				require.NoError(t, err)
-				assert.Equal(t, "0", meta["docker_exit_code"])
-				stdout, ok := meta["docker_stdout"]
-				assert.True(t, ok)
-				assert.Contains(t, stdout, "file content from fs")
+				assert.Equal(t, "0", meta["docker_exit-code"])
+				data, err := msg.GetData()
+				require.NoError(t, err)
+				assert.Contains(t, string(data), "file content from fs")
 			},
 		},
 		{
@@ -317,7 +347,7 @@ func TestDockerRunner_Process(t *testing.T) {
 				WorkingDir:        "/workspace",
 				MountPath:         "/workspace",
 				CaptureOutput:     true,
-				OutputToMetadata:  true,
+				AggregateOutput:   false,
 				MetadataKeyPrefix: "docker_",
 				FailOnNonZero:     true,
 				Timeout:           "60s",
@@ -337,7 +367,7 @@ func TestDockerRunner_Process(t *testing.T) {
 				WorkingDir:        "/workspace",
 				MountPath:         "/workspace",
 				CaptureOutput:     true,
-				OutputToMetadata:  true,
+				AggregateOutput:   false,
 				MetadataKeyPrefix: "docker_",
 				FailOnNonZero:     false,
 				Timeout:           "60s",
@@ -349,7 +379,54 @@ func TestDockerRunner_Process(t *testing.T) {
 			validate: func(t *testing.T, msg *message.RunnerMessage) {
 				meta, err := msg.GetMetadata()
 				require.NoError(t, err)
-				assert.Equal(t, "42", meta["docker_exit_code"])
+				assert.Equal(t, "42", meta["docker_exit-code"])
+			},
+		},
+		{
+			name: "output to data as raw bytes",
+			config: &DockerRunnerConfig{
+				Image:             "alpine:latest",
+				Commands:          []string{"echo", "stdout_test"},
+				PullPolicy:        "IfNotPresent",
+				WorkingDir:        "/workspace",
+				MountPath:         "/workspace",
+				CaptureOutput:     true,
+				MetadataKeyPrefix: "docker_",
+				FailOnNonZero:     false,
+				Timeout:           "60s",
+				NetworkMode:       "none",
+				CapDrop:           []string{"ALL"},
+			},
+			setupMsg:    func(msg *message.RunnerMessage) {},
+			expectError: false,
+			validate: func(t *testing.T, msg *message.RunnerMessage) {
+				data, err := msg.GetData()
+				require.NoError(t, err)
+				// Output is raw bytes with Docker log headers
+				assert.Contains(t, string(data), "stdout_test")
+			},
+		},
+		{
+			name: "capture output as raw bytes",
+			config: &DockerRunnerConfig{
+				Image:             "alpine:latest",
+				Commands:          []string{"echo", "aggregated output"},
+				PullPolicy:        "IfNotPresent",
+				WorkingDir:        "/workspace",
+				MountPath:         "/workspace",
+				CaptureOutput:     true,
+				MetadataKeyPrefix: "docker_",
+				FailOnNonZero:     false,
+				Timeout:           "60s",
+				NetworkMode:       "none",
+				CapDrop:           []string{"ALL"},
+			},
+			setupMsg:    func(msg *message.RunnerMessage) {},
+			expectError: false,
+			validate: func(t *testing.T, msg *message.RunnerMessage) {
+				data, err := msg.GetData()
+				require.NoError(t, err)
+				assert.Contains(t, string(data), "aggregated output")
 			},
 		},
 	}
@@ -430,7 +507,6 @@ func TestDockerRunner_collectArtifacts(t *testing.T) {
 			Artifacts: []ArtifactConfig{
 				{
 					ContainerPath: "/tmp/artifact.txt",
-					MetadataKey:   "artifact_data",
 					Compress:      false,
 				},
 			},
@@ -447,17 +523,14 @@ func TestDockerRunner_collectArtifacts(t *testing.T) {
 	err = runner.collectArtifacts(ctx, containerID, msg)
 	assert.NoError(t, err)
 
-	// Verify artifact in metadata
-	meta, err := msg.GetMetadata()
+	// Verify artifact in filesystem
+	fs, err := msg.GetFilesystem()
 	require.NoError(t, err)
-	artifactData, ok := meta["artifact_data"]
-	assert.True(t, ok)
-	assert.NotEmpty(t, artifactData)
+	require.NotNil(t, fs)
 
-	// Decode and verify content
-	decoded, err := base64.StdEncoding.DecodeString(artifactData)
-	assert.NoError(t, err)
-	assert.Contains(t, string(decoded), "artifact")
+	// Check artifact file exists using Stat
+	_, err = fs.Stat("/artifacts/artifact.txt")
+	assert.NoError(t, err, "artifact should exist in filesystem")
 }
 
 func TestParseMemory(t *testing.T) {

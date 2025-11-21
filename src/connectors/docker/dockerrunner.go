@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/sandrolain/events-bridge/src/common/fsutil"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
@@ -33,7 +31,6 @@ type EnvFromMetadata struct {
 // ArtifactConfig defines files/directories to collect after execution
 type ArtifactConfig struct {
 	ContainerPath string `mapstructure:"containerPath" validate:"required"`
-	MetadataKey   string `mapstructure:"metadataKey"`
 	Compress      bool   `mapstructure:"compress"`
 }
 
@@ -48,15 +45,15 @@ type VolumeMount struct {
 type DockerRunnerConfig struct {
 	// Container config
 	Image      string   `mapstructure:"image" validate:"required"`
-	PullPolicy string   `mapstructure:"pullPolicy"`
+	PullPolicy string   `mapstructure:"pullPolicy" default:"IfNotPresent"`
 	Commands   []string `mapstructure:"commands"`
-	WorkingDir string   `mapstructure:"workingDir"`
+	WorkingDir string   `mapstructure:"workingDir" default:"/workspace"`
 	Entrypoint []string `mapstructure:"entrypoint"`
 	User       string   `mapstructure:"user"`
 
 	// Filesystem mounting
-	MountPath     string `mapstructure:"mountPath"`
-	MountReadOnly bool   `mapstructure:"mountReadOnly"`
+	MountPath     string `mapstructure:"mountPath" default:"/workspace"`
+	MountReadOnly bool   `mapstructure:"mountReadOnly" default:"false"`
 
 	// Environment
 	Env         []string          `mapstructure:"env"`
@@ -65,28 +62,28 @@ type DockerRunnerConfig struct {
 	// Resources
 	MemoryLimit string `mapstructure:"memoryLimit"`
 	CPULimit    string `mapstructure:"cpuLimit"`
-	Timeout     string `mapstructure:"timeout"`
+	Timeout     string `mapstructure:"timeout" default:"300s"`
 
 	// Network
-	NetworkMode string `mapstructure:"networkMode"`
+	NetworkMode string `mapstructure:"networkMode" default:"none"`
 
 	// Output
-	CaptureOutput     bool   `mapstructure:"captureOutput"`
-	OutputToMetadata  bool   `mapstructure:"outputToMetadata"`
-	MetadataKeyPrefix string `mapstructure:"metadataKeyPrefix"`
+	CaptureOutput     bool   `mapstructure:"captureOutput" default:"true"`
+	AggregateOutput   bool   `mapstructure:"aggregateOutput" default:"false"`
+	MetadataKeyPrefix string `mapstructure:"metadataKeyPrefix" default:"eb-"`
 
 	// Artifacts
 	Artifacts []ArtifactConfig `mapstructure:"artifacts"`
 
 	// Behavior
-	FailOnNonZero bool `mapstructure:"failOnNonZeroExit"`
+	FailOnNonZero bool `mapstructure:"failOnNonZeroExit" default:"true"`
 
 	// Security
-	ReadOnlyRootfs     bool          `mapstructure:"readOnlyRootfs"`
+	ReadOnlyRootfs     bool          `mapstructure:"readOnlyRootfs" default:"false"`
 	CapDrop            []string      `mapstructure:"capDrop"`
 	CapAdd             []string      `mapstructure:"capAdd"`
-	Privileged         bool          `mapstructure:"privileged"`
-	EnableDockerSocket bool          `mapstructure:"enableDockerSocket"`
+	Privileged         bool          `mapstructure:"privileged" default:"false"`
+	EnableDockerSocket bool          `mapstructure:"enableDockerSocket" default:"false"`
 	Volumes            []VolumeMount `mapstructure:"volumes"`
 }
 
@@ -97,30 +94,19 @@ type DockerRunner struct {
 	slog   *slog.Logger
 }
 
+// NewRunnerConfig creates a new DockerRunnerConfig instance
+func NewRunnerConfig() any {
+	return new(DockerRunnerConfig)
+}
+
 // NewRunner creates a new Docker runner instance
-func NewRunner(cfg map[string]any, logger *slog.Logger) (connectors.Runner, error) {
-	runnerCfg := &DockerRunnerConfig{
-		PullPolicy:        "IfNotPresent",
-		WorkingDir:        "/workspace",
-		MountPath:         "/workspace",
-		MountReadOnly:     false,
-		NetworkMode:       "none",
-		CaptureOutput:     true,
-		OutputToMetadata:  true,
-		MetadataKeyPrefix: "docker_",
-		FailOnNonZero:     true,
-		Timeout:           "300s",
-		MemoryLimit:       "512m",
-		CPULimit:          "1.0",
-		ReadOnlyRootfs:    false,
-		CapDrop:           []string{"ALL"},
+func NewRunner(anyCfg any) (connectors.Runner, error) {
+	cfg, ok := anyCfg.(*DockerRunnerConfig)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type: %T", anyCfg)
 	}
 
-	if err := mapstructure.Decode(cfg, runnerCfg); err != nil {
-		return nil, fmt.Errorf("failed to decode docker runner config: %w", err)
-	}
-
-	if runnerCfg.Image == "" {
+	if cfg.Image == "" {
 		return nil, fmt.Errorf("docker image is required")
 	}
 
@@ -129,8 +115,10 @@ func NewRunner(cfg map[string]any, logger *slog.Logger) (connectors.Runner, erro
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
+	logger := slog.Default().With("context", "Docker Runner", "image", cfg.Image)
+
 	return &DockerRunner{
-		cfg:    runnerCfg,
+		cfg:    cfg,
 		client: dockerClient,
 		slog:   logger,
 	}, nil
@@ -194,9 +182,7 @@ func (r *DockerRunner) Process(msg *message.RunnerMessage) error {
 	case status := <-statusCh:
 		r.slog.Info("container finished", "id", containerID, "exitCode", status.StatusCode)
 
-		if r.cfg.OutputToMetadata {
-			msg.AddMetadata(r.cfg.MetadataKeyPrefix+"exit_code", strconv.FormatInt(status.StatusCode, 10))
-		}
+		msg.AddMetadata(r.cfg.MetadataKeyPrefix+"exit-code", strconv.FormatInt(status.StatusCode, 10))
 
 		if r.cfg.FailOnNonZero && status.StatusCode != 0 {
 			return fmt.Errorf("container exited with non-zero status: %d", status.StatusCode)
@@ -205,12 +191,12 @@ func (r *DockerRunner) Process(msg *message.RunnerMessage) error {
 
 	// Capture output
 	if r.cfg.CaptureOutput {
-		stdout, stderr, err := r.captureOutput(ctx, containerID)
+		r.slog.Debug("capturing container output", "id", containerID)
+		stdout, err := r.captureOutput(ctx, containerID)
 		if err != nil {
 			r.slog.Warn("failed to capture output", "error", err)
-		} else if r.cfg.OutputToMetadata {
-			msg.AddMetadata(r.cfg.MetadataKeyPrefix+"stdout", stdout)
-			msg.AddMetadata(r.cfg.MetadataKeyPrefix+"stderr", stderr)
+		} else {
+			msg.SetData(stdout)
 		}
 	}
 
@@ -220,6 +206,8 @@ func (r *DockerRunner) Process(msg *message.RunnerMessage) error {
 			r.slog.Warn("failed to collect artifacts", "error", err)
 		}
 	}
+
+	r.slog.Info("docker execution completed", "id", containerID)
 
 	return nil
 }
@@ -411,13 +399,13 @@ func (r *DockerRunner) createContainer(ctx context.Context, hostDir string, env 
 }
 
 // captureOutput captures stdout and stderr from container
-func (r *DockerRunner) captureOutput(ctx context.Context, containerID string) (string, string, error) {
+func (r *DockerRunner) captureOutput(ctx context.Context, containerID string) ([]byte, error) {
 	logs, err := r.client.ContainerLogs(ctx, containerID, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 	})
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	defer func() {
 		if err := logs.Close(); err != nil {
@@ -425,15 +413,15 @@ func (r *DockerRunner) captureOutput(ctx context.Context, containerID string) (s
 		}
 	}()
 
-	var stdoutBuf, stderrBuf bytes.Buffer
+	var stdoutBuf bytes.Buffer
 
 	// Docker multiplexes stdout/stderr, we need to demux
 	// For simplicity, we'll capture both to stdout buffer
 	if _, err := io.Copy(&stdoutBuf, logs); err != nil {
-		return "", "", err
+		return nil, err
 	}
 
-	return stdoutBuf.String(), stderrBuf.String(), nil
+	return stdoutBuf.Bytes(), nil
 }
 
 // collectArtifacts copies artifacts from container to message filesystem
@@ -479,12 +467,6 @@ func (r *DockerRunner) collectArtifacts(ctx context.Context, containerID string,
 			}
 		}
 
-		// Store in metadata if key is specified
-		if artifact.MetadataKey != "" {
-			encoded := base64.StdEncoding.EncodeToString(data)
-			msg.AddMetadata(artifact.MetadataKey, encoded)
-		}
-
 		// Also store in filesystem
 		artifactName := filepath.Base(artifact.ContainerPath)
 		if artifact.Compress {
@@ -493,7 +475,7 @@ func (r *DockerRunner) collectArtifacts(ctx context.Context, containerID string,
 		artifactPath := filepath.Join("/artifacts", artifactName)
 
 		if err := fsutil.WriteFile(fs, artifactPath, data, 0644); err != nil {
-			r.slog.Warn("failed to write artifact to filesystem", "error", err)
+			r.slog.Warn("failed to write artifact to filesystem", "error", err, "path", artifactPath)
 		}
 	}
 

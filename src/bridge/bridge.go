@@ -175,6 +175,8 @@ func (b *EventsBridge) processRunnerMessage(
 	ifEval *expreval.ExprEvaluator,
 	filterEval *expreval.ExprEvaluator,
 ) (*message.RunnerMessage, bool, error) {
+	b.logger.Debug("processing message with runner", "runnerType", cfg.Type, "messageID", msg.GetID())
+
 	// Evaluate if condition
 	if ifEval != nil {
 		pass, err := ifEval.EvalMessage(msg)

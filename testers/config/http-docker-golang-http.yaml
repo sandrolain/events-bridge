@@ -13,55 +13,47 @@ commands:
             path: "/build"
             buffer: 10
             multipart: true
+            timeout: 20s
 
         runners:
           # Docker runner per build e test del progetto Go
           - type: docker
             options:
               image: "golang:1.23-alpine"
-              pull_policy: "IfNotPresent"
-              working_dir: "/workspace"
-              mount_path: "/workspace"
               commands:
                 - "sh"
                 - "-c"
                 - |
                   cd /workspace &&
-                  echo "Running tests..." &&
+                  echo "=== Listing workspace ===" &&
+                  ls -lah &&
+                  echo "=== Extracting project ===" &&
+                  tar -xzf *.tar.gz 2>/dev/null || true &&
+                  ls -lah &&
+                  echo "=== Running tests ===" &&
                   go test -v ./... &&
-                  echo "Building binary..." &&
+                  echo "=== Building binary ===" &&
                   go build -o /workspace/app -ldflags="-s -w" . &&
-                  echo "Build completed successfully"
+                  echo "=== Build completed successfully ===" &&
+                  ls -lh /workspace/app
               env:
                 - "CGO_ENABLED=0"
                 - "GOOS=linux"
                 - "GOARCH=amd64"
               timeout: "300s"
-              network_mode: "bridge"
-              capture_output: true
-              output_to_metadata: true
-              metadata_key_prefix: "build_"
-              fail_on_non_zero: true
               artifacts:
-                - container_path: "/workspace/app"
-                  metadata_key: "binary"
+                - containerPath: "/workspace/app"
                   compress: true
-              cap_drop:
+              capDrop:
                 - "ALL"
-              read_only_rootfs: false
 
           # HTTP runner per inviare il binario compilato
           - type: http
             options:
               url: "http://localhost:8081/binary"
-              method: POST
               timeout: 30s
               headers:
                 Content-Type: "application/octet-stream"
-                X-Build-Status: "{{build_exit_code}}"
-                X-Build-Output: "{{build_stdout}}"
-              body_from_metadata: "binary"
-              decode_base64: true
     args: []
     restartTries: 0
   - cmd: "httptool"
@@ -70,12 +62,10 @@ commands:
         "send",
         "--path",
         "/build",
-        "--payload-file",
-        "./testers/tools/sample-go-project.tar.gz",
+        "--file",
+        "project=./testers/tools/sample-go-project.tar.gz",
         "--interval",
-        "10s",
-        "--content-type",
-        "multipart/form-data",
+        "5s",
       ]
     restartTries: 0
 killOthers: true
