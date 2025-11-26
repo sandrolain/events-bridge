@@ -1,0 +1,146 @@
+commands:
+  - name: http-target
+    cmd: "httptool"
+    args: ["serve"]
+    restartTries: 0
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "http"
+          options:
+            address: "localhost:8080"
+            method: "POST"
+            path: "/event"
+        runners:
+          # Format Runner with multiple operations pipeline
+          - type: "format"
+            options:
+              verbose: true
+              timeout: "30s"
+              operations:
+                # 1. Extract key fields from incoming JSON to metadata for later use
+                - type: "extract"
+                  input: "data"
+                  output: "metadata"
+                  options:
+                    format: "json"
+                    fields:
+                      - path: "message"
+                        destination: "metadata"
+                        key: "eb-original_message"
+                      - path: "data.value"
+                        destination: "metadata"
+                        key: "eb-counter_value"
+
+                # 2. Transform data into a structured report using template
+                - type: "template"
+                  input: "data"
+                  output: "data"
+                  options:
+                    engine: "text"
+                    template: |
+                      {
+                        "report": {
+                          "title": "Event Processing Report",
+                          "original_message": "{{ index .metadata "eb-original_message" }}",
+                          "counter": {{ index .metadata "eb-counter_value" }},
+                          "processed_at": "{{ .now.Format "2006-01-02T15:04:05Z07:00" }}",
+                          "source_data": {{ .data }}
+                        }
+                      }
+
+                # 3. Convert the report to YAML for human-readable intermediate format
+                - type: "serialize"
+                  input: "data"
+                  output: "data"
+                  options:
+                    from: "json"
+                    to: "yaml"
+
+                # 4. Merge the YAML report with metadata into a combined structure
+                - type: "merge"
+                  input: "data"
+                  output: "data"
+                  options:
+                    format: "json"
+                    sources:
+                      - input: "data"
+                        key: "report_yaml"
+                      - input: "metadata"
+                        key: "processing_metadata"
+
+                # 5. Create multipart output with different sections
+                - type: "multipart"
+                  input: "data"
+                  output: "parts"
+                  options:
+                    clearExisting: true
+                    parts:
+                      - name: "combined_report"
+                        source: "data"
+                        contentType: "application/json"
+                        filename: "report.json"
+                      - name: "summary"
+                        source: "template"
+                        contentType: "text/plain"
+                        template: |
+                          Event Summary
+                          =============
+                          Message: {{ index .metadata "original_message" }}
+                          Counter: {{ index .metadata "counter_value" }}
+                          Processed: {{ .now.Format "15:04:05" }}
+
+                # 6. Convert final output back to pretty JSON for HTTP target
+                - type: "serialize"
+                  input: "data"
+                  output: "data"
+                  options:
+                    from: "json"
+                    to: "json"
+                    pretty: true
+                    indent: "  "
+
+                # 7. Compress the final payload for efficient transmission
+                - type: "compress"
+                  input: "data"
+                  output: "data"
+                  options:
+                    algorithm: "gzip"
+                    operation: "compress"
+                    level: 6
+
+                # 8. Encode compressed data as base64 for safe HTTP transport
+                - type: "encode"
+                  input: "data"
+                  output: "data"
+                  options:
+                    encoding: "base64"
+                    operation: "encode"
+
+            routines: 4
+
+          # HTTP target runner - receives base64-encoded gzip data
+          - type: "http"
+            options:
+              method: "POST"
+              url: "http://localhost:9090/api/data"
+              headers:
+                Content-Type: "text/plain"
+                Content-Encoding: "gzip+base64"
+                X-Processed-By: "format-runner"
+                X-Pipeline-Steps: "8"
+            routines: 4
+    args: []
+    restartTries: 0
+  - name: http-source
+    cmd: "httptool"
+    args:
+      - "send"
+      - "--interval"
+      - "2s"
+      - "--payload"
+      - '{"message": "Hello from counter {{counter}}", "timestamp": "{{nowtime}}", "data": {"value": {{counter}}, "name": "test"}}'
+    startAfter: "2s"
+killOthers: true

@@ -25,14 +25,25 @@ func NewRunnerMessage(original SourceMessage) *RunnerMessage {
 
 var _ SourceMessage = (*RunnerMessage)(nil)
 
+// Part represents a single part in a multipart message
+type Part struct {
+	Name        string            // Part name (e.g., "logs", "artifact1")
+	Filename    string            // Optional filename for file parts
+	ContentType string            // MIME type
+	Headers     map[string]string // Additional headers
+	Data        []byte            // Part data
+}
+
 type RunnerMessage struct {
 	original   SourceMessage
 	data       []byte
 	metadata   map[string]string
 	filesystem fsutil.Filesystem
+	parts      []Part // Multipart data
 	metaMx     sync.Mutex
 	dataMx     sync.Mutex
 	fsMx       sync.Mutex
+	partsMx    sync.Mutex // Protect parts
 }
 
 func (m *RunnerMessage) GetID() []byte {
@@ -172,6 +183,42 @@ func (m *RunnerMessage) AckSource(reply bool) error {
 
 func (m *RunnerMessage) Nak() error {
 	return m.original.Nak()
+}
+
+// AddPart adds a part to the multipart message
+func (m *RunnerMessage) AddPart(part Part) {
+	m.partsMx.Lock()
+	defer m.partsMx.Unlock()
+	m.parts = append(m.parts, part)
+}
+
+// GetParts returns all message parts
+func (m *RunnerMessage) GetParts() []Part {
+	m.partsMx.Lock()
+	defer m.partsMx.Unlock()
+	// Return a copy to prevent external modification
+	return append([]Part(nil), m.parts...)
+}
+
+// HasParts returns true if message has multipart data
+func (m *RunnerMessage) HasParts() bool {
+	m.partsMx.Lock()
+	defer m.partsMx.Unlock()
+	return len(m.parts) > 0
+}
+
+// ClearParts removes all parts
+func (m *RunnerMessage) ClearParts() {
+	m.partsMx.Lock()
+	defer m.partsMx.Unlock()
+	m.parts = nil
+}
+
+// SetParts replaces all parts
+func (m *RunnerMessage) SetParts(parts []Part) {
+	m.partsMx.Lock()
+	defer m.partsMx.Unlock()
+	m.parts = append([]Part(nil), parts...)
 }
 
 type ResponseStatus int

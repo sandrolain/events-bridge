@@ -120,3 +120,15 @@ func (f *ReadOnlyFile) Seek(offset int64, whence int) (int64, error) {
 func NewReadOnlyFile(file fs.File) File {
 	return &ReadOnlyFile{File: file}
 }
+
+// ReadFile reads the file named by filename from the filesystem and returns the contents.
+// A successful call returns err == nil, not err == EOF.
+func ReadFile(fsys Filesystem, filename string) ([]byte, error) {
+	file, err := fsys.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close() //nolint:errcheck
+
+	return io.ReadAll(file)
+}
