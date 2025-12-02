@@ -1,0 +1,42 @@
+package main
+
+import (
+	"events"
+	"fmt"
+	"strings"
+	"time"
+)
+
+func main() {
+	// Get the original data
+	data, err := events.Message.GetData()
+	if err != nil {
+		panic(fmt.Sprintf("failed to get data: %v", err))
+	}
+
+	// Get metadata
+	meta, err := events.Message.GetMetadata()
+	if err != nil {
+		panic(fmt.Sprintf("failed to get metadata: %v", err))
+	}
+
+	// Process the data - convert to uppercase and add processing info
+	processed := strings.ToUpper(string(data))
+	timestamp := time.Now().Format(time.RFC3339)
+
+	result := fmt.Sprintf("[Scriggo Processed at %s] %s", timestamp, processed)
+
+	// Set the processed data
+	events.Message.SetData([]byte(result))
+
+	// Add metadata about the processing
+	events.Message.AddMetadata("eb-scriggo-processed", "true")
+	events.Message.AddMetadata("eb-scriggo-timestamp", timestamp)
+	events.Message.AddMetadata("eb-scriggo-original-length", fmt.Sprintf("%d", len(data)))
+	events.Message.AddMetadata("eb-scriggo-processed-length", fmt.Sprintf("%d", len(result)))
+
+	// Log the original source if present
+	if source, ok := meta["source"]; ok {
+		events.Message.AddMetadata("eb-scriggo-original-source", source)
+	}
+}

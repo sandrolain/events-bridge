@@ -1,0 +1,33 @@
+commands:
+  - name: http-target
+    cmd: "httptool"
+    args: ["serve"]
+    restartTries: 0
+  - name: task
+    cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "http"
+          options:
+            address: "localhost:8080"
+            method: "POST"
+            path: "/event"
+        runners:
+          - type: "scriggo"
+            options:
+              path: "./testers/runners/scriggorunner/processor.scriggo"
+              timeout: 5s
+            routines: 8
+          - type: "http"
+            options:
+              method: "POST"
+              url: "http://localhost:9090/api/data"
+            routines: 8
+    args: []
+    restartTries: 0
+  - name: http-source
+    cmd: "httptool"
+    args: ["send", "--interval", "1s", "--payload", "{{counter}} - {{nowtime}}"]
+    startAfter: "2s"
+killOthers: true
