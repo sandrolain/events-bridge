@@ -1,0 +1,70 @@
+shutdownCommands:
+  - name: stop-php-fpm
+    cmd: "docker"
+    args:
+      - "stop"
+      - "test-phpfpm"
+    restartTries: 0
+
+commands:
+  # PHP-FPM container for testing FastCGI integration
+  - name: php-fpm
+    cmd: "docker"
+    args:
+      - "run"
+      - "--rm"
+      - "--name"
+      - "test-phpfpm"
+      - "-v"
+      - "./testers/runners/php:/var/www/html:ro"
+      - "-p"
+      - "9000:9000"
+      - "php:8.3-fpm"
+    restartTries: 0
+  # Events Bridge with FastCGI runner
+  - name: events-bridge
+    cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "http"
+          reply: true
+          options:
+            address: "localhost:8080"
+            method: "POST"
+
+        runners:
+          # FastCGI runner connecting to PHP-FPM
+          - type: "fastcgi"
+            options:
+              network: "tcp"
+              address: "localhost:9000"
+              documentRoot: "/var/www/html"
+              scriptFilename: "/var/www/html/handler.php"
+              poolSize: 10
+              poolExpiry: "60s"
+            ifExpr: 'string(metadata.path) matches "^/process$"'
+    args: []
+    restartTries: 0
+    startAfter: "2000ms"
+
+  # HTTP source to send test requests
+  - name: http-source
+    cmd: "httptool"
+    args:
+      [
+        "send",
+        "--interval",
+        "2s",
+        "--path",
+        "/process",
+        "--payload",
+        '{"message": "Hello from Events Bridge", "counter": {{counter}}, "time": "{{nowtime}}"}',
+        "--header",
+        "Content-Type=application/json",
+        "--header",
+        "X-Request-ID=req-{{counter}}",
+      ]
+    startAfter: "3000ms"
+
+killOthers: true
