@@ -25,6 +25,7 @@ tasks:
       - go install github.com/sandrolain/eventkit/...@v1
       - go install github.com/sandrolain/goncurrently@latest
       - go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
       - asdf reshim
 
   fmt-check:
@@ -149,12 +150,19 @@ tasks:
       - echo "✅ License report saved to licenses.csv"
       - echo "Review licenses.csv to verify all dependencies"
 
+  govulncheck:
+    desc: Run Go vulnerability check using govulncheck
+    cmds:
+      - echo "Running govulncheck..."
+      - govulncheck ./src/...
+
   check:
     desc: Run all checks (fmt, lint, test, trivy, licenses)
     cmds:
       - task: fmt-check
       - task: lint
       - task: trivy
+      - task: govulncheck
       - task: test
       - task: licenses
       - task: hadolint
