@@ -19,9 +19,6 @@ on:
       - "context/**"
       - "TODO.md"
       - "examples/**/README.md"
-  schedule:
-    # Run security scan weekly on Mondays at 00:00 UTC
-    - cron: "0 0 * * 1"
 
 jobs:
   gosec:
