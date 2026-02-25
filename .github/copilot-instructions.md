@@ -56,3 +56,42 @@ Do not perform git operations, only suggest code changes.
 ## Thidy party projects
 
 If you need to clone third party projects to understand or test something, do it in a temporary directory under the local `/tmp` folder.
+
+
+## File Creation Workflow
+
+**⚠️ CRITICAL: Go File Creation Workaround**
+
+Due to conflicts with the Go extension's automatic formatting and code generation:
+
+1. **Always create Go files with `.txt` extension first**
+2. **Then rename them to `.go` using terminal command**
+
+```bash
+# Example workflow:
+# 1. Create file with .txt extension
+create_file("pkg/parser/lexer.txt", content)
+
+# 2. Rename to .go
+run_in_terminal("mv pkg/parser/lexer.txt pkg/parser/lexer.go")
+```
+
+This prevents the Go extension from interfering with file creation and ensures the content remains exactly as intended.
+
+## Temporary Files
+
+**Always use local `./tmp` directory for temporary files, never `/tmp`**
+
+```bash
+# Create tmp directory if it doesn't exist
+mkdir -p ./tmp
+
+# Use local tmp directory for temporary files
+go test ./tests/conformance -v 2>&1 > ./tmp/test_results.log
+```
+
+This ensures:
+- Files are kept within the project workspace
+- No permission issues
+- Easy cleanup with `rm -rf ./tmp`
+- Files are accessible to all tools and users
