@@ -25,7 +25,7 @@ const (
 
 func mustRunGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command("git", args...) //nolint:gosec // test helper always invokes the "git" binary with controlled arguments
 	cmd.Dir = dir
 	env := os.Environ()
 	env = append(env,

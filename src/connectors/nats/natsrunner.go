@@ -62,7 +62,7 @@ type RunnerConfig struct {
 	// Password for NATS authentication.
 	// Leave empty if authentication is not required.
 	// WARNING: Consider using environment variables or secret managers for production.
-	Password string `mapstructure:"password"`
+	Password string `mapstructure:"password"` //nolint:gosec // user-configured credential field
 
 	// Token for NATS token-based authentication.
 	// Alternative to username/password authentication.

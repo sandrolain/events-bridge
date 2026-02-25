@@ -50,7 +50,7 @@ func buildDTLSClientPSK(identity, psk, address string) (*coapudpclient.Conn, err
 		return nil, fmt.Errorf("failed to resolve PSK: %w", err)
 	}
 
-	dtlsConfig := &piondtls.Config{
+	dtlsConfig := &piondtls.Config{ //nolint:staticcheck // options-based API not yet available for this pion/dtls version
 		PSK: func(hint []byte) ([]byte, error) {
 			return []byte(resolvedPSK), nil
 		},
@@ -72,7 +72,7 @@ func buildDTLSClientCert(certFile, keyFile, address string) (*coapudpclient.Conn
 		return nil, fmt.Errorf("failed to load certificate: %w", err)
 	}
 
-	dtlsConfig := &piondtls.Config{
+	dtlsConfig := &piondtls.Config{ //nolint:staticcheck // options-based API not yet available for this pion/dtls version
 		Certificates: []tls.Certificate{cert},
 	}
 
@@ -84,12 +84,14 @@ func buildDTLSClientCert(certFile, keyFile, address string) (*coapudpclient.Conn
 }
 
 // buildDTLSConfig creates a pion/dtls Config for server use (PSK or cert mode).
-func buildDTLSConfig(pskIdentity, psk, certFile, keyFile string) (*piondtls.Config, error) {
+//
+//nolint:staticcheck // options-based pion/dtls API not yet stable for this version
+func buildDTLSConfig(pskIdentity, psk, certFile, keyFile string) (*piondtls.Config, error) { //nolint:staticcheck
 	hasPSK := psk != "" && pskIdentity != ""
 	hasCert := certFile != "" && keyFile != ""
 
 	if hasPSK {
-		return &piondtls.Config{
+		return &piondtls.Config{ //nolint:staticcheck
 			PSK: func(hint []byte) ([]byte, error) {
 				return []byte(psk), nil
 			},
@@ -103,7 +105,7 @@ func buildDTLSConfig(pskIdentity, psk, certFile, keyFile string) (*piondtls.Conf
 		if err != nil {
 			return nil, fmt.Errorf("failed to load server certificate: %w", err)
 		}
-		return &piondtls.Config{
+		return &piondtls.Config{ //nolint:staticcheck
 			Certificates: []tls.Certificate{cert},
 		}, nil
 	}

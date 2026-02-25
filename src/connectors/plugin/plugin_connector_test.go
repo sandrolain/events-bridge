@@ -20,7 +20,7 @@ import (
 func locateTestPlugin(t *testing.T) string {
 	t.Helper()
 	if p := os.Getenv("TEST_PLUGIN_CONNECTOR_BIN"); p != "" {
-		if _, err := os.Stat(p); err == nil {
+		if _, err := os.Stat(p); err == nil { //nolint:gosec // path comes from a trusted env variable set by CI/developer
 			return p
 		}
 	}

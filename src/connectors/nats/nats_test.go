@@ -86,7 +86,7 @@ func TestSourceConfigWithNKey(t *testing.T) {
 }
 
 func TestSourceConfigWithCredentials(t *testing.T) {
-	cfg := &SourceConfig{
+	cfg := &SourceConfig{ //nolint:gosec // test placeholder credentials path
 		Address:         testAddress,
 		Subject:         testSubject,
 		CredentialsFile: "/path/to/creds.creds",

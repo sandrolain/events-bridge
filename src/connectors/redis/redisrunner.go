@@ -24,7 +24,7 @@ type RunnerConfig struct {
 	// Username for Redis ACL authentication (Redis 6+)
 	Username string `mapstructure:"username"`
 	// Password for authentication
-	Password string `mapstructure:"password"`
+	Password string `mapstructure:"password"` //nolint:gosec // user-configured credential field
 	// Database number (0-15)
 	DB int `mapstructure:"db" default:"0" validate:"min=0,max=15"`
 

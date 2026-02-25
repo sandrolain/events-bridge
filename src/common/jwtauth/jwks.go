@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -45,9 +46,17 @@ type JWK struct {
 }
 
 // NewJWKSClient creates a new JWKS client with automatic refresh.
-func NewJWKSClient(url string, refreshInterval time.Duration, logger *slog.Logger) (*JWKSClient, error) {
+// The url must use http or https scheme.
+func NewJWKSClient(rawURL string, refreshInterval time.Duration, logger *slog.Logger) (*JWKSClient, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWKS URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, fmt.Errorf("JWKS URL must use http or https scheme, got %q", parsed.Scheme)
+	}
 	client := &JWKSClient{
-		url:             url,
+		url:             rawURL,
 		refreshInterval: refreshInterval,
 		slog:            logger.With("component", "JWKS Client"),
 		keys:            make(map[string]interface{}),
@@ -63,7 +72,7 @@ func NewJWKSClient(url string, refreshInterval time.Duration, logger *slog.Logge
 	}
 
 	client.slog.Info("JWKS client initialized",
-		"url", url,
+		"url", rawURL,
 		"refreshInterval", refreshInterval,
 		"keysLoaded", len(client.keys))
 
@@ -107,7 +116,8 @@ func (c *JWKSClient) refresh() error {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "events-bridge-jwtauth/1.0")
 
-	resp, err := c.httpClient.Do(req)
+	// URL scheme is validated in NewJWKSClient; SSRF risk is accepted as this is a user-configured endpoint.
+	resp, err := c.httpClient.Do(req) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("failed to fetch JWKS: %w", err)
 	}

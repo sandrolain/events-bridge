@@ -39,7 +39,7 @@ type SourceConfig struct {
 	Username string `mapstructure:"username"`
 
 	// Password for HTTPS authentication (supports secrets: plain, env:VAR, file:/path)
-	Password string `mapstructure:"password"`
+	Password string `mapstructure:"password"` //nolint:gosec // user-configured credential field
 
 	// SubDir filters changes to a specific subdirectory
 	SubDir string `mapstructure:"subdir"`

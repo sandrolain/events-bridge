@@ -53,7 +53,7 @@ type RunnerConfig struct {
 	// Password for MQTT broker authentication.
 	// Leave empty if authentication is not required.
 	// WARNING: Consider using environment variables or secret managers for production.
-	Password string `mapstructure:"password"`
+	Password string `mapstructure:"password"` //nolint:gosec // user-configured credential field
 
 	// TLS holds TLS/SSL configuration for secure connections.
 	TLS *tlsconfig.Config `mapstructure:"tls"`
@@ -166,7 +166,7 @@ func (t *MQTTRunner) Process(msg *message.RunnerMessage) error {
 	topic := t.cfg.Topic
 	topic = message.ResolveFromMetadata(msg, t.cfg.TopicFromMetadataKey, topic)
 
-	qos := byte(t.cfg.QoS)
+	qos := byte(t.cfg.QoS) //nolint:gosec // QoS is validated to 0-2 range
 	if qos > 2 {
 		qos = 0
 	}

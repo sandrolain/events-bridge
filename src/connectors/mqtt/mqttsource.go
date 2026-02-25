@@ -58,7 +58,7 @@ type SourceConfig struct {
 	// Password for MQTT broker authentication.
 	// Leave empty if authentication is not required.
 	// WARNING: Consider using environment variables or secret managers for production.
-	Password string `mapstructure:"password"`
+	Password string `mapstructure:"password"` //nolint:gosec // user-configured credential field
 
 	// TLS holds TLS/SSL configuration for secure connections.
 	TLS *tlsconfig.Config `mapstructure:"tls"`
@@ -188,7 +188,7 @@ func (s *MQTTSource) Produce(buffer int) (<-chan *message.RunnerMessage, error) 
 
 	s.slog.Info("subscribing to topic", "topic", topic, "qos", s.cfg.QoS)
 
-	qos := byte(s.cfg.QoS)
+	qos := byte(s.cfg.QoS) //nolint:gosec // QoS is validated to 0-2 range
 
 	// Message handler
 	handler := func(client mqtt.Client, msg mqtt.Message) {

@@ -17,7 +17,7 @@ func TestNewRunnerConfig(t *testing.T) {
 	assert.True(t, ok, "NewRunnerConfig should return *RunnerConfig")
 }
 
-const validConnString = "postgres://user:pass@localhost/db"
+const validConnString = "postgres://user:pass@localhost/db" //nolint:gosec // test connection string with placeholder credentials
 
 // TestRunnerConfigInvalidIdentifiers tests SQL injection prevention
 func TestRunnerConfigInvalidIdentifiers(t *testing.T) {

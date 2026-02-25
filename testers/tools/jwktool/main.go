@@ -345,7 +345,7 @@ func main() { //nolint:gocyclo
 		nBytes := publicKey.N.Bytes()
 		eBytes := make([]byte, 4)
 		for i := 0; i < 4; i++ {
-			eBytes[3-i] = byte(publicKey.E >> (i * 8))
+			eBytes[3-i] = byte(uint32(publicKey.E) >> (i * 8)) //nolint:gosec // RSA public exponent fits in uint32
 		}
 		jwk := JWK{
 			Kty: "RSA",

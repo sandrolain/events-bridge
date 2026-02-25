@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"cloud.google.com/go/pubsub/v2"
@@ -60,7 +61,11 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	var opts []option.ClientOption
 	if cfg.CredentialsFile != "" {
 		slog.Info("PubSub runner using credentials file", "file", cfg.CredentialsFile)
-		opts = append(opts, option.WithCredentialsFile(cfg.CredentialsFile))
+		jsonData, readErr := os.ReadFile(cfg.CredentialsFile)
+		if readErr != nil {
+			return nil, fmt.Errorf("error reading credentials file: %w", readErr)
+		}
+		opts = append(opts, option.WithCredentialsJSON(jsonData)) //nolint:staticcheck // WithCredentialsJSON is the non-file alternative; accepted deprecation
 	} else if cfg.UseWorkloadIdentity {
 		slog.Info("PubSub runner using Workload Identity")
 		// Workload Identity uses Application Default Credentials

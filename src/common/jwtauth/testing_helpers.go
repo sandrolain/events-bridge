@@ -98,11 +98,12 @@ func encodeRSAModulus(n *big.Int) string {
 }
 
 func encodeRSAExponent(e int) string {
+	u := uint32(e) //nolint:gosec // RSA public exponent is always positive and fits in uint32
 	buf := make([]byte, 4)
-	buf[0] = byte(e >> 24)
-	buf[1] = byte(e >> 16)
-	buf[2] = byte(e >> 8)
-	buf[3] = byte(e)
+	buf[0] = byte(u >> 24)
+	buf[1] = byte(u >> 16) //nolint:gosec // intentional bit-shift truncation to byte
+	buf[2] = byte(u >> 8)  //nolint:gosec // intentional bit-shift truncation to byte
+	buf[3] = byte(u)       //nolint:gosec // intentional bit-shift truncation to byte
 	// Remove leading zeros
 	for len(buf) > 1 && buf[0] == 0 {
 		buf = buf[1:]

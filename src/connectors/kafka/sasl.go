@@ -27,7 +27,7 @@ type SASLConfig struct {
 
 	// Password for SASL authentication.
 	// WARNING: Consider using environment variables or secret managers for production.
-	Password string `mapstructure:"password" validate:"required_if=Enabled true"`
+	Password string `mapstructure:"password" validate:"required_if=Enabled true"` //nolint:gosec // user-configured credential field
 }
 
 // BuildSASLMechanism creates a SASL mechanism for Kafka authentication.

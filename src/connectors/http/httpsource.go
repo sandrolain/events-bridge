@@ -66,7 +66,7 @@ type AuthConfig struct {
 	Username string `mapstructure:"username" validate:"required_if=Type basic,omitempty"`
 
 	// Password for basic authentication
-	Password string `mapstructure:"password" validate:"required_if=Type basic,omitempty"`
+	Password string `mapstructure:"password" validate:"required_if=Type basic,omitempty"` //nolint:gosec // user-configured credential field
 
 	// HeaderName is the custom header name for apikey authentication (default: "X-API-Key")
 	HeaderName string `mapstructure:"headerName" default:"X-API-Key"`

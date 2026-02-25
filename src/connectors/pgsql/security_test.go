@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	testConnString        = "postgres://user:pass@localhost:5432/testdb"
+	testConnString        = "postgres://user:pass@localhost:5432/testdb" //nolint:gosec // test connection string with placeholder credentials
 	securityTestTable     = "test_table"
 	errExpectedError      = "expected error for %s"
 	errUnexpectedError    = "unexpected error: %v"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -122,7 +123,11 @@ func (s *PubSubSource) createClient(ctx context.Context) (*pubsub.Client, error)
 	// Use explicit credentials file if provided
 	if s.cfg.CredentialsFile != "" {
 		s.slog.Info("using credentials file", "file", s.cfg.CredentialsFile)
-		opts = append(opts, option.WithCredentialsFile(s.cfg.CredentialsFile))
+		jsonData, readErr := os.ReadFile(s.cfg.CredentialsFile)
+		if readErr != nil {
+			return nil, fmt.Errorf("error reading credentials file: %w", readErr)
+		}
+		opts = append(opts, option.WithCredentialsJSON(jsonData)) //nolint:staticcheck // WithCredentialsJSON is the non-file alternative; accepted deprecation
 	} else if s.cfg.UseWorkloadIdentity {
 		s.slog.Info("using Workload Identity")
 		// Workload Identity uses Application Default Credentials, no extra options needed

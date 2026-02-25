@@ -27,7 +27,7 @@ const (
 
 type RunnerConfig struct {
 	ApiURL    string        `mapstructure:"apiUrl" validate:"required"`
-	ApiKey    string        `mapstructure:"apiKey" validate:"required"`
+	ApiKey    string        `mapstructure:"apiKey" validate:"required"` //nolint:gosec // user-configured API key field
 	Prompt    string        `mapstructure:"prompt" validate:"required"`
 	Model     string        `mapstructure:"model" validate:"required"`
 	BatchSize int           `mapstructure:"batchSize"`
