@@ -1,6 +1,6 @@
 module github.com/sandrolain/events-bridge
 
-go 1.25.7
+go 1.26.0
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.4.0
@@ -141,6 +141,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/rs/xid v1.6.0 // indirect
+	github.com/sandrolain/gosonata v0.0.0-20260224090041-3e9178732919 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.1 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect

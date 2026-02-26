@@ -1,0 +1,54 @@
+commands:
+  - name: http-sink
+    cmd: "httptool"
+    args: ["serve"]
+    restartTries: 0
+  - name: events-bridge
+    cmd: "./bin/events-bridge"
+    env:
+      EB_CONFIG_CONTENT: |
+        source:
+          type: "http"
+          options:
+            address: "localhost:8080"
+            method: "POST"
+            path: "/event"
+
+        runners:
+          - type: "jsonata"
+            options:
+              expression: |
+                {
+                  "orderId":   $.id,
+                  "customer":  $uppercase($.customer),
+                  "total":     $round($sum($.items.(qty * price)), 2),
+                  "itemCount": $count($.items),
+                  "items":     $.items.{"name": name, "subtotal": $round(qty * price, 2)},
+                  "greeting":  "Hello, " & $.customer & "! Your order total is $" & $string($round($sum($.items.(qty * price)), 2)),
+                  "source":    $metadata.source,
+                  "timestamp": $.date
+                }
+              exposeMetadata: true
+              timeout: "5s"
+            routines: 4
+          - type: "http"
+            options:
+              method: "POST"
+              url: "http://localhost:9090/event"
+            routines: 4
+    args: []
+    restartTries: 0
+  - name: http-source
+    cmd: "httptool"
+    args:
+      [
+        "send",
+        "--interval",
+        "1s",
+        "--header",
+        "source=httptool-test",
+        "--payload",
+        '{"id":"ORD-{{counter}}","customer":"alice","date":"{{nowtime}}","items":[{"name":"Widget","qty":2,"price":9.99},{"name":"Gadget","qty":1,"price":49.99},{"name":"Gizmo","qty":5,"price":4.99}]}',
+      ]
+    startAfter: "2s"
+killOthers: true
