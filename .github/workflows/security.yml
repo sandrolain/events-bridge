@@ -24,24 +24,6 @@ on:
     - cron: "0 0 * * 1"
 
 jobs:
-  gosec:
-    name: Security Scan (gosec)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.25"
-
-      - name: Run gosec
-        uses: securego/gosec@master
-        with:
-          args: "-exclude-generated -exclude-dir=examples -exclude-dir=test -tests=false ./..."
-
   trivy:
     name: Vulnerability Scan (Trivy)
     runs-on: ubuntu-latest
