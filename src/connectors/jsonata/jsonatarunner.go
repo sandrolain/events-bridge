@@ -55,11 +55,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/recolabs/gnata"
 	"github.com/sandrolain/events-bridge/src/connectors"
 	"github.com/sandrolain/events-bridge/src/message"
-	gosonata "github.com/sandrolain/gosonata"
-	"github.com/sandrolain/gosonata/pkg/evaluator"
-	"github.com/sandrolain/gosonata/pkg/types"
 )
 
 // Ensure JSONataRunner implements connectors.Runner at compile time.
@@ -108,8 +106,7 @@ type RunnerConfig struct {
 type JSONataRunner struct {
 	cfg  *RunnerConfig
 	slog *slog.Logger
-	expr *types.Expression
-	eval *evaluator.Evaluator
+	expr *gnata.Expression
 	mu   sync.Mutex
 	stop chan struct{}
 }
@@ -148,25 +145,10 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 	}
 
 	// Pre-compile the expression once.
-	expr, err := gosonata.Compile(src)
+	expr, err := gnata.Compile(src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile jsonata expression: %w", err)
 	}
-
-	// Report any non-fatal compilation warnings.
-	if errs := expr.Errors(); len(errs) > 0 {
-		for _, e := range errs {
-			log.Warn("jsonata compile warning", "error", e)
-		}
-	}
-
-	// Build the reusable evaluator.
-	ev := evaluator.New(
-		evaluator.WithCaching(cfg.EnableCaching),
-		evaluator.WithCacheSize(cfg.CacheSize),
-		evaluator.WithConcurrency(cfg.EnableConcurrency),
-		evaluator.WithTimeout(cfg.Timeout),
-	)
 
 	log.Info("jsonata expression compiled",
 		"source", describeSource(cfg),
@@ -179,7 +161,6 @@ func NewRunner(anyCfg any) (connectors.Runner, error) {
 		cfg:  cfg,
 		slog: log,
 		expr: expr,
-		eval: ev,
 		stop: make(chan struct{}),
 	}, nil
 }
@@ -214,13 +195,13 @@ func (r *JSONataRunner) Process(msg *message.RunnerMessage) error {
 	}
 
 	// Execute the expression.
-	result, err := r.eval.EvalWithBindings(ctx, r.expr, dataVal, bindings)
+	result, err := r.expr.EvalWithVars(ctx, dataVal, bindings)
 	if err != nil {
 		return fmt.Errorf("jsonata evaluation error: %w", err)
 	}
 
-	// Normalise the result so that types.Null{} becomes JSON null.
-	result = normaliseResult(result)
+	// Normalise evaluator-specific values so JSON null serialises correctly.
+	result = gnata.NormalizeValue(result)
 
 	// Optionally wrap the output together with the original payload.
 	var out interface{}
@@ -262,32 +243,14 @@ func (r *JSONataRunner) Close() error {
 	return nil
 }
 
-// normaliseResult recursively converts types.Null{} values to nil so that they
-// serialise as JSON null rather than the zero-value struct representation.
+// normaliseResult converts evaluator-specific values to plain Go values,
+// including JSON null sentinels to nil for JSON marshalling compatibility.
 func normaliseResult(v interface{}) interface{} {
-	if v == nil {
-		return nil
-	}
-	switch val := v.(type) {
-	case types.Null:
-		return nil
-	case map[string]interface{}:
-		for k, child := range val {
-			val[k] = normaliseResult(child)
-		}
-		return val
-	case []interface{}:
-		for i, child := range val {
-			val[i] = normaliseResult(child)
-		}
-		return val
-	default:
-		return val
-	}
+	return gnata.NormalizeValue(v)
 }
 
 // metadataToInterface converts a map[string]string to map[string]interface{}
-// to satisfy the EvalWithBindings bindings type.
+// to satisfy EvalWithVars variable binding values.
 func metadataToInterface(m map[string]string) map[string]interface{} {
 	out := make(map[string]interface{}, len(m))
 	for k, v := range m {
