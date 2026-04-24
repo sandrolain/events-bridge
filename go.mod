@@ -1,6 +1,6 @@
 module github.com/sandrolain/events-bridge
 
-go 1.26.0
+go 1.26.2
 
 require (
 	cloud.google.com/go/pubsub/v2 v2.4.0
@@ -33,6 +33,7 @@ require (
 	github.com/nats-io/nats.go v1.49.0
 	github.com/pion/dtls/v3 v3.1.2
 	github.com/plgd-dev/go-coap/v3 v3.4.2
+	github.com/recolabs/gnata v0.2.1
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/segmentio/kafka-go v0.4.50
@@ -141,11 +142,13 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/rs/xid v1.6.0 // indirect
-	github.com/sandrolain/gosonata v0.0.0-20260224090041-3e9178732919 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.1 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
